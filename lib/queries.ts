@@ -348,13 +348,15 @@ export async function getFMRByCounty(countyName: string, stateCode: string, year
 
   // Check if we have SAFMR data for any of these ZIP codes
   if (zipCodes.length > 0) {
-    const safmrResults = await sql`
-      SELECT zip_code, bedroom_0, bedroom_1, bedroom_2, bedroom_3, bedroom_4, effective_date
-      FROM safmr_data
-      WHERE zip_code = ANY(${zipCodes})
-        AND year = ${targetYear}
-      ORDER BY zip_code
-    `;
+    const zipPlaceholders = zipCodes.map((_, i) => `$${i + 1}`).join(', ');
+    const safmrResults = await sql.query(
+      `SELECT zip_code, bedroom_0, bedroom_1, bedroom_2, bedroom_3, bedroom_4, effective_date
+       FROM safmr_data
+       WHERE zip_code IN (${zipPlaceholders})
+         AND year = $${zipCodes.length + 1}
+       ORDER BY zip_code`,
+      [...zipCodes, targetYear]
+    );
 
     if (safmrResults.rows.length > 0) {
       // We have SAFMR data - return all ZIP codes with their individual FMR values

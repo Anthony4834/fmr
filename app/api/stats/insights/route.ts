@@ -103,13 +103,16 @@ export async function GET(request: NextRequest) {
       const zipCountyMap = new Map<string, { countyName: string; stateCode: string; cityName?: string }>();
       if (allZipCodes.length > 0) {
         // Get county mappings (excluding PR)
-        const countyMappings = await sql`
-          SELECT DISTINCT ON (zip_code) zip_code, county_name, state_code
-          FROM zip_county_mapping
-          WHERE zip_code = ANY(${allZipCodes})
-            AND state_code != 'PR'
-          ORDER BY zip_code, county_name
-        `;
+        // Use IN clause with proper parameterization for array
+        const placeholders = allZipCodes.map((_, i) => `$${i + 1}`).join(', ');
+        const countyMappings = await sql.query(
+          `SELECT DISTINCT ON (zip_code) zip_code, county_name, state_code
+           FROM zip_county_mapping
+           WHERE zip_code IN (${placeholders})
+             AND state_code != 'PR'
+           ORDER BY zip_code, county_name`,
+          allZipCodes
+        );
         
         // Get city names - unnest all cities and filter (excluding PR)
         const cityMappings = await sql`
@@ -138,7 +141,7 @@ export async function GET(request: NextRequest) {
           zipCountyMap.set(zipCode, {
             countyName: row.county_name,
             stateCode: row.state_code,
-            cityName: cityMap.get(key) || null,
+            cityName: cityMap.get(key) || undefined,
           });
         });
       }
@@ -148,24 +151,26 @@ export async function GET(request: NextRequest) {
         z => !zipCountyMap.has(z)
       );
       if (missingZipCodes.length > 0) {
-        const fallbackMappings = await sql`
-          SELECT DISTINCT ON (zcm.zip_code)
+        const fallbackPlaceholders = missingZipCodes.map((_, i) => `$${i + 1}`).join(', ');
+        const fallbackMappings = await sql.query(
+          `SELECT DISTINCT ON (zcm.zip_code)
             zcm.zip_code,
             zcm.county_name,
             zcm.state_code,
             c.city_name
           FROM zip_county_mapping zcm
           LEFT JOIN cities c ON zcm.zip_code = ANY(c.zip_codes) AND zcm.state_code = c.state_code
-          WHERE zcm.zip_code = ANY(${missingZipCodes})
+          WHERE zcm.zip_code IN (${fallbackPlaceholders})
             AND zcm.state_code != 'PR'
-          ORDER BY zcm.zip_code, zcm.county_name
-        `;
+          ORDER BY zcm.zip_code, zcm.county_name`,
+          missingZipCodes
+        );
         fallbackMappings.rows.forEach(row => {
           const zipCode = String(row.zip_code);
           zipCountyMap.set(zipCode, {
             countyName: row.county_name,
             stateCode: row.state_code,
-            cityName: row.city_name || null,
+            cityName: row.city_name || undefined,
           });
         });
       }
@@ -247,13 +252,15 @@ export async function GET(request: NextRequest) {
       if (allAnomalyZipCodes.length > allZipCodes.length) {
         const additionalZipCodes = anomalyZipCodes.filter(z => !allZipCodes.includes(z));
         if (additionalZipCodes.length > 0) {
-          const additionalMappings = await sql`
-            SELECT DISTINCT ON (zip_code) zip_code, county_name, state_code
-            FROM zip_county_mapping
-            WHERE zip_code = ANY(${additionalZipCodes})
-              AND state_code != 'PR'
-            ORDER BY zip_code, county_name
-          `;
+          const additionalPlaceholders = additionalZipCodes.map((_, i) => `$${i + 1}`).join(', ');
+          const additionalMappings = await sql.query(
+            `SELECT DISTINCT ON (zip_code) zip_code, county_name, state_code
+             FROM zip_county_mapping
+             WHERE zip_code IN (${additionalPlaceholders})
+               AND state_code != 'PR'
+             ORDER BY zip_code, county_name`,
+            additionalZipCodes
+          );
 
           const additionalCityMappings = await sql`
             SELECT 
@@ -281,7 +288,7 @@ export async function GET(request: NextRequest) {
             zipCountyMap.set(zipCode, {
               countyName: row.county_name,
               stateCode: row.state_code,
-              cityName: additionalCityMap.get(key) || null,
+              cityName: additionalCityMap.get(key) || undefined,
             });
           });
         }
@@ -366,8 +373,9 @@ export async function GET(request: NextRequest) {
         'VI', 'GU', 'MP', 'AS' // US territories: US Virgin Islands, Guam, Northern Mariana Islands, American Samoa (PR excluded)
       ];
       
-      const cityData = await sql`
-        SELECT 
+      const validUSStatesPlaceholders = validUSStates.map((_, i) => `$${i + 1}`).join(', ');
+      const cityData = await sql.query(
+        `SELECT 
           c.city_name,
           c.state_code,
           c.state_name,
@@ -386,10 +394,11 @@ export async function GET(request: NextRequest) {
           AND c.city_name NOT ILIKE '% County'
           AND c.city_name NOT ILIKE '% Parish'
           AND c.city_name NOT ILIKE '% Borough'
-          AND c.state_code = ANY(${validUSStates})
+          AND c.state_code IN (${validUSStatesPlaceholders})
         GROUP BY c.city_name, c.state_code, c.state_name, c.zip_codes
-        HAVING COUNT(DISTINCT sd.zip_code) > 0
-      `;
+        HAVING COUNT(DISTINCT sd.zip_code) > 0`,
+        validUSStates
+      );
 
       const citiesWithAvg = cityData.rows.map(city => {
         const bedrooms = [

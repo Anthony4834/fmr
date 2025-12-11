@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
         };
       })
       .filter((item: AddressSuggestion) => item.address.trim().length > 0)
-      .sort((a, b) => {
+      .sort((a: AddressSuggestion, b: AddressSuggestion) => {
         // Prioritize addresses with ZIP codes
         if (a.zipCode && !b.zipCode) return -1;
         if (!a.zipCode && b.zipCode) return 1;

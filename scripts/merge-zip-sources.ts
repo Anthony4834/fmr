@@ -241,9 +241,6 @@ async function mergeSources() {
     console.log(`Looking up ${stillMissing.length} ZIPs via ${apiType} API...`);
     console.log('(This may take a while. Consider running lookup-zip-counties.ts separately)\n');
     
-    // Import the lookup function
-    const { lookupWithCensus } = await import('./lookup-zip-counties.ts');
-    
     // Note: This is a simplified version - full API lookup should use lookup-zip-counties.ts
     console.log('For API lookups, run:');
     console.log(`  bun scripts/lookup-zip-counties.ts --file app/zips-missing-counties.txt --api ${apiType}\n`);
