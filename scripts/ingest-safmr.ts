@@ -60,25 +60,35 @@ function parseSAFMRCSV(csvContent: string, year: number, effectiveDate?: Date): 
   });
 
   const safmrRecords: SAFMRRecord[] = [];
+  const seen = new Set<string>(); // Track unique records
 
   for (const row of records) {
     try {
       // Map CSV columns to SAFMRRecord structure
-      // Adjust these column names based on actual HUD CSV format
-      const zipCode = normalizeZipCode(row['zip_code'] || row['zip'] || row['zipcode'] || '');
+      // HUD FY 2026 format: ZIP Code, SAFMR 0BR-4BR (headers may have newlines)
+      const zipCode = normalizeZipCode(
+        row['ZIP\nCode'] || row['ZIP Code'] || row['zip_code'] || row['zip'] || row['zipcode'] || ''
+      );
 
       if (!zipCode || zipCode.length !== 5) {
         continue; // Skip invalid ZIP codes
       }
 
+      // Check for duplicates using unique constraint key
+      const key = `${year}-${zipCode}`;
+      if (seen.has(key)) {
+        continue; // Skip duplicate
+      }
+      seen.add(key);
+
       const record: SAFMRRecord = {
         year,
         zipCode,
-        bedroom0: parseFloat(row['bedroom_0'] || row['efficiency'] || row['0br'] || '0') || undefined,
-        bedroom1: parseFloat(row['bedroom_1'] || row['1br'] || '0') || undefined,
-        bedroom2: parseFloat(row['bedroom_2'] || row['2br'] || '0') || undefined,
-        bedroom3: parseFloat(row['bedroom_3'] || row['3br'] || '0') || undefined,
-        bedroom4: parseFloat(row['bedroom_4'] || row['4br'] || '0') || undefined,
+        bedroom0: parseFloat(row['SAFMR\n0BR'] || row['SAFMR 0BR'] || row['bedroom_0'] || row['efficiency'] || row['0br'] || '0') || undefined,
+        bedroom1: parseFloat(row['SAFMR\n1BR'] || row['SAFMR 1BR'] || row['bedroom_1'] || row['1br'] || '0') || undefined,
+        bedroom2: parseFloat(row['SAFMR\n2BR'] || row['SAFMR 2BR'] || row['bedroom_2'] || row['2br'] || '0') || undefined,
+        bedroom3: parseFloat(row['SAFMR\n3BR'] || row['SAFMR 3BR'] || row['bedroom_3'] || row['3br'] || '0') || undefined,
+        bedroom4: parseFloat(row['SAFMR\n4BR'] || row['SAFMR 4BR'] || row['bedroom_4'] || row['4br'] || '0') || undefined,
         effectiveDate: effectiveDate || undefined
       };
 
@@ -120,17 +130,28 @@ export async function ingestSAFMRData(config: IngestionConfig & { url?: string }
     }
   }
 
-  // Determine data URL
-  const dataUrl = url || getDefaultSAFMRUrl(year);
-  console.log(`Downloading SAFMR data from: ${dataUrl}`);
+  // Determine data source (URL or file)
+  let csvContent: string;
+  
+  if (url) {
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      console.log(`Downloading SAFMR data from: ${url}`);
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Failed to download SAFMR data: ${response.status} ${response.statusText}`);
+      }
+      csvContent = await response.text();
+    } else {
+      // Treat as file path
+      console.log(`Reading SAFMR data from file: ${url}`);
+      const { readFileSync } = await import('fs');
+      csvContent = readFileSync(url, 'utf-8');
+    }
+  } else {
+    throw new Error('Please provide --url or --file argument with SAFMR data source');
+  }
 
   try {
-    // Download CSV data
-    const response = await fetch(dataUrl);
-    if (!response.ok) {
-      throw new Error(`Failed to download SAFMR data: ${response.status} ${response.statusText}`);
-    }
-    const csvContent = await response.text();
 
     // Parse CSV
     console.log('Parsing CSV data...');
@@ -166,7 +187,7 @@ if (require.main === module) {
     if (args[i] === '--year' && args[i + 1]) {
       options.year = parseInt(args[i + 1]);
       i++;
-    } else if (args[i] === '--url' && args[i + 1]) {
+    } else if ((args[i] === '--url' || args[i] === '--file') && args[i + 1]) {
       options.url = args[i + 1];
       i++;
     } else if (args[i] === '--replace') {

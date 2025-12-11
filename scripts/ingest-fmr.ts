@@ -60,32 +60,45 @@ function parseFMRCSV(csvContent: string, year: number, effectiveDate?: Date): FM
   });
 
   const fmrRecords: FMRRecord[] = [];
+  const seen = new Set<string>(); // Track unique records
 
   for (const row of records) {
     try {
       // Map CSV columns to FMRRecord structure
-      // Adjust these column names based on actual HUD CSV format
-      const areaType = row['area_type']?.toLowerCase().includes('metro') 
-        ? 'metropolitan' 
-        : 'nonmetropolitan';
+      // HUD FY 2026 format: stusps, state, hud_area_code, countyname, metro, hud_area_name, fips, fmr_0-4
+      const metro = parseInt(row['metro'] || '0');
+      const areaType = metro === 1 ? 'metropolitan' : 'nonmetropolitan';
+
+      // Use countyname as primary identifier to avoid deduplication issues
+      // Multiple counties can share the same hud_area_name (metro area)
+      const countyName = row['countyname'] || row['county_town_name'] || '';
+      const hudAreaName = row['hud_area_name'] || '';
+      
+      // Use county name if available, otherwise fall back to hud_area_name
+      const areaName = countyName || hudAreaName || row['area_name'] || row['county_name'] || '';
 
       const record: FMRRecord = {
         year,
         areaType,
-        areaName: row['area_name'] || row['county_name'] || row['metro_name'] || '',
-        stateCode: normalizeStateCode(row['state_code'] || row['state'] || ''),
-        countyCode: row['county_code'] || row['fips_code'] || undefined,
-        bedroom0: parseFloat(row['bedroom_0'] || row['efficiency'] || row['0br'] || '0') || undefined,
-        bedroom1: parseFloat(row['bedroom_1'] || row['1br'] || '0') || undefined,
-        bedroom2: parseFloat(row['bedroom_2'] || row['2br'] || '0') || undefined,
-        bedroom3: parseFloat(row['bedroom_3'] || row['3br'] || '0') || undefined,
-        bedroom4: parseFloat(row['bedroom_4'] || row['4br'] || '0') || undefined,
+        areaName: areaName,
+        stateCode: normalizeStateCode(row['stusps'] || row['state_code'] || row['state'] || ''),
+        countyCode: row['fips'] || row['county_code'] || row['fips_code'] || undefined,
+        bedroom0: parseFloat(row['fmr_0'] || row['bedroom_0'] || row['efficiency'] || row['0br'] || '0') || undefined,
+        bedroom1: parseFloat(row['fmr_1'] || row['bedroom_1'] || row['1br'] || '0') || undefined,
+        bedroom2: parseFloat(row['fmr_2'] || row['bedroom_2'] || row['2br'] || '0') || undefined,
+        bedroom3: parseFloat(row['fmr_3'] || row['bedroom_3'] || row['3br'] || '0') || undefined,
+        bedroom4: parseFloat(row['fmr_4'] || row['bedroom_4'] || row['4br'] || '0') || undefined,
         effectiveDate: effectiveDate || undefined
       };
 
       // Validate required fields
       if (record.areaName && record.stateCode && record.stateCode.length === 2) {
-        fmrRecords.push(record);
+        // Check for duplicates using unique constraint key (now based on county name, not metro area)
+        const key = `${year}-${record.areaName}-${record.stateCode}-${record.areaType}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          fmrRecords.push(record);
+        }
       }
     } catch (error) {
       console.warn(`Error parsing row:`, row, error);
@@ -124,17 +137,28 @@ export async function ingestFMRData(config: IngestionConfig & { url?: string }):
     }
   }
 
-  // Determine data URL
-  const dataUrl = url || getDefaultFMRUrl(year);
-  console.log(`Downloading FMR data from: ${dataUrl}`);
+  // Determine data source (URL or file)
+  let csvContent: string;
+  
+  if (url) {
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      console.log(`Downloading FMR data from: ${url}`);
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Failed to download FMR data: ${response.status} ${response.statusText}`);
+      }
+      csvContent = await response.text();
+    } else {
+      // Treat as file path
+      console.log(`Reading FMR data from file: ${url}`);
+      const { readFileSync } = await import('fs');
+      csvContent = readFileSync(url, 'utf-8');
+    }
+  } else {
+    throw new Error('Please provide --url or --file argument with FMR data source');
+  }
 
   try {
-    // Download CSV data
-    const response = await fetch(dataUrl);
-    if (!response.ok) {
-      throw new Error(`Failed to download FMR data: ${response.status} ${response.statusText}`);
-    }
-    const csvContent = await response.text();
 
     // Parse CSV
     console.log('Parsing CSV data...');

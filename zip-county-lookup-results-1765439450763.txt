@@ -1,0 +1,1379 @@
+ZIP Code	County Name	State Code	State Name	City Name	Source	Success	Error
+10521	Westchester County	NY	New York	Croton-on-Hudson	googlemaps	Yes	
+14261	Erie County	NY	New York		googlemaps	Yes	
+14756	Chautauqua County	NY	New York	Maple Springs	googlemaps	Yes	
+15123	Allegheny County	PA	Pennsylvania	West Mifflin	googlemaps	Yes	
+16699	Cambria County	PA	Pennsylvania	Cresson	googlemaps	Yes	
+17071	Perry County	PA	Pennsylvania	NEW GERMANTON	googlemaps	Yes	
+17606	Lancaster County	PA	Pennsylvania	Lancaster	googlemaps	Yes	
+20317		DC	District of Columbia	Washington	googlemaps	No	
+22746	Rappahannock County	VA	Virginia	Viewtown	googlemaps	Yes	
+23412	Accomack County	VA	Virginia	Modest Town	googlemaps	Yes	
+25057	Fayette County	WV	West Virginia	Deep Water	googlemaps	Yes	
+25152	Fayette County	WV	West Virginia	Page	googlemaps	Yes	
+27695	Wake County	NC	North Carolina	Raleigh	googlemaps	Yes	
+27972	Dare County	NC	North Carolina	Salvo	googlemaps	Yes	
+28254	Mecklenburg County	NC	North Carolina	Charlotte	googlemaps	Yes	
+28589	Carteret County	NC	North Carolina	Williston	googlemaps	Yes	
+29724	Chester County	SC	South Carolina	Lando	googlemaps	Yes	
+31084	Wilcox County	GA	Georgia	Seville	googlemaps	Yes	
+31814	Stewart County	GA	Georgia	Louvale	googlemaps	Yes	
+32026	Union County	FL	Florida	Raiford	googlemaps	Yes	
+32072	Contagem	MG	State of Minas Gerais		googlemaps	Yes	
+32157	Putnam County	FL	Florida	Lake Como	googlemaps	Yes	
+32323	Franklin County	FL	Florida	Lanark Village	googlemaps	Yes	
+34137	Collier County	FL	Florida	Copeland	googlemaps	Yes	
+35004	St. Clair County	AL	Alabama	Moody	googlemaps	Yes	
+35005	Jefferson County	AL	Alabama	Adamsville	googlemaps	Yes	
+35006		AL	Alabama		googlemaps	No	
+35007	Shelby County	AL	Alabama	Alabaster	googlemaps	Yes	
+35010		AL	Alabama	ALEX CITY	googlemaps	No	
+35011	Tallapoosa County	AL	Alabama	ALEX CITY	googlemaps	Yes	
+35013	Blount County	AL	Alabama	Allgood	googlemaps	Yes	
+35014		AL	Alabama		googlemaps	No	
+35016		AL	Alabama	Arab	googlemaps	No	
+35019		AL	Alabama	Baileyton	googlemaps	No	
+35020	Jefferson County	AL	Alabama	Bessemer	googlemaps	Yes	
+35021	Jefferson County	AL	Alabama	Bessemer	googlemaps	Yes	
+35022		AL	Alabama	Helena	googlemaps	No	
+35023	Jefferson County	AL	Alabama	Bessemer	googlemaps	Yes	
+35031	Blount County	AL	Alabama	Blountsville	googlemaps	Yes	
+35032	Talladega County	AL	Alabama	Bon Air	googlemaps	Yes	
+35033		AL	Alabama	Bremen	googlemaps	No	
+35034		AL	Alabama	Brent	googlemaps	No	
+35035	Bibb County	AL	Alabama	Brierfield	googlemaps	Yes	
+35036	Jefferson County	AL	Alabama	Cardiff	googlemaps	Yes	
+35038	Walker County	AL	Alabama	Dora	googlemaps	Yes	
+35040		AL	Alabama	Calera	googlemaps	No	
+35042		AL	Alabama	Centreville	googlemaps	No	
+35043	Shelby County	AL	Alabama	Chelsea	googlemaps	Yes	
+35044	Talladega County	AL	Alabama	Childersburg	googlemaps	Yes	
+35045	Chilton County	AL	Alabama	Clanton	googlemaps	Yes	
+35046		AL	Alabama	Clanton	googlemaps	No	
+35048	Jefferson County	AL	Alabama	Clay	googlemaps	Yes	
+35049	Blount County	AL	Alabama	Cleveland	googlemaps	Yes	
+35051	Shelby County	AL	Alabama	Columbiana	googlemaps	Yes	
+35052	St. Clair County	AL	Alabama	Cook Springs	googlemaps	Yes	
+35053		AL	Alabama	Crane Hill	googlemaps	No	
+35054	St. Clair County	AL	Alabama		googlemaps	Yes	
+35055	Cullman County	AL	Alabama	Cullman	googlemaps	Yes	
+35056	Cullman County	AL	Alabama	Cullman	googlemaps	Yes	
+35057	Cullman County	AL	Alabama	Cullman	googlemaps	Yes	
+35058	Cullman County	AL	Alabama	Cullman	googlemaps	Yes	
+35060	Jefferson County	AL	Alabama	Docena	googlemaps	Yes	
+35061	Jefferson County	AL	Alabama		googlemaps	Yes	
+35062		AL	Alabama	Dora	googlemaps	No	
+35063		AL	Alabama	Empire	googlemaps	No	
+35064	Jefferson County	AL	Alabama	Fairfield	googlemaps	Yes	
+35068	Jefferson County	AL	Alabama	Fultondale	googlemaps	Yes	
+35070	Cullman County	AL	Alabama	Garden City	googlemaps	Yes	
+35071	Jefferson County	AL	Alabama	Gardendale	googlemaps	Yes	
+35072		AL	Alabama	Goodwater	googlemaps	No	
+35073	Jefferson County	AL	Alabama	Graysville	googlemaps	Yes	
+35074	Bibb County	AL	Alabama	Green Pond	googlemaps	Yes	
+35077	Cullman County	AL	Alabama	Hanceville	googlemaps	Yes	
+35078		AL	Alabama	Harpersville	googlemaps	No	
+35079		AL	Alabama	Hayden	googlemaps	No	
+35080	Shelby County	AL	Alabama	Helena	googlemaps	Yes	
+35082	Clay County	AL	Alabama	Hollins	googlemaps	Yes	
+35083	Cullman County	AL	Alabama	Holly Pond	googlemaps	Yes	
+35085	Chilton County	AL	Alabama	Jemison	googlemaps	Yes	
+35087		AL	Alabama	Joppa	googlemaps	No	
+35089		AL	Alabama	Kellyton	googlemaps	No	
+35091	Jefferson County	AL	Alabama	Kimberly	googlemaps	Yes	
+35094		AL	Alabama	Leeds	googlemaps	No	
+35096		AL	Alabama	Lincoln	googlemaps	No	
+35097	Blount County	AL	Alabama	Locust Fork	googlemaps	Yes	
+35098		AL	Alabama	Logan	googlemaps	No	
+35111		AL	Alabama	Lake View	googlemaps	No	
+35112	St. Clair County	AL	Alabama	Margaret	googlemaps	Yes	
+35114	Shelby County	AL	Alabama		googlemaps	Yes	
+35115		AL	Alabama	Montevallo	googlemaps	No	
+35116	Jefferson County	AL	Alabama	Morris	googlemaps	Yes	
+35117	Jefferson County	AL	Alabama	Mount Olive	googlemaps	Yes	
+35118	Jefferson County	AL	Alabama	Mulga	googlemaps	Yes	
+35119	Jefferson County	AL	Alabama		googlemaps	Yes	
+35120	St. Clair County	AL	Alabama		googlemaps	Yes	
+35121		AL	Alabama	Oneonta	googlemaps	No	
+35124	Shelby County	AL	Alabama	Indian Springs Village	googlemaps	Yes	
+35125	St. Clair County	AL	Alabama	Pell City	googlemaps	Yes	
+35126		AL	Alabama	Bradford	googlemaps	No	
+35127	Jefferson County	AL	Alabama	Pleasant Grove	googlemaps	Yes	
+35128		AL	Alabama	Pell City	googlemaps	No	
+35130		AL	Alabama	West Jefferson	googlemaps	No	
+35131		AL	Alabama	Ragland	googlemaps	No	
+35133		AL	Alabama	Remlap	googlemaps	No	
+35135		AL	Alabama	Riverside	googlemaps	No	
+35136	Coosa County	AL	Alabama	Rockford	googlemaps	Yes	
+35143		AL	Alabama	Shelby	googlemaps	No	
+35146		AL	Alabama	Springville	googlemaps	No	
+35147	Shelby County	AL	Alabama	Westover	googlemaps	Yes	
+35148		AL	Alabama	Sumiton	googlemaps	No	
+35149	Talladega County	AL	Alabama		googlemaps	Yes	
+35150		AL	Alabama	Sylacauga	googlemaps	No	
+35151		AL	Alabama	Sylacauga	googlemaps	No	
+35160		AL	Alabama	Waldo	googlemaps	No	
+35171	Chilton County	AL	Alabama	Thorsby	googlemaps	Yes	
+35172		AL	Alabama	Trafford	googlemaps	No	
+35173		AL	Alabama	Trussville	googlemaps	No	
+35175		AL	Alabama	Union Grove	googlemaps	No	
+35176	Shelby County	AL	Alabama	Vandiver	googlemaps	Yes	
+35178		AL	Alabama	Vincent	googlemaps	No	
+35179		AL	Alabama	Vinemont	googlemaps	No	
+35180		AL	Alabama	Warrior	googlemaps	No	
+35181	Jefferson County	AL	Alabama	Watson	googlemaps	Yes	
+35183	Coosa County	AL	Alabama	Weogufka	googlemaps	Yes	
+35184	Bibb County	AL	Alabama	West Blocton	googlemaps	Yes	
+35185	Shelby County	AL	Alabama	Westover	googlemaps	Yes	
+35186		AL	Alabama	Wilsonville	googlemaps	No	
+35188		AL	Alabama	Woodstock	googlemaps	No	
+35201	Jefferson County	AL	Alabama	Birmingham	googlemaps	Yes	
+35202	Jefferson County	AL	Alabama	Birmingham	googlemaps	Yes	
+35203	Jefferson County	AL	Alabama	Birmingham	googlemaps	Yes	
+35204	Jefferson County	AL	Alabama	Birmingham	googlemaps	Yes	
+35205	Jefferson County	AL	Alabama	Birmingham	googlemaps	Yes	
+35206	Jefferson County	AL	Alabama	Birmingham	googlemaps	Yes	
+35207	Jefferson County	AL	Alabama	Birmingham	googlemaps	Yes	
+35208	Jefferson County	AL	Alabama	Birmingham	googlemaps	Yes	
+35209	Jefferson County	AL	Alabama	Birmingham	googlemaps	Yes	
+35210	Jefferson County	AL	Alabama	Irondale	googlemaps	Yes	
+35211	Jefferson County	AL	Alabama	Birmingham	googlemaps	Yes	
+35212	Jefferson County	AL	Alabama	Birmingham	googlemaps	Yes	
+35213	Jefferson County	AL	Alabama	Birmingham	googlemaps	Yes	
+35214	Jefferson County	AL	Alabama	Forestdale	googlemaps	Yes	
+35215	Jefferson County	AL	Alabama	Birmingham	googlemaps	Yes	
+35216		AL	Alabama	Hoover	googlemaps	No	
+35217	Jefferson County	AL	Alabama	Birmingham	googlemaps	Yes	
+35218	Jefferson County	AL	Alabama	Birmingham	googlemaps	Yes	
+35219	Jefferson County	AL	Alabama	Birmingham	googlemaps	Yes	
+35220	Jefferson County	AL	Alabama	Birmingham	googlemaps	Yes	
+35221	Jefferson County	AL	Alabama	Birmingham	googlemaps	Yes	
+35222	Jefferson County	AL	Alabama	Birmingham	googlemaps	Yes	
+35223	Jefferson County	AL	Alabama	Birmingham	googlemaps	Yes	
+35224	Jefferson County	AL	Alabama	Birmingham	googlemaps	Yes	
+35226	Jefferson County	AL	Alabama		googlemaps	Yes	
+35228	Jefferson County	AL	Alabama	Midfield	googlemaps	Yes	
+35229	Jefferson County	AL	Alabama	Birmingham	googlemaps	Yes	
+35231	Jefferson County	AL	Alabama	Birmingham	googlemaps	Yes	
+35232	Jefferson County	AL	Alabama	Birmingham	googlemaps	Yes	
+35233	Jefferson County	AL	Alabama	Birmingham	googlemaps	Yes	
+35234	Jefferson County	AL	Alabama	Birmingham	googlemaps	Yes	
+35235	Jefferson County	AL	Alabama	Birmingham	googlemaps	Yes	
+35236	Jefferson County	AL	Alabama	Hoover	googlemaps	Yes	
+35238	Shelby County	AL	Alabama	Birmingham	googlemaps	Yes	
+35242		AL	Alabama	Birmingham	googlemaps	No	
+35243		AL	Alabama	Birmingham	googlemaps	No	
+35244		AL	Alabama		googlemaps	No	
+35249	Jefferson County	AL	Alabama	Birmingham	googlemaps	Yes	
+35253	Jefferson County	AL	Alabama	Birmingham	googlemaps	Yes	
+35254	Jefferson County	AL	Alabama	Birmingham	googlemaps	Yes	
+35255	Jefferson County	AL	Alabama	Birmingham	googlemaps	Yes	
+35259	Jefferson County	AL	Alabama	Birmingham	googlemaps	Yes	
+35260	Jefferson County	AL	Alabama	Birmingham	googlemaps	Yes	
+35261	Jefferson County	AL	Alabama	Birmingham	googlemaps	Yes	
+35266	Jefferson County	AL	Alabama	Birmingham	googlemaps	Yes	
+35285	Jefferson County	AL	Alabama	Birmingham	googlemaps	Yes	
+35293	Jefferson County	AL	Alabama	Birmingham	googlemaps	Yes	
+35294	Jefferson County	AL	Alabama	Birmingham	googlemaps	Yes	
+35295	Jefferson County	AL	Alabama	Birmingham	googlemaps	Yes	
+35401	Tuscaloosa County	AL	Alabama	Tuscaloosa	googlemaps	Yes	
+35402	Tuscaloosa County	AL	Alabama	Tuscaloosa	googlemaps	Yes	
+35403	Tuscaloosa County	AL	Alabama	Tuscaloosa	googlemaps	Yes	
+35404	Tuscaloosa County	AL	Alabama	Tuscaloosa	googlemaps	Yes	
+35405	Tuscaloosa County	AL	Alabama	Tuscaloosa	googlemaps	Yes	
+35406	Tuscaloosa County	AL	Alabama	Tuscaloosa	googlemaps	Yes	
+35407	Tuscaloosa County	AL	Alabama	Tuscaloosa	googlemaps	Yes	
+35441		AL	Alabama	Akron	googlemaps	No	
+35442		AL	Alabama	Memphis	googlemaps	No	
+35443		AL	Alabama	Boligee	googlemaps	No	
+35444		AL	Alabama	Brookwood	googlemaps	No	
+35446	Tuscaloosa County	AL	Alabama	Buhl	googlemaps	Yes	
+35447	Pickens County	AL	Alabama	Carrollton	googlemaps	Yes	
+35449	Tuscaloosa County	AL	Alabama	Coaling	googlemaps	Yes	
+35452	Tuscaloosa County	AL	Alabama	Coker	googlemaps	Yes	
+35453	Tuscaloosa County	AL	Alabama	Cottondale	googlemaps	Yes	
+35456		AL	Alabama	Duncanville	googlemaps	No	
+35457	Tuscaloosa County	AL	Alabama	Echola	googlemaps	Yes	
+35458	Tuscaloosa County	AL	Alabama	Elrod	googlemaps	Yes	
+35459	Sumter County	AL	Alabama	Emelle	googlemaps	Yes	
+35460	Sumter County	AL	Alabama	Epes	googlemaps	Yes	
+35461		AL	Alabama	Ethelsville	googlemaps	No	
+35463		AL	Alabama	Fosters	googlemaps	No	
+35464		AL	Alabama	Gainesville	googlemaps	No	
+35466		AL	Alabama	Gordo	googlemaps	No	
+35469		AL	Alabama	Knoxville	googlemaps	No	
+35470		AL	Alabama	Coatopa	googlemaps	No	
+35473	Tuscaloosa County	AL	Alabama	Northport	googlemaps	Yes	
+35474		AL	Alabama	Havana	googlemaps	No	
+35475	Tuscaloosa County	AL	Alabama	Northport	googlemaps	Yes	
+35476	Tuscaloosa County	AL	Alabama	Northport	googlemaps	Yes	
+35477	Sumter County	AL	Alabama	Panola	googlemaps	Yes	
+35480		AL	Alabama	Ralph	googlemaps	No	
+35481	Pickens County	AL	Alabama	Reform	googlemaps	Yes	
+35486	Tuscaloosa County	AL	Alabama	Tuscaloosa	googlemaps	Yes	
+35487	Tuscaloosa County	AL	Alabama	Tuscaloosa	googlemaps	Yes	
+35490		AL	Alabama	Vance	googlemaps	No	
+35491	Greene County	AL	Alabama	West Greene	googlemaps	Yes	
+35501	Walker County	AL	Alabama	Jasper	googlemaps	Yes	
+35503		AL	Alabama	Jasper	googlemaps	No	
+35504	Walker County	AL	Alabama	Jasper	googlemaps	Yes	
+35540		AL	Alabama	Arley	googlemaps	No	
+35542	Fayette County	AL	Alabama	Bankston	googlemaps	Yes	
+35543	Marion County	AL	Alabama	Bear Creek	googlemaps	Yes	
+35544		AL	Alabama	Beaverton	googlemaps	No	
+35546		AL	Alabama	Berry	googlemaps	No	
+35549		AL	Alabama	Carbon Hill	googlemaps	No	
+35552		AL	Alabama	Detroit	googlemaps	No	
+35554		AL	Alabama	Eldridge	googlemaps	No	
+35555		AL	Alabama	Fayette	googlemaps	No	
+35563		AL	Alabama	Gu-Win	googlemaps	No	
+35565		AL	Alabama	Haleyville	googlemaps	No	
+35571		AL	Alabama	Hodges	googlemaps	No	
+35572		AL	Alabama	Houston	googlemaps	No	
+35574		AL	Alabama	Kennedy	googlemaps	No	
+35575		AL	Alabama	Lynn	googlemaps	No	
+35576		AL	Alabama	Millport	googlemaps	No	
+35578		AL	Alabama	Nauvoo	googlemaps	No	
+35579		AL	Alabama	Oakman	googlemaps	No	
+35581		AL	Alabama	Phil Campbell	googlemaps	No	
+35582		AL	Alabama	Red Bay	googlemaps	No	
+35584	Walker County	AL	Alabama	Sipsey	googlemaps	Yes	
+35585	Franklin County	AL	Alabama	Spruce Pine	googlemaps	Yes	
+35593		AL	Alabama	Vina	googlemaps	No	
+35594		AL	Alabama	Winfield	googlemaps	No	
+35601		AL	Alabama	Decatur	googlemaps	No	
+35610		AL	Alabama	Anderson	googlemaps	No	
+35612	Limestone County	AL	Alabama	Athens	googlemaps	Yes	
+35614		AL	Alabama	Athens	googlemaps	No	
+35615	Limestone County	AL	Alabama	Belle Mina	googlemaps	Yes	
+35616		AL	Alabama	Cherokee	googlemaps	No	
+35619		AL	Alabama	Danville	googlemaps	No	
+35621		AL	Alabama	Eva	googlemaps	No	
+35622		AL	Alabama	Falkville	googlemaps	No	
+35630		AL	Alabama	Florence	googlemaps	No	
+35631	Lauderdale County	AL	Alabama	Florence	googlemaps	Yes	
+35634	Lauderdale County	AL	Alabama	Florence	googlemaps	Yes	
+35643		AL	Alabama	Hillsboro	googlemaps	No	
+35650	Lawrence County	AL	Alabama	Moulton	googlemaps	Yes	
+35651		AL	Alabama	Mount Hope	googlemaps	No	
+35652		AL	Alabama	Rogersville	googlemaps	No	
+35653		AL	Alabama	Littleville	googlemaps	No	
+35654		AL	Alabama	Russellville	googlemaps	No	
+35660		AL	Alabama	Sheffield	googlemaps	No	
+35661		AL	Alabama	Muscle Shoals	googlemaps	No	
+35672		AL	Alabama	Town Creek	googlemaps	No	
+35673		AL	Alabama	Trinity	googlemaps	No	
+35739		AL	Alabama	Ardmore	googlemaps	No	
+35744	Jackson County	AL	Alabama	Dutton	googlemaps	Yes	
+35748		AL	Alabama	Gurley	googlemaps	No	
+35749		AL	Alabama	Harvest	googlemaps	No	
+35754		AL	Alabama		googlemaps	No	
+35755		AL	Alabama	Langston	googlemaps	No	
+35756		AL	Alabama	Madison	googlemaps	No	
+35757		AL	Alabama	Madison	googlemaps	No	
+35758	Madison County	AL	Alabama	Triana	googlemaps	Yes	
+35760		AL	Alabama	New Hope	googlemaps	No	
+35765		AL	Alabama	Pisgah	googlemaps	No	
+35769		AL	Alabama	Scottsboro	googlemaps	No	
+35771		AL	Alabama	Section	googlemaps	No	
+35773		AL	Alabama	Toney	googlemaps	No	
+35775		AL	Alabama	VLHRMOSO SPGS	googlemaps	No	
+35776		AL	Alabama	Woodville	googlemaps	No	
+35901		AL	Alabama	Gadsden	googlemaps	No	
+35903		AL	Alabama	Hokes Bluff	googlemaps	No	
+35905		AL	Alabama	Gadsden	googlemaps	No	
+35906		AL	Alabama	Rainbow City	googlemaps	No	
+35951		AL	Alabama	Albertville	googlemaps	No	
+35952		AL	Alabama	Susan Moore	googlemaps	No	
+35954		AL	Alabama	Attalla	googlemaps	No	
+35957		AL	Alabama	Sardis City	googlemaps	No	
+35961		AL	Alabama	Collinsville	googlemaps	No	
+35962		AL	Alabama	Crossville	googlemaps	No	
+35966		AL	Alabama	Flat Rock	googlemaps	No	
+35967		AL	Alabama	Fort Payne	googlemaps	No	
+35972		AL	Alabama	Gallant	googlemaps	No	
+35975		AL	Alabama	Grove Oak	googlemaps	No	
+35976		AL	Alabama	Guntersville	googlemaps	No	
+35978		AL	Alabama	Henagar	googlemaps	No	
+35979		AL	Alabama	Higdon	googlemaps	No	
+35980		AL	Alabama	Horton	googlemaps	No	
+35984		AL	Alabama	Mentone	googlemaps	No	
+36003		AL	Alabama	Autaugaville	googlemaps	No	
+36005		AL	Alabama	Banks	googlemaps	No	
+36006		AL	Alabama	Billingsley	googlemaps	No	
+36009		AL	Alabama	Brantley	googlemaps	No	
+36010		AL	Alabama	Brundidge	googlemaps	No	
+36022		AL	Alabama	Deatsville	googlemaps	No	
+36026		AL	Alabama	Equality	googlemaps	No	
+36027		AL	Alabama	Bakerhill	googlemaps	No	
+36028		AL	Alabama	Dozier	googlemaps	No	
+36029		AL	Alabama	Fitzpatrick	googlemaps	No	
+36030		AL	Alabama	Forest Home	googlemaps	No	
+36032		AL	Alabama	Fort Deposit	googlemaps	No	
+36033		AL	Alabama	Georgiana	googlemaps	No	
+36035		AL	Alabama	Goshen	googlemaps	No	
+36036		AL	Alabama	Grady	googlemaps	No	
+36037		AL	Alabama	Greenville	googlemaps	No	
+36039		AL	Alabama	Hardaway	googlemaps	No	
+36042		AL	Alabama	Honoraville	googlemaps	No	
+36043		AL	Alabama		googlemaps	No	
+36046		AL	Alabama	Lapine	googlemaps	No	
+36047		AL	Alabama	Letohatchee	googlemaps	No	
+36048		AL	Alabama	Louisville	googlemaps	No	
+36051		AL	Alabama	Marbury	googlemaps	No	
+36052		AL	Alabama		googlemaps	No	
+36053		AL	Alabama	Midway	googlemaps	No	
+36054		AL	Alabama	Millbrook	googlemaps	No	
+36064		AL	Alabama	Pike Road	googlemaps	No	
+36066		AL	Alabama	Prattville	googlemaps	No	
+36069		AL	Alabama	Ramer	googlemaps	No	
+36071		AL	Alabama	Rutledge	googlemaps	No	
+36075		AL	Alabama	Shorter	googlemaps	No	
+36078		AL	Alabama	Tallassee	googlemaps	No	
+36079		AL	Alabama	Troy	googlemaps	No	
+36080		AL	Alabama	Titus	googlemaps	No	
+36081		AL	Alabama	Troy	googlemaps	No	
+36091		AL	Alabama	Verbena	googlemaps	No	
+36108		AL	Alabama	Montgomery	googlemaps	No	
+36110		AL	Alabama	Montgomery	googlemaps	No	
+36203		AL	Alabama	Oxford	googlemaps	No	
+36207		AL	Alabama	Anniston	googlemaps	No	
+36251		AL	Alabama	Ashland	googlemaps	No	
+36255		AL	Alabama	Cragford	googlemaps	No	
+36256		AL	Alabama	Daviston	googlemaps	No	
+36258		AL	Alabama	Delta	googlemaps	No	
+36260		AL	Alabama		googlemaps	No	
+36264		AL	Alabama	Heflin	googlemaps	No	
+36266		AL	Alabama	Lineville	googlemaps	No	
+36268		AL	Alabama	Munford	googlemaps	No	
+36272		AL	Alabama	BRDN SPRNGS	googlemaps	No	
+36274		AL	Alabama	Roanoke	googlemaps	No	
+36276		AL	Alabama	Wadley	googlemaps	No	
+36279		AL	Alabama	Wellington	googlemaps	No	
+36301		AL	Alabama	Rehobeth	googlemaps	No	
+36303		AL	Alabama	Dothan	googlemaps	No	
+36305		AL	Alabama	Dothan	googlemaps	No	
+36311		AL	Alabama	Ariton	googlemaps	No	
+36316		AL	Alabama	Chancellor	googlemaps	No	
+36317		AL	Alabama	Clopton	googlemaps	No	
+36318		AL	Alabama	Coffee Springs	googlemaps	No	
+36319		AL	Alabama	Columbia	googlemaps	No	
+36322		AL	Alabama	Level Plains	googlemaps	No	
+36330		AL	Alabama	Enterprise	googlemaps	No	
+36345		AL	Alabama	Headland	googlemaps	No	
+36350		AL	Alabama	Midland City	googlemaps	No	
+36352		AL	Alabama	Newton	googlemaps	No	
+36353		AL	Alabama	Newville	googlemaps	No	
+36360		AL	Alabama	Ozark	googlemaps	No	
+36374		AL	Alabama	Skipperville	googlemaps	No	
+36375		AL	Alabama	Slocomb	googlemaps	No	
+36401		AL	Alabama	Burnt Corn	googlemaps	No	
+36420		AL	Alabama	Babbie	googlemaps	No	
+36421		AL	Alabama	Andalusia	googlemaps	No	
+36426		AL	Alabama	East Brewton	googlemaps	No	
+36432		AL	Alabama	Castleberry	googlemaps	No	
+36435		AL	Alabama	Coy	googlemaps	No	
+36453		AL	Alabama	Kinston	googlemaps	No	
+36456		AL	Alabama	McKenzie	googlemaps	No	
+36460		AL	Alabama	Monroeville	googlemaps	No	
+36467		AL	Alabama	Opp	googlemaps	No	
+36471		AL	Alabama	Peterman	googlemaps	No	
+36474		AL	Alabama	Red Level	googlemaps	No	
+36475		AL	Alabama	Repton	googlemaps	No	
+36477		AL	Alabama	Samson	googlemaps	No	
+36480		AL	Alabama	Uriah	googlemaps	No	
+36482		AL	Alabama	Whatley	googlemaps	No	
+36483		AL	Alabama		googlemaps	No	
+36502		AL	Alabama	Atmore	googlemaps	No	
+36505		AL	Alabama	Axis	googlemaps	No	
+36522		AL	Alabama	Citronelle	googlemaps	No	
+36524		AL	Alabama	Coffeeville	googlemaps	No	
+36525		AL	Alabama	Creola	googlemaps	No	
+36540		AL	Alabama	Gainestown	googlemaps	No	
+36545		AL	Alabama	Walker Springs	googlemaps	No	
+36550		AL	Alabama	Little River	googlemaps	No	
+36556		AL	Alabama	Malcolm	googlemaps	No	
+36558		AL	Alabama	Bigbee	googlemaps	No	
+36560		AL	Alabama	Mount Vernon	googlemaps	No	
+36562		AL	Alabama	Perdido	googlemaps	No	
+36579		AL	Alabama	Stockton	googlemaps	No	
+36585		AL	Alabama	Wagarville	googlemaps	No	
+36610		AL	Alabama		googlemaps	No	
+36701		AL	Alabama	Selma	googlemaps	No	
+36703		AL	Alabama	Selma	googlemaps	No	
+36720		AL	Alabama	Alberta	googlemaps	No	
+36722		AL	Alabama	Arlington	googlemaps	No	
+36728		AL	Alabama	Catherine	googlemaps	No	
+36732		AL	Alabama	Demopolis	googlemaps	No	
+36738		AL	Alabama	Dayton	googlemaps	No	
+36740		AL	Alabama	Forkland	googlemaps	No	
+36742		AL	Alabama	Gallion	googlemaps	No	
+36744		AL	Alabama	Greensboro	googlemaps	No	
+36749		AL	Alabama	Jones	googlemaps	No	
+36750		AL	Alabama	Maplesville	googlemaps	No	
+36751		AL	Alabama	LWR PCH TREE	googlemaps	No	
+36758		AL	Alabama	Plantersville	googlemaps	No	
+36759		AL	Alabama	Marion Junction	googlemaps	No	
+36761		AL	Alabama		googlemaps	No	
+36765		AL	Alabama	Newbern	googlemaps	No	
+36768		AL	Alabama	Pine Apple	googlemaps	No	
+36773		AL	Alabama	Safford	googlemaps	No	
+36775		AL	Alabama	Sardis	googlemaps	No	
+36776		AL	Alabama	Sawyerville	googlemaps	No	
+36783		AL	Alabama	Thomaston	googlemaps	No	
+36784		AL	Alabama	Thomasville	googlemaps	No	
+36785		AL	Alabama	Benton	googlemaps	No	
+36786		AL	Alabama	Uniontown	googlemaps	No	
+36792		AL	Alabama	Randolph	googlemaps	No	
+36793		AL	Alabama	Lawley	googlemaps	No	
+36801		AL	Alabama	Opelika	googlemaps	No	
+36804		AL	Alabama	Opelika	googlemaps	No	
+36830		AL	Alabama	Auburn	googlemaps	No	
+36832		AL	Alabama	Auburn	googlemaps	No	
+36850		AL	Alabama	Camp Hill	googlemaps	No	
+36852		AL	Alabama	Cusseta	googlemaps	No	
+36853		AL	Alabama	Dadeville	googlemaps	No	
+36854		AL	Alabama	Valley	googlemaps	No	
+36860		AL	Alabama	Hurtsboro	googlemaps	No	
+36866		AL	Alabama	Notasulga	googlemaps	No	
+36867		AL	Alabama	Phenix City	googlemaps	No	
+36870		AL	Alabama	Phenix City	googlemaps	No	
+36871		AL	Alabama	Pittsview	googlemaps	No	
+36874		AL	Alabama	Salem	googlemaps	No	
+36879		AL	Alabama	Auburn	googlemaps	No	
+36912		AL	Alabama	Lisman	googlemaps	No	
+36916		AL	Alabama	Pennington	googlemaps	No	
+36919		AL	Alabama	Silas	googlemaps	No	
+36921		AL	Alabama	Toxey	googlemaps	No	
+36922		AL	Alabama	Ward	googlemaps	No	
+36925		AL	Alabama	York	googlemaps	No	
+57752		SD	South Dakota	Kyle	googlemaps	No	
+71602		AR	Arkansas	White Hall	googlemaps	No	
+71603		AR	Arkansas	Pine Bluff	googlemaps	No	
+71630		AR	Arkansas	Arkansas City	googlemaps	No	
+71631		AR	Arkansas	Banks	googlemaps	No	
+71638		AR	Arkansas	Collins	googlemaps	No	
+71639		AR	Arkansas	Dumas	googlemaps	No	
+71642		AR	Arkansas	Fountain Hill	googlemaps	No	
+71643		AR	Arkansas	Gould	googlemaps	No	
+71644		AR	Arkansas	Grady	googlemaps	No	
+71646		AR	Arkansas	Hamburg	googlemaps	No	
+71647		AR	Arkansas	Hermitage	googlemaps	No	
+71651		AR	Arkansas	Jersey	googlemaps	No	
+71652		AR	Arkansas	Kingsland	googlemaps	No	
+71653		AR	Arkansas	Lake Village	googlemaps	No	
+71654		AR	Arkansas	McGehee	googlemaps	No	
+71655		AR	Arkansas	Monticello	googlemaps	No	
+71658		AR	Arkansas	Montrose	googlemaps	No	
+71660		AR	Arkansas	New Edinburg	googlemaps	No	
+71661		AR	Arkansas	Parkdale	googlemaps	No	
+71663		AR	Arkansas	Portland	googlemaps	No	
+71665		AR	Arkansas	Rison	googlemaps	No	
+71667		AR	Arkansas	Star City	googlemaps	No	
+71670		AR	Arkansas	Tillar	googlemaps	No	
+71671		AR	Arkansas	Warren	googlemaps	No	
+71674		AR	Arkansas	Watson	googlemaps	No	
+71675		AR	Arkansas	Wilmar	googlemaps	No	
+71676		AR	Arkansas	Wilmot	googlemaps	No	
+71677		AR	Arkansas	Winchester	googlemaps	No	
+71701		AR	Arkansas	Camden	googlemaps	No	
+71720		AR	Arkansas	Bearden	googlemaps	No	
+71725		AR	Arkansas	Carthage	googlemaps	No	
+71726		AR	Arkansas	Reader	googlemaps	No	
+71730		AR	Arkansas	El Dorado	googlemaps	No	
+71740		AR	Arkansas	Emerson	googlemaps	No	
+71742		AR	Arkansas	Fordyce	googlemaps	No	
+71743		AR	Arkansas	Gurdon	googlemaps	No	
+71747		AR	Arkansas	Huttig	googlemaps	No	
+71750		Negeri Sembilan	Negeri Sembilan	Lenggeng	googlemaps	No	
+71751		AR	Arkansas	Louann	googlemaps	No	
+71752		AR	Arkansas	McNeil	googlemaps	No	
+71753		AR	Arkansas	Magnolia	googlemaps	No	
+71758		AR	Arkansas	Mount Holly	googlemaps	No	
+71762		AR	Arkansas	Smackover	googlemaps	No	
+71763		AR	Arkansas	Manning	googlemaps	No	
+71764		AR	Arkansas	Stephens	googlemaps	No	
+71765		AR	Arkansas	Strong	googlemaps	No	
+71770		AR	Arkansas	Waldo	googlemaps	No	
+71801		AR	Arkansas	Hope	googlemaps	No	
+71822		AR	Arkansas	Ashdown	googlemaps	No	
+71826		AR	Arkansas	Bradley	googlemaps	No	
+71827		AR	Arkansas	Buckner	googlemaps	No	
+71833		AR	Arkansas	Dierks	googlemaps	No	
+71835		AR	Arkansas	Emmet	googlemaps	No	
+71838		AR	Arkansas	Fulton	googlemaps	No	
+71839		AR	Arkansas	Garland City	googlemaps	No	
+71841		AR	Arkansas	Gillham	googlemaps	No	
+71842		AR	Arkansas	Horatio	googlemaps	No	
+71845		AR	Arkansas	Lewisville	googlemaps	No	
+71846		AR	Arkansas	Lockesburg	googlemaps	No	
+71847		AR	Arkansas	McCaskill	googlemaps	No	
+71851		AR	Arkansas	Mineral Springs	googlemaps	No	
+71852		AR	Arkansas	Nashville	googlemaps	No	
+71853		AR	Arkansas	Ogden	googlemaps	No	
+71854		AR	Arkansas	Texarkana	googlemaps	No	
+71857		AR	Arkansas	Laneburg	googlemaps	No	
+71859		AR	Arkansas	Saratoga	googlemaps	No	
+71860		AR	Arkansas	Stamps	googlemaps	No	
+71861		AR	Arkansas	Taylor	googlemaps	No	
+71866		AR	Arkansas	Winthrop	googlemaps	No	
+71909		AR	Arkansas		googlemaps	No	
+71913		AR	Arkansas		googlemaps	No	
+71921		AR	Arkansas	Amity	googlemaps	No	
+71923		AR	Arkansas	Arkadelphia	googlemaps	No	
+71929		AR	Arkansas	Bismarck	googlemaps	No	
+71933		AR	Arkansas	Bonnerdale	googlemaps	No	
+71940		AR	Arkansas	Delight	googlemaps	No	
+71943		AR	Arkansas	Glenwood	googlemaps	No	
+71949		AR	Arkansas	Buckville	googlemaps	No	
+71950		Negeri Sembilan	Negeri Sembilan	Siliau	googlemaps	No	
+71953		AR	Arkansas	Mena	googlemaps	No	
+71957		AR	Arkansas	Mount Ida	googlemaps	No	
+71959		AR	Arkansas	Newhope	googlemaps	No	
+71962		AR	Arkansas	Okolona	googlemaps	No	
+71964		AR	Arkansas	Pearcy	googlemaps	No	
+71970		AR	Arkansas	Story	googlemaps	No	
+71971		AR	Arkansas	Umpire	googlemaps	No	
+71972		AR	Arkansas	Vandervoort	googlemaps	No	
+71973		AR	Arkansas	Wickes	googlemaps	No	
+72001		AR	Arkansas	Adona	googlemaps	No	
+72002		AR	Arkansas	Alexander	googlemaps	No	
+72004		AR	Arkansas	Altheimer	googlemaps	No	
+72010		AR	Arkansas	Bald Knob	googlemaps	No	
+72011		AR	Arkansas	Bauxite	googlemaps	No	
+72012		AR	Arkansas	Beebe	googlemaps	No	
+72013		AR	Arkansas	Bee Branch	googlemaps	No	
+72015		AR	Arkansas	Bryant	googlemaps	No	
+72016		AR	Arkansas	Bigelow	googlemaps	No	
+72020		AR	Arkansas	Bradford	googlemaps	No	
+72023		AR	Arkansas	Cabot	googlemaps	No	
+72024		AR	Arkansas	Carlisle	googlemaps	No	
+72025		AR	Arkansas	Casa	googlemaps	No	
+72026		AR	Arkansas	Casscoe	googlemaps	No	
+72030		AR	Arkansas	Cleveland	googlemaps	No	
+72031		AR	Arkansas	Clinton	googlemaps	No	
+72036		AR	Arkansas	Cotton Plant	googlemaps	No	
+72038		AR	Arkansas	Crocketts Bluff	googlemaps	No	
+72039		AR	Arkansas	Twin Groves	googlemaps	No	
+72040		AR	Arkansas	Des Arc	googlemaps	No	
+72041		AR	Arkansas	De Valls Bluff	googlemaps	No	
+72044		AR	Arkansas	Edgemont	googlemaps	No	
+72046		AR	Arkansas	England	googlemaps	No	
+72048		AR	Arkansas	Ethel	googlemaps	No	
+72051		AR	Arkansas	Fox	googlemaps	No	
+72055		AR	Arkansas	Gillett	googlemaps	No	
+72057		AR	Arkansas	Grapevine	googlemaps	No	
+72060		AR	Arkansas	Griffithville	googlemaps	No	
+72063		AR	Arkansas	Hattieville	googlemaps	No	
+72065		AR	Arkansas	Hensley	googlemaps	No	
+72067		AR	Arkansas	Higden	googlemaps	No	
+72069		AR	Arkansas	Holly Grove	googlemaps	No	
+72070		AR	Arkansas	Houston	googlemaps	No	
+72073		AR	Arkansas	Humphrey	googlemaps	No	
+72076		AR	Arkansas		googlemaps	No	
+72079		AR	Arkansas	Jefferson	googlemaps	No	
+72080		Pue.	Puebla	Puebla	googlemaps	No	
+72084		AR	Arkansas	Leola	googlemaps	No	
+72086		AR	Arkansas	Lonoke	googlemaps	No	
+72087		AR	Arkansas	Lonsdale	googlemaps	No	
+72088		AR	Arkansas	Fairfield Bay	googlemaps	No	
+72101		AR	Arkansas	Howell	googlemaps	No	
+72103		AR	Arkansas		googlemaps	No	
+72104		AR	Arkansas	Rockport	googlemaps	No	
+72106		AR	Arkansas	Mayflower	googlemaps	No	
+72110		AR	Arkansas	Morrilton	googlemaps	No	
+72111		AR	Arkansas	Mount Vernon	googlemaps	No	
+72112		AR	Arkansas	Newport	googlemaps	No	
+72113		AR	Arkansas	North Little Rock	googlemaps	No	
+72118		AR	Arkansas	North Little Rock	googlemaps	No	
+72120		AR	Arkansas	Sherwood	googlemaps	No	
+72121		AR	Arkansas	Pangburn	googlemaps	No	
+72122		AR	Arkansas	Paron	googlemaps	No	
+72125		AR	Arkansas	Perry	googlemaps	No	
+72126		AR	Arkansas	Perryville	googlemaps	No	
+72131		AR	Arkansas	Quitman	googlemaps	No	
+72132		AR	Arkansas	Redfield	googlemaps	No	
+72134		AR	Arkansas	Roe	googlemaps	No	
+72135		AR	Arkansas	Roland	googlemaps	No	
+72137		AR	Arkansas	Rose Bud	googlemaps	No	
+72141		AR	Arkansas	Scotland	googlemaps	No	
+72142		AR	Arkansas	Scott	googlemaps	No	
+72143		AR	Arkansas	Searcy	googlemaps	No	
+72150		AR	Arkansas	Sheridan	googlemaps	No	
+72153		AR	Arkansas	Shirley	googlemaps	No	
+72160		AR	Arkansas	Stuttgart	googlemaps	No	
+72166		AR	Arkansas	Tichnor	googlemaps	No	
+72167		AR	Arkansas	Traskwood	googlemaps	No	
+72175		AR	Arkansas	Wabbaseka	googlemaps	No	
+72176		AR	Arkansas	Ward	googlemaps	No	
+72206		AR	Arkansas	Little Rock	googlemaps	No	
+72210		AR	Arkansas	Little Rock	googlemaps	No	
+72310		Pue.	Puebla	Plazas Amalucan	googlemaps	No	
+72320		AR	Arkansas	Brickeys	googlemaps	No	
+72324		AR	Arkansas	Cherry Valley	googlemaps	No	
+72326		AR	Arkansas	Colt	googlemaps	No	
+72328		AR	Arkansas	Crumrod	googlemaps	No	
+72331		AR	Arkansas	Earle	googlemaps	No	
+72333		AR	Arkansas	Elaine	googlemaps	No	
+72335		AR	Arkansas	Forrest City	googlemaps	No	
+72338		AR	Arkansas	Frenchmans Bayou	googlemaps	No	
+72342		AR	Arkansas		googlemaps	No	
+72346		AR	Arkansas	Heth	googlemaps	No	
+72347		AR	Arkansas	Hickory Ridge	googlemaps	No	
+72348		AR	Arkansas	Horseshoe Lake	googlemaps	No	
+72354		AR	Arkansas	Lepanto	googlemaps	No	
+72355		AR	Arkansas	Lexa	googlemaps	No	
+72358		AR	Arkansas	Luxora	googlemaps	No	
+72366		AR	Arkansas	Marvell	googlemaps	No	
+72368		AR	Arkansas	Moro	googlemaps	No	
+72372		AR	Arkansas	Palestine	googlemaps	No	
+72373		AR	Arkansas	Parkin	googlemaps	No	
+72376		AR	Arkansas	Proctor	googlemaps	No	
+72379		AR	Arkansas	Snow Lake	googlemaps	No	
+72383		AR	Arkansas	Turner	googlemaps	No	
+72386		AR	Arkansas	Tyronza	googlemaps	No	
+72392		AR	Arkansas	Wheatley	googlemaps	No	
+72396		AR	Arkansas	Wynne	googlemaps	No	
+72401		AR	Arkansas	Jonesboro	googlemaps	No	
+72410		Pue.	Puebla	Villa la Noria	googlemaps	No	
+72411		AR	Arkansas	Bay	googlemaps	No	
+72412		AR	Arkansas		googlemaps	No	
+72413		AR	Arkansas	Biggers	googlemaps	No	
+72416		AR	Arkansas	Bono	googlemaps	No	
+72419		AR	Arkansas	Caraway	googlemaps	No	
+72421		AR	Arkansas	Cash	googlemaps	No	
+72422		AR	Arkansas	Corning	googlemaps	No	
+72425		AR	Arkansas	Delaplaine	googlemaps	No	
+72429		AR	Arkansas	Fisher	googlemaps	No	
+72432		AR	Arkansas	Harrisburg	googlemaps	No	
+72434		AR	Arkansas	Imboden	googlemaps	No	
+72436		AR	Arkansas	Lafe	googlemaps	No	
+72438		AR	Arkansas	Leachville	googlemaps	No	
+72447		AR	Arkansas	Monette	googlemaps	No	
+72450		AR	Arkansas	Paragould	googlemaps	No	
+72453		AR	Arkansas	Peach Orchard	googlemaps	No	
+72459		AR	Arkansas	Ravenden	googlemaps	No	
+72461		AR	Arkansas	Rector	googlemaps	No	
+72466		AR	Arkansas	Smithville	googlemaps	No	
+72469		AR	Arkansas	Strawberry	googlemaps	No	
+72470		Pue.	Puebla	Granjas del Sur	googlemaps	No	
+72472		AR	Arkansas	Trumann	googlemaps	No	
+72476		AR	Arkansas	WILLIAMS BAPTIST COLLEGE	googlemaps	No	
+72479		AR	Arkansas	Weiner	googlemaps	No	
+72501		AR	Arkansas	Batesville	googlemaps	No	
+72513		AR	Arkansas	Ash Flat	googlemaps	No	
+72515		AR	Arkansas	Bexar	googlemaps	No	
+72519		AR	Arkansas	Calico Rock	googlemaps	No	
+72521		AR	Arkansas	Cave City	googlemaps	No	
+72523		AR	Arkansas	Concord	googlemaps	No	
+72529		AR	Arkansas	Cherokee Village	googlemaps	No	
+72530		AR	Arkansas	Drasco	googlemaps	No	
+72531		AR	Arkansas	Elizabeth	googlemaps	No	
+72532		AR	Arkansas	Evening Shade	googlemaps	No	
+72533		AR	Arkansas	Fifty-Six	googlemaps	No	
+72534		AR	Arkansas	Floral	googlemaps	No	
+72538		AR	Arkansas	Gepp	googlemaps	No	
+72542		AR	Arkansas	Hardy	googlemaps	No	
+72550		AR	Arkansas	Locust Grove	googlemaps	No	
+72554		AR	Arkansas	Mammoth Spring	googlemaps	No	
+72560		AR	Arkansas	Hanover	googlemaps	No	
+72562		AR	Arkansas	Newark	googlemaps	No	
+72566		AR	Arkansas	Pineville	googlemaps	No	
+72572		AR	Arkansas	Saffell	googlemaps	No	
+72576		AR	Arkansas	Moko	googlemaps	No	
+72577		AR	Arkansas	Sidney	googlemaps	No	
+72579		AR	Arkansas	Sulphur Rock	googlemaps	No	
+72601		AR	Arkansas	Harrison	googlemaps	No	
+72611		AR	Arkansas	Alpena	googlemaps	No	
+72626		AR	Arkansas	Cotter	googlemaps	No	
+72631		AR	Arkansas	Holiday Island	googlemaps	No	
+72633		AR	Arkansas	Everton	googlemaps	No	
+72635		AR	Arkansas	Gassville	googlemaps	No	
+72638		AR	Arkansas	Green Forest	googlemaps	No	
+72639		AR	Arkansas	Harriet	googlemaps	No	
+72642		AR	Arkansas	Lakeview	googlemaps	No	
+72644		AR	Arkansas	Lead Hill	googlemaps	No	
+72645		AR	Arkansas	Leslie	googlemaps	No	
+72650		AR	Arkansas	Marshall	googlemaps	No	
+72653		AR	Arkansas	Salesville	googlemaps	No	
+72658		AR	Arkansas	Old Joe	googlemaps	No	
+72663		AR	Arkansas	Onia	googlemaps	No	
+72675		AR	Arkansas	Saint Joe	googlemaps	No	
+72679		AR	Arkansas	Tilly	googlemaps	No	
+72680		AR	Arkansas	Alco	googlemaps	No	
+72685		AR	Arkansas	Western Grove	googlemaps	No	
+72686		AR	Arkansas	Witts Springs	googlemaps	No	
+72687		AR	Arkansas	Yellville	googlemaps	No	
+72703		AR	Arkansas	Fayetteville	googlemaps	No	
+72721		AR	Arkansas	Combs	googlemaps	No	
+72727		AR	Arkansas	Elkins	googlemaps	No	
+72738		AR	Arkansas	Hindsville	googlemaps	No	
+72740		AR	Arkansas	Huntsville	googlemaps	No	
+72742		AR	Arkansas	Kingston	googlemaps	No	
+72752		AR	Arkansas	Pettigrew	googlemaps	No	
+72756		AR	Arkansas	Rogers	googlemaps	No	
+72760		Pue.	Puebla	La Cañada	googlemaps	No	
+72761		AR	Arkansas	Siloam Springs	googlemaps	No	
+72762		AR	Arkansas	Springdale	googlemaps	No	
+72764		AR	Arkansas	Springdale	googlemaps	No	
+72821		AR	Arkansas	Altus	googlemaps	No	
+72823		AR	Arkansas	Atkins	googlemaps	No	
+72826		AR	Arkansas	Blue Mountain	googlemaps	No	
+72827		AR	Arkansas	Bluffton	googlemaps	No	
+72830		AR	Arkansas	Clarksville	googlemaps	No	
+72832		AR	Arkansas	Coal Hill	googlemaps	No	
+72833		AR	Arkansas	Danville	googlemaps	No	
+72834		AR	Arkansas	Dardanelle	googlemaps	No	
+72835		AR	Arkansas	Delaware	googlemaps	No	
+72837		AR	Arkansas	Dover	googlemaps	No	
+72839		AR	Arkansas	Hagarville	googlemaps	No	
+72841		AR	Arkansas	Harvey	googlemaps	No	
+72842		AR	Arkansas	Havana	googlemaps	No	
+72846		AR	Arkansas	Lamar	googlemaps	No	
+72847		AR	Arkansas	London	googlemaps	No	
+72851		AR	Arkansas	New Blaine	googlemaps	No	
+72852		AR	Arkansas	Oark	googlemaps	No	
+72853		AR	Arkansas	Ola	googlemaps	No	
+72854		AR	Arkansas		googlemaps	No	
+72856		AR	Arkansas	Pelsor	googlemaps	No	
+72857		AR	Arkansas	Plainview	googlemaps	No	
+72858		AR	Arkansas	Pottsville	googlemaps	No	
+72863		AR	Arkansas	Scranton	googlemaps	No	
+72901		AR	Arkansas	Fort Smith	googlemaps	No	
+72903		AR	Arkansas	Fort Smith	googlemaps	No	
+72904		AR	Arkansas	Fort Smith	googlemaps	No	
+72923		AR	Arkansas	Barling	googlemaps	No	
+72926		AR	Arkansas	Boles	googlemaps	No	
+72927		AR	Arkansas	Booneville	googlemaps	No	
+72928		AR	Arkansas	Branch	googlemaps	No	
+72930		AR	Arkansas	Cecil	googlemaps	No	
+72933		AR	Arkansas	Charleston	googlemaps	No	
+72934		AR	Arkansas	Chester	googlemaps	No	
+72938		AR	Arkansas	Hartford	googlemaps	No	
+72940		AR	Arkansas	Huntington	googlemaps	No	
+72941		AR	Arkansas	Lavaca	googlemaps	No	
+72944		AR	Arkansas	Mansfield	googlemaps	No	
+72946		AR	Arkansas	Mountainburg	googlemaps	No	
+72947		AR	Arkansas	Mulberry	googlemaps	No	
+72951		AR	Arkansas	Ratcliff	googlemaps	No	
+72956		AR	Arkansas	Van Buren	googlemaps	No	
+72959		AR	Arkansas	Winslow	googlemaps	No	
+80002		CO	Colorado	Arvada	googlemaps	No	
+80003		CO	Colorado	Westminster	googlemaps	No	
+80010		CO	Colorado	Aurora	googlemaps	No	
+80011		CO	Colorado	Aurora	googlemaps	No	
+80014		CO	Colorado	Denver	googlemaps	No	
+80016		CO	Colorado	Foxfield	googlemaps	No	
+80019		CO	Colorado	Aurora	googlemaps	No	
+80020		CO	Colorado	Broomfield	googlemaps	No	
+80021		CO	Colorado	Broomfield	googlemaps	No	
+80022		CO	Colorado	Denver	googlemaps	No	
+80023		CO	Colorado	Thornton	googlemaps	No	
+80027		CO	Colorado	Superior	googlemaps	No	
+80031		CO	Colorado	Westminster	googlemaps	No	
+80101		CO	Colorado	Agate	googlemaps	No	
+80102		CO	Colorado	Bennett	googlemaps	No	
+80103		CO	Colorado	Byers	googlemaps	No	
+80105		CO	Colorado	Deer Trail	googlemaps	No	
+80106		CO	Colorado	Elbert	googlemaps	No	
+80110		CO	Colorado	Greenwood Village	googlemaps	No	
+80112		CO	Colorado	Greenwood Village	googlemaps	No	
+80118		CO	Colorado	Larkspur	googlemaps	No	
+80120		CO	Colorado	Littleton	googlemaps	No	
+80123		CO	Colorado	Littleton	googlemaps	No	
+80125		CO	Colorado	Littleton	googlemaps	No	
+80128		CO	Colorado	Littleton	googlemaps	No	
+80135		CO	Colorado	Sedalia	googlemaps	No	
+80136		CO	Colorado	Strasburg	googlemaps	No	
+80137		CO	Colorado	Watkins	googlemaps	No	
+80138		CO	Colorado	Parker	googlemaps	No	
+80212		CO	Colorado	Denver	googlemaps	No	
+80216		CO	Colorado	Denver	googlemaps	No	
+80221		CO	Colorado	Thornton	googlemaps	No	
+80222		CO	Colorado	Denver	googlemaps	No	
+80224		CO	Colorado	Denver	googlemaps	No	
+80227		CO	Colorado	Denver	googlemaps	No	
+80230		CO	Colorado		googlemaps	No	
+80231		CO	Colorado	Denver	googlemaps	No	
+80234		CO	Colorado	Westminster	googlemaps	No	
+80235		CO	Colorado	Denver	googlemaps	No	
+80236		CO	Colorado	Denver	googlemaps	No	
+80237		CO	Colorado	Denver	googlemaps	No	
+80239		CO	Colorado	Denver	googlemaps	No	
+80246		CO	Colorado	Denver	googlemaps	No	
+80247		CO	Colorado	Denver	googlemaps	No	
+80249		CO	Colorado	Denver	googlemaps	No	
+80403		CO	Colorado	Golden	googlemaps	No	
+80421		CO	Colorado	Bailey	googlemaps	No	
+80422		CO	Colorado	Black Hawk	googlemaps	No	
+80423		CO	Colorado	Bond	googlemaps	No	
+80424		CO	Colorado	Blue River	googlemaps	No	
+80426		CO	Colorado	Burns	googlemaps	No	
+80430		CO	Colorado	Walden	googlemaps	No	
+80435		CO	Colorado	Dillon	googlemaps	No	
+80439		CO	Colorado	Golden	googlemaps	No	
+80449		CO	Colorado	Hartsel	googlemaps	No	
+80452		CO	Colorado	Idaho Springs	googlemaps	No	
+80456		CO	Colorado	Fairplay	googlemaps	No	
+80459		CO	Colorado	Kremmling	googlemaps	No	
+80461		CO	Colorado	Leadville	googlemaps	No	
+80463		CO	Colorado	McCoy	googlemaps	No	
+80466		CO	Colorado	Nederland	googlemaps	No	
+80467		CO	Colorado	Oak Creek	googlemaps	No	
+80468		CO	Colorado	Parshall	googlemaps	No	
+80470		CO	Colorado	Pine	googlemaps	No	
+80471		CO	Colorado	Pinecliffe	googlemaps	No	
+80480		CO	Colorado	Walden	googlemaps	No	
+80498		CO	Colorado	Silverthorne	googlemaps	No	
+80503		CO	Colorado	Longmont	googlemaps	No	
+80504		CO	Colorado	Longmont	googlemaps	No	
+80510		CO	Colorado	Allenspark	googlemaps	No	
+80513		CO	Colorado	Berthoud	googlemaps	No	
+80516		CO	Colorado	Erie	googlemaps	No	
+80517		CO	Colorado	Estes Park	googlemaps	No	
+80524		CO	Colorado	Fort Collins	googlemaps	No	
+80534		CO	Colorado	Loveland	googlemaps	No	
+80537		CO	Colorado	Loveland	googlemaps	No	
+80540		CO	Colorado	Lyons	googlemaps	No	
+80549		CO	Colorado	Wellington	googlemaps	No	
+80550		CO	Colorado	Severance	googlemaps	No	
+80602		CO	Colorado	Thornton	googlemaps	No	
+80603		CO	Colorado	Lochbuie	googlemaps	No	
+80612		CO	Colorado	Carr	googlemaps	No	
+80640		CO	Colorado		googlemaps	No	
+80642		CO	Colorado	Hudson	googlemaps	No	
+80643		CO	Colorado	Keenesburg	googlemaps	No	
+80649		CO	Colorado	Orchard	googlemaps	No	
+80652		CO	Colorado	Roggen	googlemaps	No	
+80654		CO	Colorado	Hoyt	googlemaps	No	
+80701		CO	Colorado	Fort Morgan	googlemaps	No	
+80721		CO	Colorado	Amherst	googlemaps	No	
+80723		CO	Colorado	Brush	googlemaps	No	
+80728		CO	Colorado	Fleming	googlemaps	No	
+80731		CO	Colorado	Haxtun	googlemaps	No	
+80733		CO	Colorado	Hillrose	googlemaps	No	
+80734		CO	Colorado	Holyoke	googlemaps	No	
+80741		CO	Colorado	Merino	googlemaps	No	
+80742		CO	Colorado	Raymer	googlemaps	No	
+80749		CO	Colorado	Sedgwick	googlemaps	No	
+80759		CO	Colorado	Yuma	googlemaps	No	
+80801		CO	Colorado	Anton	googlemaps	No	
+80802		CO	Colorado	Arapahoe	googlemaps	No	
+80804		CO	Colorado	Arriba	googlemaps	No	
+80807		CO	Colorado	Burlington	googlemaps	No	
+80808		CO	Colorado	Calhan	googlemaps	No	
+80809		CO	Colorado		googlemaps	No	
+80812		CO	Colorado	Cope	googlemaps	No	
+80815		CO	Colorado	Flagler	googlemaps	No	
+80816		CO	Colorado	Florissant	googlemaps	No	
+80818		CO	Colorado	Genoa	googlemaps	No	
+80819		CO	Colorado	Green Mountain Falls	googlemaps	No	
+80820		CO	Colorado	Guffey	googlemaps	No	
+80821		CO	Colorado	Hugo	googlemaps	No	
+80822		CO	Colorado	Joes	googlemaps	No	
+80825		CO	Colorado	Kit Carson	googlemaps	No	
+80827		CO	Colorado	Lake George	googlemaps	No	
+80828		CO	Colorado	Limon	googlemaps	No	
+80829		CO	Colorado	Manitou Springs	googlemaps	No	
+80831		CO	Colorado	Peyton	googlemaps	No	
+80832		CO	Colorado	Ramah	googlemaps	No	
+80833		CO	Colorado	Rush	googlemaps	No	
+80834		CO	Colorado	Seibert	googlemaps	No	
+80835		CO	Colorado	Simla	googlemaps	No	
+80836		CO	Colorado	Stratton	googlemaps	No	
+80863		CO	Colorado	Woodland Park	googlemaps	No	
+80864		CO	Colorado	Yoder	googlemaps	No	
+80906		CO	Colorado	Colorado Springs	googlemaps	No	
+80926		CO	Colorado	Colorado Springs	googlemaps	No	
+80928		CO	Colorado	Colorado Springs	googlemaps	No	
+81008		CO	Colorado	Pueblo	googlemaps	No	
+81020		CO	Colorado	Aguilar	googlemaps	No	
+81021		CO	Colorado	Arlington	googlemaps	No	
+81023		CO	Colorado		googlemaps	No	
+81025		CO	Colorado	Boone	googlemaps	No	
+81030		Johor	Johor		googlemaps	No	
+81036		CO	Colorado	Chivington	googlemaps	No	
+81039		CO	Colorado	Fowler	googlemaps	No	
+81040		CO	Colorado	Gardner	googlemaps	No	
+81041		CO	Colorado	Granada	googlemaps	No	
+81045		CO	Colorado	Haswell	googlemaps	No	
+81047		CO	Colorado	Bristol	googlemaps	No	
+81050		CO	Colorado	La Junta	googlemaps	No	
+81052		CO	Colorado	Lamar	googlemaps	No	
+81054		CO	Colorado	Las Animas	googlemaps	No	
+81055		CO	Colorado	La Veta	googlemaps	No	
+81058		CO	Colorado	Manzanola	googlemaps	No	
+81059		CO	Colorado	Thatcher	googlemaps	No	
+81062		CO	Colorado	Olney Springs	googlemaps	No	
+81063		CO	Colorado	Ordway	googlemaps	No	
+81064		CO	Colorado	Utleyville	googlemaps	No	
+81067		CO	Colorado	Rocky Ford	googlemaps	No	
+81069		CO	Colorado	Rye	googlemaps	No	
+81071		CO	Colorado	Towner	googlemaps	No	
+81073		CO	Colorado	Springfield	googlemaps	No	
+81076		CO	Colorado	Sugar City	googlemaps	No	
+81084		CO	Colorado	Lycan	googlemaps	No	
+81089		CO	Colorado		googlemaps	No	
+81091		CO	Colorado	Weston	googlemaps	No	
+81092		CO	Colorado	Wiley	googlemaps	No	
+81101		CO	Colorado	SAND DUNES MO	googlemaps	No	
+81120		CO	Colorado	Antonito	googlemaps	No	
+81122		CO	Colorado	Chimney Rock	googlemaps	No	
+81123		CO	Colorado	Blanca	googlemaps	No	
+81125		CO	Colorado	Center	googlemaps	No	
+81130		CO	Colorado	Creede	googlemaps	No	
+81132		CO	Colorado	Del Norte	googlemaps	No	
+81137		CO	Colorado	Ignacio	googlemaps	No	
+81140		CO	Colorado	La Jara	googlemaps	No	
+81144		CO	Colorado	Monte Vista	googlemaps	No	
+81146		CO	Colorado	Mosca	googlemaps	No	
+81147		CO	Colorado	Pagosa Springs	googlemaps	No	
+81151		CO	Colorado	Sanford	googlemaps	No	
+81154		CO	Colorado	South Fork	googlemaps	No	
+81201		CO	Colorado	Salida	googlemaps	No	
+81210		CO	Colorado	Almont	googlemaps	No	
+81211		CO	Colorado	Buena Vista	googlemaps	No	
+81212		CO	Colorado	Cañon City	googlemaps	No	
+81220		CO	Colorado	Cimarron	googlemaps	No	
+81226		CO	Colorado	Florence	googlemaps	No	
+81230		CO	Colorado	Gunnison	googlemaps	No	
+81232		CO	Colorado	Hillside	googlemaps	No	
+81236		CO	Colorado	Nathrop	googlemaps	No	
+81240		CO	Colorado	Penrose	googlemaps	No	
+81251		CO	Colorado	Twin Lakes	googlemaps	No	
+81252		CO	Colorado	Silver Cliff	googlemaps	No	
+81253		CO	Colorado	Wetmore	googlemaps	No	
+81301		CO	Colorado	Durango	googlemaps	No	
+81320		CO	Colorado	Cahone	googlemaps	No	
+81323		CO	Colorado	Dolores	googlemaps	No	
+81324		CO	Colorado	Dove Creek	googlemaps	No	
+81325		CO	Colorado	Egnar	googlemaps	No	
+81326		CO	Colorado	Hesperus	googlemaps	No	
+81328		CO	Colorado	Mancos	googlemaps	No	
+81331		CO	Colorado	Pleasant View	googlemaps	No	
+81403		CO	Colorado	Montrose	googlemaps	No	
+81413		CO	Colorado	Cedaredge	googlemaps	No	
+81415		CO	Colorado	Maher	googlemaps	No	
+81416		CO	Colorado	Delta	googlemaps	No	
+81418		CO	Colorado		googlemaps	No	
+81426		CO	Colorado	Ophir	googlemaps	No	
+81428		CO	Colorado	Paonia	googlemaps	No	
+81431		CO	Colorado	Redvale	googlemaps	No	
+81432		CO	Colorado	Ridgway	googlemaps	No	
+81434		CO	Colorado	Somerset	googlemaps	No	
+81435		CO	Colorado	Telluride	googlemaps	No	
+81522		CO	Colorado	Gateway	googlemaps	No	
+81525		CO	Colorado	Mack	googlemaps	No	
+81601		CO	Colorado	Glenwood Springs	googlemaps	No	
+81610		CO	Colorado	Dinosaur	googlemaps	No	
+81611		CO	Colorado	Aspen	googlemaps	No	
+81621		CO	Colorado	Basalt	googlemaps	No	
+81623		CO	Colorado	Carbondale	googlemaps	No	
+81625		CO	Colorado	Craig	googlemaps	No	
+81630		CO	Colorado	De Beque	googlemaps	No	
+81635		CO	Colorado	BTLMT MESA	googlemaps	No	
+81637		CO	Colorado	Gypsum	googlemaps	No	
+81638		CO	Colorado		googlemaps	No	
+81641		CO	Colorado	Meeker	googlemaps	No	
+81642		CO	Colorado	Meredith	googlemaps	No	
+81647		CO	Colorado	New Castle	googlemaps	No	
+81648		CO	Colorado	Rangely	googlemaps	No	
+81650		CO	Colorado	Rifle	googlemaps	No	
+81652		CO	Colorado	Silt	googlemaps	No	
+81653		CO	Colorado		googlemaps	No	
+81654		CO	Colorado	Snowmass	googlemaps	No	
+85119		AZ	Arizona	Apache Junction	googlemaps	No	
+85120		AZ	Arizona	Apache Junction	googlemaps	No	
+85135		AZ	Arizona	Hayden	googlemaps	No	
+85139		AZ	Arizona		googlemaps	No	
+85142		AZ	Arizona	San Tan Valley	googlemaps	No	
+85143		AZ	Arizona	San Tan Valley	googlemaps	No	
+85192		AZ	Arizona	Winkelman	googlemaps	No	
+85212		AZ	Arizona	Mesa	googlemaps	No	
+85248		AZ	Arizona	Chandler	googlemaps	No	
+85249		AZ	Arizona	Chandler	googlemaps	No	
+85320		AZ	Arizona	Aguila	googlemaps	No	
+85321		AZ	Arizona	Ajo	googlemaps	No	
+85324		AZ	Arizona	Black Canyon City	googlemaps	No	
+85333		AZ	Arizona	Dateland	googlemaps	No	
+85339		AZ	Arizona		googlemaps	No	
+85342		AZ	Arizona	Morristown	googlemaps	No	
+85390		AZ	Arizona	Wickenburg	googlemaps	No	
+85533		AZ	Arizona	Clifton	googlemaps	No	
+85539		AZ	Arizona	Miami	googlemaps	No	
+85541		AZ	Arizona	Star Valley	googlemaps	No	
+85542		AZ	Arizona	Peridot	googlemaps	No	
+85544		AZ	Arizona	Pine	googlemaps	No	
+85545		AZ	Arizona	Roosevelt	googlemaps	No	
+85602		AZ	Arizona	Benson	googlemaps	No	
+85611		AZ	Arizona	Elgin	googlemaps	No	
+85621		AZ	Arizona	Nogales	googlemaps	No	
+85632		AZ	Arizona	San Simon	googlemaps	No	
+85634		AZ	Arizona	Sells	googlemaps	No	
+85637		AZ	Arizona	Sonoita	googlemaps	No	
+85643		AZ	Arizona	Fort Grant	googlemaps	No	
+85645		AZ	Arizona	Amado	googlemaps	No	
+85653		AZ	Arizona	Marana	googlemaps	No	
+85658		AZ	Arizona	Marana	googlemaps	No	
+85739		AZ	Arizona	Saddlebrooke	googlemaps	No	
+85901		AZ	Arizona	Show Low	googlemaps	No	
+85931		AZ	Arizona		googlemaps	No	
+85935		AZ	Arizona		googlemaps	No	
+85937		AZ	Arizona	Snowflake	googlemaps	No	
+85941		AZ	Arizona	Whiteriver	googlemaps	No	
+86022		AZ	Arizona	Fredonia	googlemaps	No	
+86025		AZ	Arizona	Holbrook	googlemaps	No	
+86030		AZ	Arizona	Hotevilla-Bacavi	googlemaps	No	
+86033		AZ	Arizona	Kayenta	googlemaps	No	
+86034		AZ	Arizona	Keams Canyon	googlemaps	No	
+86044		AZ	Arizona	Tonalea	googlemaps	No	
+86047		AZ	Arizona	Winslow	googlemaps	No	
+86054		AZ	Arizona	Tonalea	googlemaps	No	
+86320		AZ	Arizona	Ash Fork	googlemaps	No	
+86336		AZ	Arizona	Sedona	googlemaps	No	
+86337		AZ	Arizona	Seligman	googlemaps	No	
+86351		AZ	Arizona	Sedona	googlemaps	No	
+86434		AZ	Arizona	Peach Springs	googlemaps	No	
+86504		AZ	Arizona	Fort Defiance	googlemaps	No	
+86505		AZ	Arizona	Ganado	googlemaps	No	
+86510		AZ	Arizona	Pinon	googlemaps	No	
+86514		AZ	Arizona	Teec Nos Pos	googlemaps	No	
+86515		AZ	Arizona	Window Rock	googlemaps	No	
+86520		AZ	Arizona	Pinon	googlemaps	No	
+89405		NV	Nevada	Empire	googlemaps	No	
+90210					googlemaps	No	No results found
+90265		CA	California	Malibu	googlemaps	No	
+90623		CA	California	La Palma	googlemaps	No	
+90631		CA	California	La Habra Heights	googlemaps	No	
+90740		CA	California	Seal Beach	googlemaps	No	
+90815		CA	California	Long Beach	googlemaps	No	
+91301		CA	California		googlemaps	No	
+91302		CA	California		googlemaps	No	
+91304		CA	California		googlemaps	No	
+91307		CA	California	Bell Canyon	googlemaps	No	
+91308		Sabah	Sabah	Semporna	googlemaps	No	
+91311		CA	California		googlemaps	No	
+91361		CA	California	Hidden Valley	googlemaps	No	
+91362		CA	California	Thousand Oaks	googlemaps	No	
+91367		CA	California		googlemaps	No	
+91381		CA	California		googlemaps	No	
+91384		CA	California	Santa Clarita	googlemaps	No	
+91709		CA	California	Chino Hills	googlemaps	No	
+91759		CA	California	Mount Baldy	googlemaps	No	
+91765		CA	California	Pomona	googlemaps	No	
+91766		CA	California	Pomona	googlemaps	No	
+92004		CA	California	Borrego Springs	googlemaps	No	
+92028		CA	California	Fallbrook	googlemaps	No	
+92059		CA	California	Pala	googlemaps	No	
+92086		CA	California	Warner Springs	googlemaps	No	
+92220		CA	California	Banning	googlemaps	No	
+92225		CA	California	Blythe	googlemaps	No	
+92257		CA	California	Niland	googlemaps	No	
+92274		CA	California	Thermal	googlemaps	No	
+92277		CA	California	Twentynine Palms	googlemaps	No	
+92301		CA	California	El Mirage	googlemaps	No	
+92320		CA	California	Calimesa	googlemaps	No	
+92324		CA	California	Grand Terrace	googlemaps	No	
+92337		CA	California	Fontana	googlemaps	No	
+92358		CA	California	Lytle Creek	googlemaps	No	
+92373		CA	California	Redlands	googlemaps	No	
+92397		CA	California	Wrightwood	googlemaps	No	
+92399		CA	California	Yucaipa	googlemaps	No	
+92501		CA	California	Riverside	googlemaps	No	
+92509		CA	California	Jurupa Valley	googlemaps	No	
+92530		CA	California	Lake Elsinore	googlemaps	No	
+92536		CA	California	Aguanga	googlemaps	No	
+92562		CA	California	Murrieta	googlemaps	No	
+92592		CA	California	Temecula	googlemaps	No	
+92672		CA	California	San Clemente	googlemaps	No	
+92673		CA	California	San Clemente	googlemaps	No	
+92675		CA	California	Mission Viejo	googlemaps	No	
+92821		CA	California	Brea	googlemaps	No	
+92878		CA	California	Corona	googlemaps	No	
+92880		CA	California	Corona	googlemaps	No	
+92881		CA	California	Corona	googlemaps	No	
+92883		CA	California	Corona	googlemaps	No	
+92887		CA	California	Yorba Linda	googlemaps	No	
+93001		CA	California	Ventura	googlemaps	No	
+93013		CA	California	Carpinteria	googlemaps	No	
+93023		CA	California	Ojai	googlemaps	No	
+93201		CA	California	Alpaugh	googlemaps	No	
+93210		CA	California	Coalinga	googlemaps	No	
+93212		CA	California	Corcoran	googlemaps	No	
+93215		CA	California	Delano	googlemaps	No	
+93219		CA	California	Earlimart	googlemaps	No	
+93224		CA	California	Fellows	googlemaps	No	
+93225		CA	California	Frazier Park	googlemaps	No	
+93226		CA	California	Glennville	googlemaps	No	
+93238		CA	California	Kernville	googlemaps	No	
+93239		CA	California	Kettleman City	googlemaps	No	
+93242		CA	California	Laton	googlemaps	No	
+93243		CA	California	Lebec	googlemaps	No	
+93249		CA	California	Lost Hills	googlemaps	No	
+93251		CA	California	McKittrick	googlemaps	No	
+93252		CA	California	Maricopa	googlemaps	No	
+93254		CA	California	Cuyama	googlemaps	No	
+93255		CA	California	Onyx	googlemaps	No	
+93260		CA	California	Posey	googlemaps	No	
+93283		CA	California	Weldon	googlemaps	No	
+93426		CA	California	Bradley	googlemaps	No	
+93434		CA	California	Guadalupe	googlemaps	No	
+93451		CA	California	San Miguel	googlemaps	No	
+93452		CA	California	Ragged Point	googlemaps	No	
+93453		CA	California	SANTA MARGAR	googlemaps	No	
+93454		CA	California	Santa Maria	googlemaps	No	
+93461		CA	California	Shandon	googlemaps	No	
+93514		CA	California	Hammil Valley	googlemaps	No	
+93516		CA	California	Boron	googlemaps	No	
+93523		CA	California	North Edwards	googlemaps	No	
+93527		CA	California	Pearsonville	googlemaps	No	
+93528		CA	California	Johannesburg	googlemaps	No	
+93535		CA	California	Hi Vista	googlemaps	No	
+93536		CA	California	Quartz Hill	googlemaps	No	
+93544		CA	California	Llano	googlemaps	No	
+93554		CA	California	Randsburg	googlemaps	No	
+93555		CA	California	Ridgecrest	googlemaps	No	
+93560		CA	California	Rosamond	googlemaps	No	
+93562		CA	California		googlemaps	No	
+93586		Sarawak	Sarawak	Kuching	googlemaps	No	
+93601		CA	California	Ahwahnee	googlemaps	No	
+93602		CA	California	Auberry	googlemaps	No	
+93610		CA	California	Chowchilla	googlemaps	No	
+93618		CA	California	Dinuba	googlemaps	No	
+93620		CA	California	Dos Palos	googlemaps	No	
+93622		CA	California	Firebaugh	googlemaps	No	
+93623		CA	California	Fish Camp	googlemaps	No	
+93626		CA	California	Friant	googlemaps	No	
+93628		CA	California	Hume	googlemaps	No	
+93630		CA	California	Kerman	googlemaps	No	
+93631		CA	California	Kingsburg	googlemaps	No	
+93635		CA	California	Los Banos	googlemaps	No	
+93640		CA	California	Mendota	googlemaps	No	
+93641		CA	California	Miramonte	googlemaps	No	
+93643		CA	California	North Fork	googlemaps	No	
+93644		CA	California	Oakhurst	googlemaps	No	
+93646		CA	California	Orange Cove	googlemaps	No	
+93653		CA	California		googlemaps	No	
+93654		CA	California	Reedley	googlemaps	No	
+93656		CA	California	Riverdale	googlemaps	No	
+93664		CA	California	Shaver Lake	googlemaps	No	
+93675		CA	California	Orange Cove	googlemaps	No	
+93720		CA	California	Fresno	googlemaps	No	
+93722		CA	California	Fresno	googlemaps	No	
+93908		CA	California	Corral de Tierra	googlemaps	No	
+93925		CA	California	Chualar	googlemaps	No	
+93926		CA	California	Gonzales	googlemaps	No	
+93930		CA	California	King City	googlemaps	No	
+94020		CA	California	La Honda	googlemaps	No	
+94028		CA	California	Portola Valley	googlemaps	No	
+94303		CA	California	Palo Alto	googlemaps	No	
+94305		CA	California	Palo Alto	googlemaps	No	
+94503		CA	California	Vallejo	googlemaps	No	
+94505		CA	California	Discovery Bay	googlemaps	No	
+94509		CA	California	Antioch	googlemaps	No	
+94514		CA	California	Discovery Bay	googlemaps	No	
+94515		CA	California	Calistoga	googlemaps	No	
+94539		CA	California	Fremont	googlemaps	No	
+94550		CA	California	Livermore	googlemaps	No	
+94551		CA	California	Livermore	googlemaps	No	
+94552		CA	California	Castro Valley	googlemaps	No	
+94556		CA	California	Moraga	googlemaps	No	
+94558		CA	California	Napa	googlemaps	No	
+94559		CA	California	Napa	googlemaps	No	
+94560		CA	California	Newark	googlemaps	No	
+94565		CA	California	Pittsburg	googlemaps	No	
+94567		CA	California	Pope Valley	googlemaps	No	
+94571		CA	California	Rio Vista	googlemaps	No	
+94574		CA	California	St. Helena	googlemaps	No	
+94585		CA	California	Birds Landing	googlemaps	No	
+94611		CA	California	Piedmont	googlemaps	No	
+94619		CA	California	Oakland	googlemaps	No	
+94706		CA	California	Berkeley	googlemaps	No	
+94707		CA	California	Berkeley	googlemaps	No	
+94708		CA	California	Berkeley	googlemaps	No	
+94804		CA	California	Richmond	googlemaps	No	
+94945		CA	California	Novato	googlemaps	No	
+94952		CA	California	Petaluma	googlemaps	No	
+94972		CA	California	Valley Ford	googlemaps	No	
+95004		CA	California	Aromas	googlemaps	No	
+95006		CA	California	Boulder Creek	googlemaps	No	
+95017		CA	California	Davenport	googlemaps	No	
+95023		CA	California	Hollister	googlemaps	No	
+95033		CA	California	Los Gatos	googlemaps	No	
+95035		CA	California	Milpitas	googlemaps	No	
+95043		CA	California	Paicines	googlemaps	No	
+95045		CA	California	SN JUN BATSTA	googlemaps	No	
+95076		CA	California	La Selva Beach	googlemaps	No	
+95132		CA	California	San Jose	googlemaps	No	
+95206		CA	California	Stockton	googlemaps	No	
+95219		CA	California	Stockton	googlemaps	No	
+95220		CA	California	Acampo	googlemaps	No	
+95222		CA	California	Angels Camp	googlemaps	No	
+95223		CA	California	Bear Valley	googlemaps	No	
+95230		CA	California	Farmington	googlemaps	No	
+95245		CA	California	Mokelumne Hill	googlemaps	No	
+95247		CA	California	Murphys	googlemaps	No	
+95254		CA	California	Wallace	googlemaps	No	
+95255		CA	California	West Point	googlemaps	No	
+95304		CA	California	Tracy	googlemaps	No	
+95311		CA	California	Coulterville	googlemaps	No	
+95316		CA	California	Denair	googlemaps	No	
+95321		CA	California	Groveland	googlemaps	No	
+95322		CA	California	Gustine	googlemaps	No	
+95325		CA	California	Hornitos	googlemaps	No	
+95327		CA	California	Jamestown	googlemaps	No	
+95329		CA	California	La Grange	googlemaps	No	
+95333		CA	California	Le Grand	googlemaps	No	
+95360		CA	California	Newman	googlemaps	No	
+95361		CA	California	Knights Ferry	googlemaps	No	
+95366		CA	California	Ripon	googlemaps	No	
+95369		CA	California	Snelling	googlemaps	No	
+95377		CA	California	Tracy	googlemaps	No	
+95380		CA	California	Turlock	googlemaps	No	
+95385		CA	California	Vernalis	googlemaps	No	
+95389		CA	California	YOSEMITE NATIONAL PARK	googlemaps	No	
+95391		CA	California	Mountain House	googlemaps	No	
+95423		CA	California	CLEARLAKE OKS	googlemaps	No	
+95425		CA	California	Cloverdale	googlemaps	No	
+95428		CA	California	Covelo	googlemaps	No	
+95445		CA	California		googlemaps	No	
+95449		CA	California	Hopland	googlemaps	No	
+95451		CA	California	Kelseyville	googlemaps	No	
+95452		CA	California	Kenwood	googlemaps	No	
+95454		CA	California	Laytonville	googlemaps	No	
+95457		CA	California	Lower Lake	googlemaps	No	
+95461		CA	California	Middletown	googlemaps	No	
+95469		CA	California	Potter Valley	googlemaps	No	
+95476		CA	California	Sonoma	googlemaps	No	
+95482		CA	California	Ukiah	googlemaps	No	
+95493		CA	California	Upper Lake	googlemaps	No	
+95494		CA	California	Yorkville	googlemaps	No	
+95511		CA	California	Alderpoint	googlemaps	No	
+95526		CA	California	Bridgeville	googlemaps	No	
+95542		CA	California	Garberville	googlemaps	No	
+95556		CA	California	Orleans	googlemaps	No	
+95568		CA	California	Somes Bar	googlemaps	No	
+95589		CA	California	Whitethorn	googlemaps	No	
+95602		CA	California	Auburn	googlemaps	No	
+95603		CA	California	Auburn	googlemaps	No	
+95605		CA	California		googlemaps	No	
+95606		CA	California	Brooks	googlemaps	No	
+95612		CA	California	Clarksburg	googlemaps	No	
+95614		CA	California	Cool	googlemaps	No	
+95616		CA	California	Davis	googlemaps	No	
+95618		CA	California	El Macero	googlemaps	No	
+95620		CA	California	Liberty Farms	googlemaps	No	
+95623		CA	California		googlemaps	No	
+95626		CA	California	Elverta	googlemaps	No	
+95629		CA	California	Fiddletown	googlemaps	No	
+95632		CA	California	Galt	googlemaps	No	
+95634		CA	California	Georgetown	googlemaps	No	
+95639		CA	California	Hood	googlemaps	No	
+95640		CA	California	Ione	googlemaps	No	
+95645		CA	California	Knights Landing	googlemaps	No	
+95646		CA	California	Kirkwood	googlemaps	No	
+95664		CA	California	Pilot Hill	googlemaps	No	
+95666		CA	California	Pioneer	googlemaps	No	
+95668		CA	California	Pleasant Grove	googlemaps	No	
+95669		CA	California	Plymouth	googlemaps	No	
+95674		CA	California	Rio Oso	googlemaps	No	
+95675		CA	California	River Pines	googlemaps	No	
+95681		CA	California	Sheridan	googlemaps	No	
+95682		CA	California	Cameron Park	googlemaps	No	
+95689		CA	California	Volcano	googlemaps	No	
+95690		CA	California	Walnut Grove	googlemaps	No	
+95691		CA	California	West Sacramento	googlemaps	No	
+95692		CA	California	Wheatland	googlemaps	No	
+95694		CA	California	Winters	googlemaps	No	
+95701		CA	California	Alta	googlemaps	No	
+95713		CA	California	Colfax	googlemaps	No	
+95714		CA	California	Dutch Flat	googlemaps	No	
+95715		CA	California	Alta	googlemaps	No	
+95728		CA	California	Soda Springs	googlemaps	No	
+95762		CA	California	Folsom	googlemaps	No	
+95837		CA	California	Sacramento	googlemaps	No	
+95901		CA	California	Marysville	googlemaps	No	
+95912		CA	California	Arbuckle	googlemaps	No	
+95914		CA	California	Bangor	googlemaps	No	
+95916		CA	California	Berry Creek	googlemaps	No	
+95922		CA	California	Camptonville	googlemaps	No	
+95928		CA	California	Chico	googlemaps	No	
+95930		CA	California	Clipper Mills	googlemaps	No	
+95932		CA	California	Colusa	googlemaps	No	
+95939		CA	California	Elk Creek	googlemaps	No	
+95941		CA	California	Forbestown	googlemaps	No	
+95942		CA	California	Forest Ranch	googlemaps	No	
+95943		CA	California	Glenn	googlemaps	No	
+95946		CA	California	Penn Valley	googlemaps	No	
+95947		CA	California	Greenville	googlemaps	No	
+95949		CA	California	Grass Valley	googlemaps	No	
+95953		CA	California	Live Oak	googlemaps	No	
+95957		CA	California	Meridian	googlemaps	No	
+95959		CA	California	Nevada City	googlemaps	No	
+95960		CA	California	North San Juan	googlemaps	No	
+95963		CA	California	Orland	googlemaps	No	
+95966		CA	California	Oroville	googlemaps	No	
+95970		CA	California	Princeton	googlemaps	No	
+95973		CA	California	Cohasset	googlemaps	No	
+95977		CA	California	Smartsville	googlemaps	No	
+95979		CA	California	Stonyford	googlemaps	No	
+95981		CA	California	La Porte	googlemaps	No	
+96006		CA	California	Adin	googlemaps	No	
+96007		CA	California	Anderson	googlemaps	No	
+96017		CA	California	Castella	googlemaps	No	
+96020		CA	California	Chester	googlemaps	No	
+96022		CA	California	Cottonwood	googlemaps	No	
+96025		CA	California	Dunsmuir	googlemaps	No	
+96028		CA	California	Fall River Mills	googlemaps	No	
+96031		CA	California	Forks of Salmon	googlemaps	No	
+96047		CA	California	Ono	googlemaps	No	
+96054		CA	California	Lookout	googlemaps	No	
+96056		CA	California	McArthur	googlemaps	No	
+96059		CA	California	Manton	googlemaps	No	
+96061		CA	California		googlemaps	No	
+96067		CA	California	Mount Shasta	googlemaps	No	
+96075		CA	California	Paynes Creek	googlemaps	No	
+96076		CA	California	Platina	googlemaps	No	
+96088		CA	California	Shingletown	googlemaps	No	
+96105		CA	California		googlemaps	No	
+96106		CA	California	Clio	googlemaps	No	
+96109		CA	California	Doyle	googlemaps	No	
+96110		CA	California	Eagleville	googlemaps	No	
+96111		CA	California	Floriston	googlemaps	No	
+96114		CA	California	Janesville	googlemaps	No	
+96118		CA	California	Loyalton	googlemaps	No	
+96121		CA	California	Milford	googlemaps	No	
+96129		CA	California	Beckwourth	googlemaps	No	
+96130		CA	California	Susanville	googlemaps	No	
+96134		CA	California	Tionesta	googlemaps	No	
+96137		CA	California		googlemaps	No	
+96142		CA	California	Tahoma	googlemaps	No	
+96150		CA	California	South Lake Tahoe	googlemaps	No	
+96161		CA	California	Truckee	googlemaps	No	
+97143		Yuc.	Yucatán	Brisas del Bosque	googlemaps	No	
+99567		AK	Alaska		googlemaps	No	
+99588		AK	Alaska	Glennallen	googlemaps	No	
+99613		AK	Alaska	Igiugig	googlemaps	No	
+99633		AK	Alaska	Naknek	googlemaps	No	
+99645		AK	Alaska	Palmer	googlemaps	No	
+99670		AK	Alaska	South Naknek	googlemaps	No	
+99678		AK	Alaska	Togiak	googlemaps	No	
+99686		AK	Alaska	Valdez	googlemaps	No	
+99693		AK	Alaska	Whittier	googlemaps	No	
+99701		AK	Alaska	Fairbanks	googlemaps	No	
+99709		AK	Alaska	Fairbanks	googlemaps	No	
+99712		AK	Alaska	Fairbanks	googlemaps	No	
+99714		AK	Alaska	Salcha	googlemaps	No	
+99729		AK	Alaska	Cantwell	googlemaps	No	
+99737		AK	Alaska	Delta Junction	googlemaps	No	
+99738		AK	Alaska	Eagle	googlemaps	No	
+99743		AK	Alaska	Healy	googlemaps	No	
+99744		AK	Alaska	Anderson	googlemaps	No	
+99760		AK	Alaska	Nenana	googlemaps	No	
+99766		AK	Alaska	Point Hope	googlemaps	No	
+99780		AK	Alaska	Mentasta Lake	googlemaps	No	
+99801		AK	Alaska	Juneau	googlemaps	No	
+99820		AK	Alaska	Angoon	googlemaps	No	
+99833		AK	Alaska	Kupreanof	googlemaps	No	
+99901		AK	Alaska	Edna Bay	googlemaps	No	
+99926		AK	Alaska	Metlakatla	googlemaps	No	

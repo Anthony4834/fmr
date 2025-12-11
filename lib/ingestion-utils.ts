@@ -109,7 +109,7 @@ export async function insertSAFMRRecords(records: SAFMRRecord[]): Promise<void> 
 
   for (const record of records) {
     placeholders.push(
-      `($${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++})`
+      `($${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++})`
     );
     values.push(
       record.year,

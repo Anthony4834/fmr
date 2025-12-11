@@ -26,14 +26,26 @@ This document outlines the data sources used for indexing FMR data.
 
 ## ZIP Code to County Mapping
 
-### U.S. Census Bureau ZCTA to County Relationship
-- **Source**: U.S. Census Bureau
+### Recommended Sources
+
+**Option 1: Row Zero (Easiest - Free CSV)**
+- **Source**: https://rowzero.com/datasets/zip-code-to-county-fips-codes
+- **Format**: Clean CSV with ZIP, County, State, FIPS codes
+- **Usage**: Download CSV and use `--file` flag
+- **Update Frequency**: Check site for updates
+
+**Option 2: Gigasheet (Comprehensive)**
+- **Source**: https://www.gigasheet.com/sample-data/zip-code-to-county-spreadsheet
+- **Format**: CSV with ZIP, State, City, County, FIPS
+- **Usage**: Export as CSV and use `--file` flag
+
+**Option 3: U.S. Census Bureau (Official)**
+- **Source**: https://www.census.gov/geographies/mapping-files.html
+- **Alternative**: https://www.census.gov/data/data-tools/gazetteer.html
+- **Format**: May require column mapping adjustments
 - **Update Frequency**: Rarely changes (one-time import)
-- **Format**: CSV with ZIP code, county name, state, FIPS codes
-- **Finding the Data**:
-  - Search for "ZIP Code Tabulation Area to County" relationship files
-  - Available through Census Bureau data portals
-  - May be available at: https://www.census.gov/geographies/mapping-files.html
+
+**Quick Start**: See `ZIP_COUNTY_DATA_SOURCES.md` for detailed download instructions.
 
 ## Geocoding Services
 

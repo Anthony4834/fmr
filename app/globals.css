@@ -2,3 +2,40 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  * {
+    @apply border-[#e5e5e5];
+  }
+  
+  body {
+    @apply text-[#0a0a0a] bg-[#fafafa];
+    font-feature-settings: 'rlig' 1, 'calt' 1;
+  }
+}
+
+@layer utilities {
+  /* Smooth scrolling */
+  .scroll-smooth {
+    scroll-behavior: smooth;
+  }
+  
+  /* Custom scrollbar */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #d4d4d4;
+    border-radius: 4px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #a3a3a3;
+  }
+}
+

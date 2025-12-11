@@ -50,15 +50,17 @@ export async function createSchema() {
   `);
 
   // ZIP to County mapping (static, rarely changes)
+  // Note: ZIP codes can span multiple counties, so we use composite unique constraint
   await execute(`
     CREATE TABLE IF NOT EXISTS zip_county_mapping (
       id SERIAL PRIMARY KEY,
-      zip_code VARCHAR(10) NOT NULL UNIQUE,
+      zip_code VARCHAR(10) NOT NULL,
       county_name TEXT NOT NULL,
       state_code VARCHAR(2) NOT NULL,
       state_name TEXT NOT NULL,
       county_fips VARCHAR(5),
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(zip_code, county_name, state_code)
     );
   `);
 

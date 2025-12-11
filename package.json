@@ -10,7 +10,14 @@
     "ingest:fmr": "bun scripts/ingest-fmr.ts",
     "ingest:safmr": "bun scripts/ingest-safmr.ts",
     "ingest:zip-county": "bun scripts/ingest-zip-county.ts",
-    "update:current-year": "bun scripts/update-current-year.ts"
+    "regenerate:cities": "bun scripts/regenerate-cities.ts",
+    "export:zip-county": "bun scripts/export-zip-county-mapping.ts",
+    "cleanup:invalid-counties": "bun scripts/cleanup-invalid-counties.ts",
+    "add:missing-zip-mappings": "bun scripts/add-missing-zip-mappings.ts",
+    "fix:swapped-county-state": "bun scripts/fix-swapped-county-state.ts",
+    "check:multi-state-zips": "bun scripts/check-multi-state-zips.ts",
+    "update:current-year": "bun scripts/update-current-year.ts",
+    "create-test-views": "bun scripts/create-test-views.ts"
   },
   "dependencies": {
     "next": "^14.2.0",
@@ -18,7 +25,8 @@
     "react-dom": "^18.3.0",
     "@vercel/postgres": "^0.9.0",
     "csv-parse": "^5.5.0",
-    "dotenv": "^16.4.0"
+    "dotenv": "^16.4.0",
+    "use-debounce": "^10.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
@@ -32,4 +40,3 @@
     "eslint-config-next": "^14.2.0"
   }
 }
-

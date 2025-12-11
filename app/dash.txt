@@ -1,0 +1,184 @@
+Here are strong, investor-friendly at-a-glance dashboard metrics you can derive from an FMR (Fair Market Rent) query tool at the city/zip/county level. I’m grouping them by what investors normally want to know quickly: opportunity, risk, pricing efficiency, and trend direction.
+
+⭐ High-Value, At-a-Glance Metrics for an Investor Dashboard
+1. Top-Level Opportunity Metrics
+
+These help investors instantly spot where returns might be strongest.
+
+• Highest-Rent ZIPs / Most Valuable ZIPs
+
+Rank ZIPs by median FMR for each bedroom size.
+
+Add YoY % change to show appreciation.
+
+Optional: show FMR-to-Income ratio (market strength indicator).
+
+• Best “Rent per Bedroom” Values
+
+Useful to find unit sizes that outperform the typical scaling curve.
+
+$/bedroom
+
+$/sqft if you have or can estimate square footage
+
+Whether studios or 1-bedrooms are overpriced/underpriced relative to trend lines
+
+• “Cash Flow Favorable” Areas (proxy metric)
+
+Even without expenses, you can compute:
+
+FMR / Home Value index (rent-to-price ratio)
+
+Gross yield estimate (annual FMR ÷ typical home value)
+
+2. Pricing Efficiency & Anomaly Detection
+
+These reveal mispricings or interesting deviations.
+
+• Price-per-Bedroom Scaling Anomalies
+
+Identify ZIPs where:
+
+2BR significantly overpriced relative to 1BR trend line
+
+4BR rents cheaper (per bedroom) than 3BR (common signal for large-family areas)
+
+Studio premiums (often in dense urban cores)
+
+• Neighborhood Outliers vs. City/County Averages
+
+For each ZIP:
+
+% difference from city-level FMR
+
+% difference from county-level FMR
+
+z-score deviation to highlight statistically unusual prices
+
+• Volatility Index
+
+FMR standard deviation over time—helps flag unstable or rapidly shifting submarkets.
+
+3. Trend & Directional Indicators
+
+Investors want to know what’s rising, flattening, or falling.
+
+• YoY & MoM FMR Growth
+
+Heatmap by ZIP
+
+Show which unit sizes are accelerating vs cooling
+
+• Long-Term Rent Growth Stability
+
+3-year CAGR
+
+Trendline slope
+
+Identify ZIPs with consistent growth vs. boom/bust patterns
+
+• Rent Momentum Score
+
+A combined metric incorporating:
+
+recent 3-month slope
+
+YoY growth
+
+volatility penalty (reduced score for unstable markets)
+
+4. Market Tightness / Demand Proxies
+
+Even without direct occupancy data, FMR patterns help indicate demand.
+
+• Spread Between Efficiency Units & Larger Units
+
+Shrinking spread may indicate increased demand for small units (urbanization)
+
+Larger spread may indicate family-driven migration
+
+• Relative Affordability Index
+
+FMR relative to:
+
+median household income (if available)
+
+regional CPI
+
+High FMR growth paired with stagnant income suggests overheating.
+
+5. Comparative Opportunity Metrics
+
+Let investors compare apples to apples.
+
+• Top ZIPs for Each Unit Size
+
+Best 1BR returns
+
+Best 3BR family markets
+
+Best 4BR SFR (single-family rental) opportunities
+
+• County-Level Performance Ranking
+
+Simple leaderboard of:
+
+fastest growing rents
+
+highest rents
+
+most stable rents
+
+• Rent Compression / Expansion Indicators
+
+Tracks whether bedroom price differences are widening or narrowing, predicting:
+
+Luxury market pressure
+
+Supply constraints in certain bedroom counts
+
+🔥 Suggested Dashboard Sections
+
+A clean dashboard layout for investors could look like:
+
+1. Market Snapshot
+
+Median FMR by unit size
+
+YoY growth
+
+Highest-rent ZIP
+
+Fastest-growing ZIP
+
+2. Opportunity Map
+
+Color-coded ZIP map by rent-to-price ratio or YoY growth
+
+Toggle: 1BR, 2BR, 3BR, SFR
+
+3. Scaling & Anomalies
+
+Price-per-bedroom chart
+
+ZIPs with major deviations from expected scaling
+
+Top undervalued & overvalued ZIPs
+
+4. Trend Dashboard
+
+Rent momentum score
+
+Volatility index
+
+1, 3, 5-year growth comparisons
+
+5. Investment Profiles
+
+Automated highlights like:
+
+“Best markets for cash flow”
+
+“Best markets for appreciation potential”
+
+“Stable long-term performers”

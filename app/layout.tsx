@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'FMR Search',
-  description: 'Search Fair Market Rent data by address, city, ZIP code, or county',
+  title: 'fmr.fyi - Fair Market Rent Data',
+  description: 'Search Fair Market Rent data by address, city, ZIP code, or county. Find HUD FMR and SAFMR data instantly.',
 };
 
 export default function RootLayout({
@@ -12,8 +12,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html lang="en" className="scroll-smooth">
+      <body className="antialiased">{children}</body>
     </html>
   );
 }
