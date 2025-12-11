@@ -1,0 +1,7 @@
+# Bun configuration file
+# See https://bun.sh/docs/cli/bunfig
+
+[install]
+# Use Bun's built-in package manager
+auto = true
+
