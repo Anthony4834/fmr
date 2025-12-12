@@ -170,10 +170,10 @@ export default function NationwideStats() {
 
   // Keep tabs visible during loading - only show skeleton for content
   const tabsContent = (
-    <div className="flex gap-1 border-b border-[#e5e5e5] flex-shrink-0 mb-4">
+    <div className="flex gap-0.5 sm:gap-1 border-b border-[#e5e5e5] flex-shrink-0 mb-3 sm:mb-4 overflow-x-auto -mx-1 sm:mx-0 px-1 sm:px-0">
       <button
         onClick={() => setActiveType('zip')}
-        className={`px-4 py-2 text-sm font-medium transition-colors relative ${
+        className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium transition-colors relative whitespace-nowrap shrink-0 ${
           activeType === 'zip'
             ? 'text-[#0a0a0a]'
             : 'text-[#737373] hover:text-[#0a0a0a]'
@@ -186,7 +186,7 @@ export default function NationwideStats() {
       </button>
       <button
         onClick={() => setActiveType('city')}
-        className={`px-4 py-2 text-sm font-medium transition-colors relative ${
+        className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium transition-colors relative whitespace-nowrap shrink-0 ${
           activeType === 'city'
             ? 'text-[#0a0a0a]'
             : 'text-[#737373] hover:text-[#0a0a0a]'
@@ -199,7 +199,7 @@ export default function NationwideStats() {
       </button>
       <button
         onClick={() => setActiveType('county')}
-        className={`px-4 py-2 text-sm font-medium transition-colors relative ${
+        className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium transition-colors relative whitespace-nowrap shrink-0 ${
           activeType === 'county'
             ? 'text-[#0a0a0a]'
             : 'text-[#737373] hover:text-[#0a0a0a]'
@@ -241,38 +241,41 @@ export default function NationwideStats() {
 
       {/* Non-blocking error banner (keep cards visible if we have data) */}
       {error && !showHardError && (
-        <div className="mb-3 rounded-md border border-[#fecaca] bg-[#fef2f2] px-3 py-2 text-xs text-[#991b1b]">
+        <div className="mb-2 sm:mb-3 rounded-md border border-[#fecaca] bg-[#fef2f2] px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs text-[#991b1b]">
           Failed to load dashboard data{error ? `: ${error}` : ''}.
         </div>
       )}
 
       {showSkeleton && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 lg:min-h-0 lg:overflow-hidden items-stretch">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 flex-1 lg:min-h-0 lg:overflow-hidden items-stretch">
           {cardHeaders.map((header, i) => (
-            <div key={i} className="bg-white rounded-lg border border-[#e5e5e5] shadow-sm overflow-hidden flex flex-col">
+            <div
+              key={i}
+              className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[70vh] sm:max-h-[520px] lg:max-h-none"
+            >
               {/* Card Header - Static labels, no skeleton */}
-              <div className="px-4 py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
+              <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
                 <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-sm font-semibold text-[#0a0a0a] mb-0.5">{header.title}</h3>
-                  <div className="h-4 w-4 rounded-full border-2 border-[#d4d4d4] border-t-transparent animate-spin" />
+                  <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a] mb-0.5">{header.title}</h3>
+                  <div className="h-3.5 w-3.5 sm:h-4 sm:w-4 rounded-full border-2 border-[#d4d4d4] border-t-transparent animate-spin shrink-0" />
                 </div>
                 <p className="text-xs text-[#737373]">{header.subtitle}</p>
               </div>
               {/* Card Content Skeleton - Only data rows */}
               <div className="divide-y divide-[#e5e5e5] overflow-y-auto flex-1 min-h-0 custom-scrollbar pb-2">
                 {[...Array(8)].map((_, j) => (
-                  <div key={j} className="px-4 py-2.5">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                  <div key={j} className="px-3 sm:px-4 py-2 sm:py-2.5">
+                    <div className="flex items-start justify-between gap-2 sm:gap-3">
+                      <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
                         <div className="h-3 bg-[#e5e5e5] rounded w-4 shrink-0 animate-pulse"></div>
                         <div className="min-w-0 flex-1">
-                          <div className="h-4 bg-[#e5e5e5] rounded w-24 mb-1.5 animate-pulse"></div>
-                          <div className="h-3 bg-[#e5e5e5] rounded w-32 animate-pulse"></div>
+                          <div className="h-3.5 sm:h-4 bg-[#e5e5e5] rounded w-20 sm:w-24 mb-1 sm:mb-1.5 animate-pulse"></div>
+                          <div className="h-3 bg-[#e5e5e5] rounded w-24 sm:w-32 animate-pulse"></div>
                         </div>
                       </div>
                       <div className="text-right shrink-0">
-                        <div className="h-4 bg-[#e5e5e5] rounded w-16 ml-auto mb-1 animate-pulse"></div>
-                        <div className="h-3 bg-[#e5e5e5] rounded w-20 ml-auto animate-pulse"></div>
+                        <div className="h-3.5 sm:h-4 bg-[#e5e5e5] rounded w-12 sm:w-16 ml-auto mb-1 animate-pulse"></div>
+                        <div className="h-3 bg-[#e5e5e5] rounded w-16 sm:w-20 ml-auto animate-pulse"></div>
                       </div>
                     </div>
                   </div>
@@ -284,14 +287,17 @@ export default function NationwideStats() {
       )}
 
       {showHardError && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 lg:min-h-0 lg:overflow-hidden items-stretch">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 flex-1 lg:min-h-0 lg:overflow-hidden items-stretch">
           {cardHeaders.map((header, i) => (
-            <div key={i} className="bg-white rounded-lg border border-[#e5e5e5] shadow-sm overflow-hidden flex flex-col">
-              <div className="px-4 py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
-                <h3 className="text-sm font-semibold text-[#0a0a0a] mb-0.5">{header.title}</h3>
+            <div
+              key={i}
+              className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[70vh] sm:max-h-[520px] lg:max-h-none"
+            >
+              <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
+                <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a] mb-0.5">{header.title}</h3>
                 <p className="text-xs text-[#737373]">{header.subtitle}</p>
               </div>
-              <div className="flex-1 flex flex-col items-center justify-center text-sm text-[#737373] gap-3">
+              <div className="flex-1 flex flex-col items-center justify-center text-xs sm:text-sm text-[#737373] gap-2 sm:gap-3 py-6 sm:py-8">
                 <div>Failed to load</div>
                 <button
                   type="button"
@@ -300,7 +306,7 @@ export default function NationwideStats() {
                     cacheRef.current[activeType] = null;
                     setRefreshNonce((n) => n + 1);
                   }}
-                  className="px-3 py-1.5 rounded-md border border-[#e5e5e5] bg-white text-[#0a0a0a] text-xs font-medium hover:bg-[#fafafa]"
+                  className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md border border-[#e5e5e5] bg-white text-[#0a0a0a] text-xs font-medium hover:bg-[#fafafa]"
                 >
                   Retry
                 </button>
@@ -312,11 +318,11 @@ export default function NationwideStats() {
 
       {/* Main Dashboard Grid - 3 columns */}
       {!!data && (
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 lg:min-h-0 lg:overflow-hidden items-stretch">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 flex-1 lg:min-h-0 lg:overflow-hidden items-stretch">
         {/* Top 15 Most Expensive */}
-        <div className="bg-white rounded-lg border border-[#e5e5e5] shadow-sm overflow-hidden flex flex-col">
-          <div className="px-4 py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
-            <h3 className="text-sm font-semibold text-[#0a0a0a] mb-0.5">Most Expensive</h3>
+        <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[70vh] sm:max-h-[520px] lg:max-h-none">
+          <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
+            <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a] mb-0.5">Most Expensive</h3>
             <p className="text-xs text-[#737373]">Top 15 by avg FMR</p>
           </div>
           <div className="divide-y divide-[#e5e5e5] overflow-y-auto flex-1 min-h-0 custom-scrollbar pb-2">
@@ -325,13 +331,13 @@ export default function NationwideStats() {
               return (
               <div
                 key={item.zipCode || item.cityName || item.areaName}
-                className="px-4 py-2.5 hover:bg-[#fafafa] transition-colors"
+                className="px-3 sm:px-4 py-2 sm:py-2.5 hover:bg-[#fafafa] transition-colors"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-2 sm:gap-3">
+                  <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
                     <span className="text-xs text-[#a3a3a3] font-medium shrink-0 tabular-nums">#{index + 1}</span>
                     <div className="min-w-0">
-                      <div className="font-medium text-[#0a0a0a] text-sm truncate">{getItemLabel(item)}</div>
+                      <div className="font-medium text-[#0a0a0a] text-xs sm:text-sm truncate">{getItemLabel(item)}</div>
                       {location && (
                         <div className="text-xs text-[#737373] truncate mt-0.5">{location}</div>
                       )}
@@ -342,9 +348,9 @@ export default function NationwideStats() {
                   </div>
                   <div className="text-right shrink-0">
                     {item.rentPerBedroom2BR ? (
-                      <div className="font-semibold text-[#0a0a0a] text-sm tabular-nums">${item.rentPerBedroom2BR.toFixed(0)}/br</div>
+                      <div className="font-semibold text-[#0a0a0a] text-xs sm:text-sm tabular-nums">${item.rentPerBedroom2BR.toFixed(0)}/br</div>
                     ) : (
-                      <div className="font-semibold text-[#0a0a0a] text-sm tabular-nums">2BR: {formatCurrency(item.bedroom2 || 0)}</div>
+                      <div className="font-semibold text-[#0a0a0a] text-xs sm:text-sm tabular-nums">2BR: {formatCurrency(item.bedroom2 || 0)}</div>
                     )}
                     {item.bedroom0 && item.bedroom4 && (
                       <div className="text-xs text-[#737373] mt-0.5 tabular-nums">
@@ -360,9 +366,9 @@ export default function NationwideStats() {
         </div>
 
         {/* Top 15 Most Affordable */}
-        <div className="bg-white rounded-lg border border-[#e5e5e5] shadow-sm overflow-hidden flex flex-col h-full">
-          <div className="px-4 py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
-            <h3 className="text-sm font-semibold text-[#0a0a0a] mb-0.5">Most Affordable</h3>
+        <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col h-full max-h-[70vh] sm:max-h-[520px] lg:max-h-none">
+          <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
+            <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a] mb-0.5">Most Affordable</h3>
             <p className="text-xs text-[#737373]">Top 15 by avg FMR</p>
           </div>
           <div className="divide-y divide-[#e5e5e5] overflow-y-auto flex-1 min-h-0 custom-scrollbar pb-2">
@@ -371,13 +377,13 @@ export default function NationwideStats() {
               return (
               <div
                 key={item.zipCode || item.cityName || item.areaName}
-                className="px-4 py-2.5 hover:bg-[#fafafa] transition-colors"
+                className="px-3 sm:px-4 py-2 sm:py-2.5 hover:bg-[#fafafa] transition-colors"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-2 sm:gap-3">
+                  <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
                     <span className="text-xs text-[#a3a3a3] font-medium shrink-0 tabular-nums">#{index + 1}</span>
                     <div className="min-w-0">
-                      <div className="font-medium text-[#0a0a0a] text-sm truncate">{getItemLabel(item)}</div>
+                      <div className="font-medium text-[#0a0a0a] text-xs sm:text-sm truncate">{getItemLabel(item)}</div>
                       {location && (
                         <div className="text-xs text-[#737373] truncate mt-0.5">{location}</div>
                       )}
@@ -388,9 +394,9 @@ export default function NationwideStats() {
                   </div>
                   <div className="text-right shrink-0">
                     {item.rentPerBedroom2BR ? (
-                      <div className="font-semibold text-[#0a0a0a] text-sm tabular-nums">${item.rentPerBedroom2BR.toFixed(0)}/br</div>
+                      <div className="font-semibold text-[#0a0a0a] text-xs sm:text-sm tabular-nums">${item.rentPerBedroom2BR.toFixed(0)}/br</div>
                     ) : (
-                      <div className="font-semibold text-[#0a0a0a] text-sm tabular-nums">2BR: {formatCurrency(item.bedroom2 || 0)}</div>
+                      <div className="font-semibold text-[#0a0a0a] text-xs sm:text-sm tabular-nums">2BR: {formatCurrency(item.bedroom2 || 0)}</div>
                     )}
                     {item.bedroom0 && item.bedroom4 && (
                       <div className="text-xs text-[#737373] mt-0.5 tabular-nums">
@@ -406,9 +412,9 @@ export default function NationwideStats() {
         </div>
 
         {/* Anomalies - Compact */}
-        <div className="bg-white rounded-lg border border-[#e5e5e5] shadow-sm overflow-hidden flex flex-col">
-          <div className="px-4 py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
-            <h3 className="text-sm font-semibold text-[#0a0a0a] mb-0.5">Price Jump Anomalies</h3>
+        <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[70vh] sm:max-h-[520px] lg:max-h-none">
+          <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
+            <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a] mb-0.5">Price Jump Anomalies</h3>
             <p className="text-xs text-[#737373]">vs National Avg (Top 15)</p>
           </div>
           <div className="divide-y divide-[#e5e5e5] overflow-y-auto flex-1 min-h-0 custom-scrollbar pb-2">
@@ -429,13 +435,13 @@ export default function NationwideStats() {
               return (
                 <div
                   key={anomaly.zipCode || anomaly.cityName || anomaly.areaName}
-                  className="px-4 py-2.5 hover:bg-[#fafafa] transition-colors"
+                  className="px-3 sm:px-4 py-2 sm:py-2.5 hover:bg-[#fafafa] transition-colors"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-2 sm:gap-3">
+                    <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
                       <span className="text-xs text-[#a3a3a3] font-medium shrink-0 tabular-nums">#{index + 1}</span>
                       <div className="min-w-0">
-                        <div className="font-medium text-[#0a0a0a] text-sm truncate">{getItemLabel(anomaly)}</div>
+                        <div className="font-medium text-[#0a0a0a] text-xs sm:text-sm truncate">{getItemLabel(anomaly)}</div>
                         <div className="text-xs text-[#737373] truncate mt-0.5">{formatLocation(anomaly)}</div>
                       </div>
                     </div>
@@ -443,7 +449,7 @@ export default function NationwideStats() {
                       <div className="font-semibold text-[#7c3aed] text-xs mb-0.5">
                         {bedroomLabels[anomaly.jumpFrom || 0]}→{bedroomLabels[anomaly.jumpTo || 0]}
                       </div>
-                      <div className={`font-semibold text-sm tabular-nums ${
+                      <div className={`font-semibold text-xs sm:text-sm tabular-nums ${
                         (anomaly.deviationFromNatAvg || 0) > 0 ? 'text-[#dc2626]' : 'text-[#16a34a]'
                       }`}>
                         {anomaly.deviationFromNatAvg && anomaly.deviationFromNatAvg > 0 ? '+' : ''}

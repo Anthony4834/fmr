@@ -99,6 +99,25 @@ function suggestionMatchesInput(suggestion: AutocompleteResult, input: string) {
   return a === q || b === q || a.startsWith(q) || b.startsWith(q) || a.includes(q) || b.includes(q);
 }
 
+function dedupeSuggestionsByType(items: AutocompleteResult[]) {
+  const out: AutocompleteResult[] = [];
+  const seen = new Set<string>();
+
+  for (const item of items) {
+    const raw = (item.value || item.display || '').trim();
+    if (!raw) continue;
+
+    const keyPart =
+      item.type === 'zip' ? (extractZipFromText(raw) || normalizeLoose(raw)) : normalizeForMatch(raw);
+    const key = `${item.type}|${keyPart}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(item);
+  }
+
+  return out;
+}
+
 export default function SearchInput({ onSelect }: SearchInputProps) {
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<AutocompleteResult[]>([]);
@@ -163,9 +182,9 @@ export default function SearchInput({ onSelect }: SearchInputProps) {
 
       const regularResults: AutocompleteResult[] = regularData.results || [];
       
-      // Combine and limit total results
-      const combined = [...addressResults, ...regularResults].slice(0, 10);
-      setSuggestions(combined);
+      // Combine results: addresses first, then regular results, then dedupe within each type.
+      const deduped = dedupeSuggestionsByType([...addressResults, ...regularResults]);
+      setSuggestions(deduped.slice(0, 10));
       setSuggestionsForQuery(searchQuery);
       setCompletedQuery(searchQuery); // only for this exact query
     } catch (error) {
@@ -447,6 +466,12 @@ export default function SearchInput({ onSelect }: SearchInputProps) {
     normalizeLoose(completedQuery) === normalizeLoose(query) &&
     displayedSuggestions.length === 0;
 
+  const shouldRenderDropdown =
+    showSuggestions &&
+    ((isLoading && query.trim().length >= 2 && displayedSuggestions.length === 0) ||
+      displayedSuggestions.length > 0 ||
+      showEmptyState);
+
   return (
     <div ref={containerRef} className="relative w-full">
       <form onSubmit={handleSubmit}>
@@ -477,13 +502,13 @@ export default function SearchInput({ onSelect }: SearchInputProps) {
             onFocus={() => setShowSuggestions(true)}
             ref={inputRef}
             placeholder="Search ZIP, city, county, or address…"
-            className={`w-full pl-10 pr-24 py-3.5 text-[15px] bg-white border border-[#e5e5e5] rounded-xl focus:outline-none focus:ring-1 focus:ring-[#d4d4d4] focus:border-[#0a0a0a] transition-all placeholder:text-[#a3a3a3] text-[#0a0a0a] shadow-sm hover:shadow ${
-              isLoading || isSubmitting ? 'pr-24' : 'pr-16'
-            }`}
+            className={`w-full pl-10 ${
+              query.trim().length > 0 ? 'pr-28 sm:pr-40' : 'pr-16 sm:pr-24'
+            } py-2.5 sm:py-3.5 text-[14px] sm:text-[15px] bg-white border border-[#e5e5e5] rounded-xl appearance-none focus:outline-none focus:ring-0 focus:ring-offset-0 focus:border-[#0a0a0a] transition-colors placeholder:text-[#a3a3a3] text-[#0a0a0a]`}
             aria-autocomplete="list"
             aria-expanded={showSuggestions}
           />
-          <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
             {(isLoading || isSubmitting) && (
               <div className="pointer-events-none mr-1.5">
                 <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#0a0a0a] border-t-transparent"></div>
@@ -492,6 +517,7 @@ export default function SearchInput({ onSelect }: SearchInputProps) {
             {query.trim().length > 0 && (
               <button
                 type="button"
+                aria-label="Clear search"
                 onClick={() => {
                   setQuery('');
                   setSuggestions([]);
@@ -500,23 +526,26 @@ export default function SearchInput({ onSelect }: SearchInputProps) {
                   setSelectedIndex(-1);
                   inputRef.current?.focus();
                 }}
-                className="h-9 px-3 text-xs font-semibold rounded-lg border border-[#e5e5e5] bg-white text-[#0a0a0a] hover:bg-[#fafafa] transition-colors"
+                className="h-8 sm:h-9 px-2.5 sm:px-3 text-[11px] sm:text-xs font-semibold rounded-lg border border-[#e5e5e5] bg-white text-[#0a0a0a] hover:bg-[#fafafa] transition-colors"
               >
-                Clear
+                <span className="sm:hidden">×</span>
+                <span className="hidden sm:inline">Clear</span>
               </button>
             )}
             <button
               type="submit"
-              className="h-9 px-4 text-xs font-semibold rounded-lg bg-[#0a0a0a] text-white hover:opacity-90 transition-opacity"
+              aria-label="Search"
+              className="h-8 sm:h-9 px-3 sm:px-4 text-[11px] sm:text-xs font-semibold rounded-lg bg-[#0a0a0a] text-white hover:opacity-90 transition-opacity"
             >
-              Search
+              <span className="sm:hidden">Go</span>
+              <span className="hidden sm:inline">Search</span>
             </button>
           </div>
         </div>
       </form>
 
-      {showSuggestions && (
-        <div className="absolute z-10 w-full mt-2 bg-white border border-[#e5e5e5] rounded-xl shadow-lg overflow-hidden">
+      {shouldRenderDropdown && (
+        <div className="absolute z-10 w-full mt-2 bg-white border border-[#e5e5e5] rounded-xl overflow-hidden">
           {isLoading && query.trim().length >= 2 && displayedSuggestions.length === 0 ? (
             <div className="px-4 py-3 text-sm text-[#525252]">
               Searching…

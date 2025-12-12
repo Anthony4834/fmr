@@ -230,15 +230,15 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-[#fafafa] antialiased lg:h-screen lg:overflow-hidden">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-10 lg:py-10 lg:h-full lg:flex lg:flex-col">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-10 sm:py-8 md:py-10 lg:py-10 lg:h-full lg:flex lg:flex-col">
         {/* Header */}
-        <div className="mb-6 lg:mb-4 flex-shrink-0">
-          <div className="mb-3 lg:mb-2">
+        <div className="mb-4 sm:mb-6 lg:mb-4 flex-shrink-0">
+          <div className="mb-2 sm:mb-3 lg:mb-2">
             <button
               onClick={handleReset}
               className="text-left hover:opacity-70 transition-opacity"
             >
-              <h1 className="text-3xl md:text-4xl font-bold text-[#0a0a0a] mb-1 tracking-tight">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#0a0a0a] mb-1 tracking-tight">
                 fmr.fyi
               </h1>
               <p className="text-xs text-[#737373] font-medium tracking-wide uppercase">
@@ -246,15 +246,15 @@ export default function Home() {
               </p>
             </button>
           </div>
-          <p className="text-base text-[#525252] max-w-2xl">
+          <p className="text-sm sm:text-base text-[#525252] max-w-2xl">
             Search HUD Fair Market Rent data by address, city, ZIP code, or county
           </p>
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-6 items-start lg:flex-1 lg:min-h-0 lg:overflow-hidden">
+        <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 items-start lg:flex-1 lg:min-h-0 lg:overflow-hidden">
           {/* Main Results Card */}
-          <div className="flex-1 bg-white rounded-lg border border-[#e5e5e5] shadow-sm p-6 md:p-8 transition-shadow hover:shadow-md w-full lg:h-full lg:flex lg:flex-col lg:overflow-hidden">
-            <div className="flex-shrink-0 mb-6">
+          <div className="flex-1 bg-white rounded-lg border border-[#e5e5e5] p-4 sm:p-6 md:p-8 w-full lg:h-full lg:flex lg:flex-col lg:overflow-hidden">
+            <div className="flex-shrink-0 mb-4 sm:mb-6">
               <SearchInput onSelect={handleSearch} />
             </div>
             <div className="flex-1 lg:min-h-0 lg:overflow-hidden">
@@ -290,9 +290,9 @@ export default function Home() {
 
           {/* ZIP Code Ranking Card - To the right */}
           {zipRankings && zipRankings.length > 0 && (
-            <div className="lg:w-80 flex-shrink-0 bg-white rounded-lg border border-[#e5e5e5] shadow-sm p-6 md:p-8 flex flex-col transition-shadow hover:shadow-md lg:h-full lg:overflow-hidden">
-              <div className="mb-6 flex-shrink-0">
-                <h3 className="text-lg font-semibold text-[#0a0a0a] mb-1">
+            <div className="w-full lg:w-80 flex-shrink-0 bg-white rounded-lg border border-[#e5e5e5] p-4 sm:p-6 md:p-8 flex flex-col lg:h-full lg:overflow-hidden">
+              <div className="mb-4 sm:mb-6 flex-shrink-0">
+                <h3 className="text-base sm:text-lg font-semibold text-[#0a0a0a] mb-1">
                   ZIP Codes
                 </h3>
                 <p className="text-xs text-[#737373]">
@@ -310,21 +310,21 @@ export default function Home() {
                       key={zip.zipCode}
                       type="button"
                       onClick={() => handleZipDrilldown(zip.zipCode)}
-                      className={`w-full flex items-center justify-between py-2.5 px-3 rounded-md border transition-colors group text-left ${
+                      className={`w-full flex items-center justify-between py-2 sm:py-2.5 px-2.5 sm:px-3 rounded-md border transition-colors group text-left ${
                         isSelected
                           ? 'bg-[#fafafa] border-[#d4d4d4]'
                           : 'border-transparent hover:bg-[#fafafa] hover:border-[#e5e5e5]'
                       }`}
                     >
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs font-medium text-[#737373] w-5 tabular-nums">
+                      <div className="flex items-center gap-2 sm:gap-3">
+                        <span className="text-xs font-medium text-[#737373] w-4 sm:w-5 tabular-nums shrink-0">
                           {index + 1}
                         </span>
                         <span className="font-medium text-[#0a0a0a] text-sm">
                           {zip.zipCode}
                         </span>
                       </div>
-                      <span className={`text-sm font-medium tabular-nums ${
+                      <span className={`text-xs sm:text-sm font-medium tabular-nums shrink-0 ${
                         isPositive 
                           ? 'text-[#16a34a]' 
                           : isNegative 
@@ -337,21 +337,21 @@ export default function Home() {
                   );
                 })}
               </div>
-              <div className="mt-6 text-xs text-[#737373] pt-4 border-t border-[#e5e5e5] flex-shrink-0 leading-relaxed">
+              <div className="mt-4 sm:mt-6 text-xs text-[#737373] pt-3 sm:pt-4 border-t border-[#e5e5e5] flex-shrink-0 leading-relaxed">
                 <p>Percent compares each ZIP’s average FMR to the county median.</p>
               </div>
             </div>
           )}
         </div>
 
-        <div className="mt-8 lg:mt-4 pt-4 lg:pt-3 border-t border-[#e5e5e5] flex-shrink-0">
-          <div className="mb-3 lg:mb-2">
+        <div className="mt-6 sm:mt-8 lg:mt-4 pt-3 sm:pt-4 lg:pt-3 border-t border-[#e5e5e5] flex-shrink-0">
+          <div className="mb-2 sm:mb-3 lg:mb-2">
             <p className="text-xs font-medium text-[#0a0a0a] mb-0.5">fmr.fyi</p>
             <p className="text-xs text-[#737373]">
               Fair Market Rent data made simple
             </p>
           </div>
-          <div className="space-y-1.5">
+          <div className="space-y-1 sm:space-y-1.5">
             <p className="text-xs text-[#737373]">
               Data source: <span className="text-[#525252] font-medium">U.S. Department of Housing and Urban Development (HUD)</span>
             </p>
