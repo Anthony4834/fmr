@@ -41,7 +41,7 @@ export default async function CitySlugPage({ params }: { params: { slug: string 
 
   const result = await getFMRByCity(city, state);
   if (!result) notFound();
-  const initialData = serializeResult({ ...result, queriedLocation: q, queriedType: 'city' });
+  const initialData = serializeResult({ ...result, queriedLocation: q, queriedType: 'city' as const });
   return <HomeClient initialQuery={q} initialType="city" initialData={initialData} initialError={null} />;
 }
 

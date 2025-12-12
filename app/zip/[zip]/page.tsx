@@ -44,7 +44,7 @@ export default async function ZipSlugPage({ params }: { params: { zip: string } 
 
   const result = await getFMRByZip(z);
   if (!result) notFound();
-  const initialData = serializeResult({ ...result, queriedLocation: z, queriedType: 'zip' });
+  const initialData = serializeResult({ ...result, queriedLocation: z, queriedType: 'zip' as const });
   return <HomeClient initialQuery={z} initialType="zip" initialData={initialData} initialError={null} />;
 }
 

@@ -41,7 +41,7 @@ export default async function CountySlugPage({ params }: { params: { slug: strin
 
   const result = await getFMRByCounty(county, state);
   if (!result) notFound();
-  const initialData = serializeResult({ ...result, queriedLocation: q, queriedType: 'county' });
+  const initialData = serializeResult({ ...result, queriedLocation: q, queriedType: 'county' as const });
   return <HomeClient initialQuery={q} initialType="county" initialData={initialData} initialError={null} />;
 }
 
