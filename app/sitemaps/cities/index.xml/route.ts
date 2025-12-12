@@ -1,3 +1,5 @@
+import { sql } from '@vercel/postgres';
+
 export const revalidate = 86400;
 
 function xmlEscape(s: string) {
@@ -13,14 +15,23 @@ export async function GET() {
   const base = 'https://fmr.fyi';
   const now = new Date().toISOString();
 
+  // Get all states that have cities
+  const result = await sql`
+    SELECT DISTINCT state_code
+    FROM cities
+    WHERE state_code != 'PR'
+    ORDER BY state_code
+  `;
+
   const parts: string[] = [];
   parts.push(`<?xml version="1.0" encoding="UTF-8"?>`);
   parts.push(`<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`);
 
-  parts.push(`<sitemap><loc>${xmlEscape(`${base}/sitemaps/static.xml`)}</loc><lastmod>${now}</lastmod></sitemap>`);
-  parts.push(`<sitemap><loc>${xmlEscape(`${base}/sitemaps/cities/index.xml`)}</loc><lastmod>${now}</lastmod></sitemap>`);
-  parts.push(`<sitemap><loc>${xmlEscape(`${base}/sitemaps/counties.xml`)}</loc><lastmod>${now}</lastmod></sitemap>`);
-  parts.push(`<sitemap><loc>${xmlEscape(`${base}/sitemaps/zips/index.xml`)}</loc><lastmod>${now}</lastmod></sitemap>`);
+  for (const r of result.rows as any[]) {
+    const stateCode = r.state_code.toUpperCase();
+    const loc = `${base}/sitemaps/cities/${stateCode}.xml`;
+    parts.push(`<sitemap><loc>${xmlEscape(loc)}</loc><lastmod>${now}</lastmod></sitemap>`);
+  }
 
   parts.push(`</sitemapindex>`);
 
@@ -31,6 +42,4 @@ export async function GET() {
     },
   });
 }
-
-
 

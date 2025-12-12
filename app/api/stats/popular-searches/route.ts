@@ -3,6 +3,8 @@ import { sql } from '@vercel/postgres';
 
 type Segment = 'zip' | 'city' | 'county';
 
+export const dynamic = 'force-dynamic';
+
 async function ensureTable() {
   await sql`
     CREATE TABLE IF NOT EXISTS search_events (

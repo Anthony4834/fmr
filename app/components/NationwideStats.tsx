@@ -626,7 +626,7 @@ export default function NationwideStats() {
           <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[56vh] sm:max-h-[416px] lg:max-h-[56vh]">
             <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
               <div className="flex items-center justify-between gap-2">
-                <div>
+                <div className="flex-1">
                   <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a] mb-0.5">Popular Searches</h3>
                   <p className="text-xs text-[#737373]">{popularSubtitle}</p>
                 </div>
@@ -703,7 +703,7 @@ export default function NationwideStats() {
                         <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
                           <span className="text-xs text-[#a3a3a3] font-medium shrink-0 tabular-nums">#{index + 1}</span>
                           <div className="min-w-0">
-                            <div className="font-medium text-[#0a0a0a] text-xs sm:text-sm truncate">{line1}</div>
+                            <div className="text-[#0a0a0a] text-xs sm:text-sm truncate">{line1}</div>
                             {line2 && <div className="text-xs text-[#737373] truncate mt-0.5">{line2}</div>}
                             {!!item.zipCount && activeType !== 'zip' && (
                               <div className="text-xs text-[#a3a3a3] mt-0.5">{item.zipCount} ZIPs</div>
@@ -737,86 +737,173 @@ export default function NationwideStats() {
             <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a] mb-0.5">Price Jump Anomalies</h3>
             <p className="text-xs text-[#737373]">vs National Avg (Top 15)</p>
           </div>
-          {/* Table header (lg+) */}
-          <div className="hidden lg:grid grid-cols-[52px_minmax(240px,1fr)_110px_90px_90px_90px_160px] gap-4 px-3 sm:px-4 py-2 border-b border-[#e5e5e5] text-[11px] text-[#737373] bg-white">
-            <div />
-            <div>Location</div>
-            <div className="text-right">Step</div>
-            <div className="text-right">Δ vs Nat</div>
-            <div className="text-right">Jump</div>
-            <div className="text-right">Nat Avg</div>
-            <div className="text-right">FMR</div>
-          </div>
-          <div className="divide-y divide-[#e5e5e5] overflow-y-auto flex-1 min-h-0 custom-scrollbar pb-2">
-            {filteredAnomalies.slice(0, 15).map((anomaly, index) => {
-              const getBedroomValue = (size: number) => {
-                if (size === 0) return anomaly.bedroom0;
-                if (size === 1) return anomaly.bedroom1;
-                if (size === 2) return anomaly.bedroom2;
-                if (size === 3) return anomaly.bedroom3;
-                if (size === 4) return anomaly.bedroom4;
-                return null;
-              };
+          <div className="overflow-y-auto flex-1 min-h-0 custom-scrollbar pb-2">
+            {/* Desktop/tablet (lg+): real table for perfect alignment */}
+            <div className="hidden lg:block">
+              <table className="w-full table-fixed">
+                <colgroup>
+                  <col className="w-[52px]" />
+                  <col />
+                  <col className="w-[110px]" />
+                  <col className="w-[90px]" />
+                  <col className="w-[90px]" />
+                  <col className="w-[90px]" />
+                  <col className="w-[160px]" />
+                </colgroup>
+                <thead className="sticky top-0 bg-white border-b border-[#e5e5e5] text-[11px] text-[#737373]">
+                  <tr>
+                    <th className="px-3 sm:px-4 py-2 text-left font-medium" />
+                    <th className="px-3 sm:px-4 py-2 text-left font-medium">Location</th>
+                    <th className="px-3 sm:px-4 py-2 text-left font-medium">Step</th>
+                    <th className="px-3 sm:px-4 py-2 text-left font-medium">Δ vs Nat</th>
+                    <th className="px-3 sm:px-4 py-2 text-left font-medium">Jump</th>
+                    <th className="px-3 sm:px-4 py-2 text-left font-medium">Nat Avg</th>
+                    <th className="px-3 sm:px-4 py-2 text-left font-medium">FMR</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#e5e5e5]">
+                  {filteredAnomalies.slice(0, 15).map((anomaly, index) => {
+                    const getBedroomValue = (size: number) => {
+                      if (size === 0) return anomaly.bedroom0;
+                      if (size === 1) return anomaly.bedroom1;
+                      if (size === 2) return anomaly.bedroom2;
+                      if (size === 3) return anomaly.bedroom3;
+                      if (size === 4) return anomaly.bedroom4;
+                      return null;
+                    };
 
-              const fromValue = getBedroomValue(anomaly.jumpFrom || 0);
-              const toValue = getBedroomValue(anomaly.jumpTo || 0);
-              const bedroomLabels = ['0BR', '1BR', '2BR', '3BR', '4BR'];
-              const href = hrefForInsight(anomaly);
+                    const fromValue = getBedroomValue(anomaly.jumpFrom || 0);
+                    const toValue = getBedroomValue(anomaly.jumpTo || 0);
+                    const bedroomLabels = ['0BR', '1BR', '2BR', '3BR', '4BR'];
+                    const href = hrefForInsight(anomaly);
 
-              const stepLabel = `${bedroomLabels[anomaly.jumpFrom || 0]}→${bedroomLabels[anomaly.jumpTo || 0]}`;
-              const deviation = anomaly.deviationFromNatAvg;
-              const deviationText =
-                deviation === null || deviation === undefined ? '—' : `${deviation > 0 ? '+' : ''}${deviation.toFixed(1)}%`;
-              const jump = anomaly.jumpPercent;
-              const jumpText = jump === null || jump === undefined ? '—' : `+${jump.toFixed(1)}%`;
-              const natAvg = anomaly.nationalAvg;
-              const natAvgText = natAvg === null || natAvg === undefined ? '—' : `${natAvg.toFixed(1)}%`;
-              const fmrText = fromValue && toValue ? `${formatCurrency(fromValue)}→${formatCurrency(toValue)}` : '—';
+                    const stepLabel = `${bedroomLabels[anomaly.jumpFrom || 0]}→${bedroomLabels[anomaly.jumpTo || 0]}`;
+                    const deviation = anomaly.deviationFromNatAvg;
+                    const deviationText =
+                      deviation === null || deviation === undefined
+                        ? '—'
+                        : `${deviation > 0 ? '+' : ''}${deviation.toFixed(1)}%`;
+                    const jump = anomaly.jumpPercent;
+                    const jumpText = jump === null || jump === undefined ? '—' : `+${jump.toFixed(1)}%`;
+                    const natAvg = anomaly.nationalAvg;
+                    const natAvgText = natAvg === null || natAvg === undefined ? '—' : `${natAvg.toFixed(1)}%`;
+                    const fmrText = fromValue && toValue ? `${formatCurrency(fromValue)}→${formatCurrency(toValue)}` : '—';
 
-              return (
-                <a
-                  key={`${activeType}:${anomaly.zipCode || anomaly.cityName || anomaly.areaName}:${index}`}
-                  href={href || undefined}
-                  className="block px-3 sm:px-4 py-2 sm:py-2.5 hover:bg-[#fafafa] transition-colors"
-                >
-                  {/* lg+: aligned table row */}
-                  <div className="hidden lg:grid grid-cols-[52px_minmax(240px,1fr)_110px_90px_90px_90px_160px] gap-4 items-start">
-                    <div className="text-xs text-[#a3a3a3] font-medium tabular-nums pt-0.5">#{index + 1}</div>
-                    <div className="min-w-0">
-                      <div className="font-medium text-[#0a0a0a] text-xs sm:text-sm truncate">{getItemLabel(anomaly)}</div>
-                      <div className="text-xs text-[#737373] truncate mt-0.5">{formatLocation(anomaly)}</div>
-                    </div>
-                    <div className="text-xs font-semibold text-[#7c3aed] tabular-nums text-right pt-0.5">{stepLabel}</div>
-                    <div className={`text-xs font-semibold tabular-nums text-right pt-0.5 ${
-                      (deviation || 0) > 0 ? 'text-[#dc2626]' : 'text-[#16a34a]'
-                    }`}>{deviationText}</div>
-                    <div className="text-xs font-medium text-[#737373] tabular-nums text-right pt-0.5">{jumpText}</div>
-                    <div className="text-xs font-medium text-[#737373] tabular-nums text-right pt-0.5">{natAvgText}</div>
-                    <div className="text-xs font-medium text-[#737373] tabular-nums text-right pt-0.5">{fmrText}</div>
-                  </div>
+                    const onRowActivate = () => {
+                      if (!href) return;
+                      router.push(href);
+                    };
 
-                  {/* Mobile: keep the compact stacked layout */}
-                  <div className="lg:hidden flex items-start justify-between gap-2 sm:gap-3">
-                    <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
-                      <span className="text-xs text-[#a3a3a3] font-medium shrink-0 tabular-nums">#{index + 1}</span>
-                      <div className="min-w-0">
-                        <div className="font-medium text-[#0a0a0a] text-xs sm:text-sm truncate">{getItemLabel(anomaly)}</div>
-                        <div className="text-xs text-[#737373] truncate mt-0.5">{formatLocation(anomaly)}</div>
+                    return (
+                      <tr
+                        key={`${activeType}:${anomaly.zipCode || anomaly.cityName || anomaly.areaName}:${index}`}
+                        role={href ? 'link' : undefined}
+                        tabIndex={href ? 0 : -1}
+                        onClick={href ? onRowActivate : undefined}
+                        onKeyDown={
+                          href
+                            ? (e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  onRowActivate();
+                                }
+                              }
+                            : undefined
+                        }
+                        className={href ? 'cursor-pointer hover:bg-[#fafafa] transition-colors' : undefined}
+                      >
+                        <td className="px-3 sm:px-4 py-2 sm:py-2.5 text-xs text-[#a3a3a3] font-medium tabular-nums align-top">
+                          #{index + 1}
+                        </td>
+                        <td className="px-3 sm:px-4 py-2 sm:py-2.5 align-top min-w-0">
+                          <div className="font-medium text-[#0a0a0a] text-xs sm:text-sm truncate">{getItemLabel(anomaly)}</div>
+                          <div className="text-xs text-[#737373] truncate mt-0.5">{formatLocation(anomaly)}</div>
+                        </td>
+                        <td className="px-3 sm:px-4 py-2 sm:py-2.5 text-xs font-semibold text-[#7c3aed] tabular-nums align-top">
+                          {stepLabel}
+                        </td>
+                        <td
+                          className={`px-3 sm:px-4 py-2 sm:py-2.5 text-xs font-semibold tabular-nums align-top ${
+                            (deviation || 0) > 0 ? 'text-[#dc2626]' : 'text-[#16a34a]'
+                          }`}
+                        >
+                          {deviationText}
+                        </td>
+                        <td className="px-3 sm:px-4 py-2 sm:py-2.5 text-xs font-medium text-[#737373] tabular-nums align-top">
+                          {jumpText}
+                        </td>
+                        <td className="px-3 sm:px-4 py-2 sm:py-2.5 text-xs font-medium text-[#737373] tabular-nums align-top">
+                          {natAvgText}
+                        </td>
+                        <td className="px-3 sm:px-4 py-2 sm:py-2.5 text-xs font-medium text-[#737373] tabular-nums align-top">
+                          {fmrText}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile: keep the compact stacked layout */}
+            <div className="lg:hidden divide-y divide-[#e5e5e5]">
+              {filteredAnomalies.slice(0, 15).map((anomaly, index) => {
+                const getBedroomValue = (size: number) => {
+                  if (size === 0) return anomaly.bedroom0;
+                  if (size === 1) return anomaly.bedroom1;
+                  if (size === 2) return anomaly.bedroom2;
+                  if (size === 3) return anomaly.bedroom3;
+                  if (size === 4) return anomaly.bedroom4;
+                  return null;
+                };
+
+                const fromValue = getBedroomValue(anomaly.jumpFrom || 0);
+                const toValue = getBedroomValue(anomaly.jumpTo || 0);
+                const bedroomLabels = ['0BR', '1BR', '2BR', '3BR', '4BR'];
+                const href = hrefForInsight(anomaly);
+
+                const stepLabel = `${bedroomLabels[anomaly.jumpFrom || 0]}→${bedroomLabels[anomaly.jumpTo || 0]}`;
+                const deviation = anomaly.deviationFromNatAvg;
+                const deviationText =
+                  deviation === null || deviation === undefined ? '—' : `${deviation > 0 ? '+' : ''}${deviation.toFixed(1)}%`;
+                const jump = anomaly.jumpPercent;
+                const jumpText = jump === null || jump === undefined ? '—' : `+${jump.toFixed(1)}%`;
+                const natAvg = anomaly.nationalAvg;
+                const natAvgText = natAvg === null || natAvg === undefined ? '—' : `${natAvg.toFixed(1)}%`;
+                const fmrText = fromValue && toValue ? `${formatCurrency(fromValue)}→${formatCurrency(toValue)}` : '—';
+
+                return (
+                  <a
+                    key={`${activeType}:${anomaly.zipCode || anomaly.cityName || anomaly.areaName}:${index}`}
+                    href={href || undefined}
+                    className="block px-3 sm:px-4 py-2 sm:py-2.5 hover:bg-[#fafafa] transition-colors"
+                  >
+                    <div className="flex items-start justify-between gap-2 sm:gap-3">
+                      <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
+                        <span className="text-xs text-[#a3a3a3] font-medium shrink-0 tabular-nums">#{index + 1}</span>
+                        <div className="min-w-0">
+                          <div className="font-medium text-[#0a0a0a] text-xs sm:text-sm truncate">{getItemLabel(anomaly)}</div>
+                          <div className="text-xs text-[#737373] truncate mt-0.5">{formatLocation(anomaly)}</div>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className="font-semibold text-[#7c3aed] text-xs mb-0.5 tabular-nums">{stepLabel}</div>
+                        <div
+                          className={`font-semibold text-xs sm:text-sm tabular-nums ${
+                            (deviation || 0) > 0 ? 'text-[#dc2626]' : 'text-[#16a34a]'
+                          }`}
+                        >
+                          {deviationText}
+                        </div>
+                        <div className="text-xs text-[#737373] mt-0.5 tabular-nums">Jump: {jumpText}</div>
+                        <div className="text-xs text-[#a3a3a3] mt-0.5 tabular-nums">Nat: {natAvgText}</div>
+                        <div className="text-xs text-[#a3a3a3] mt-1 tabular-nums">{fmrText}</div>
                       </div>
                     </div>
-                    <div className="text-right shrink-0">
-                      <div className="font-semibold text-[#7c3aed] text-xs mb-0.5 tabular-nums">{stepLabel}</div>
-                      <div className={`font-semibold text-xs sm:text-sm tabular-nums ${
-                        (deviation || 0) > 0 ? 'text-[#dc2626]' : 'text-[#16a34a]'
-                      }`}>{deviationText}</div>
-                      <div className="text-xs text-[#737373] mt-0.5 tabular-nums">Jump: {jumpText}</div>
-                      <div className="text-xs text-[#a3a3a3] mt-0.5 tabular-nums">Nat: {natAvgText}</div>
-                      <div className="text-xs text-[#a3a3a3] mt-1 tabular-nums">{fmrText}</div>
-                    </div>
-                  </div>
-                </a>
-              );
-            })}
+                  </a>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
