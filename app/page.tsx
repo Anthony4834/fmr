@@ -230,7 +230,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-[#fafafa] antialiased lg:h-screen lg:overflow-hidden">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8 lg:py-4 lg:h-full lg:flex lg:flex-col">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-10 lg:py-10 lg:h-full lg:flex lg:flex-col">
         {/* Header */}
         <div className="mb-6 lg:mb-4 flex-shrink-0">
           <div className="mb-3 lg:mb-2">

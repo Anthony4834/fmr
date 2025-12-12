@@ -4,6 +4,11 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'fmr.fyi - Fair Market Rent Data',
   description: 'Search Fair Market Rent data by address, city, ZIP code, or county. Find HUD FMR and SAFMR data instantly.',
+  icons: {
+    icon: '/icon.png',
+    shortcut: '/icon.png',
+    apple: '/icon.png',
+  },
 };
 
 export default function RootLayout({
