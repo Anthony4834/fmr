@@ -251,7 +251,7 @@ export default function NationwideStats() {
           {cardHeaders.map((header, i) => (
             <div
               key={i}
-              className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[70vh] sm:max-h-[520px] lg:max-h-none"
+              className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[70vh] sm:max-h-[520px] lg:max-h-[70vh]"
             >
               {/* Card Header - Static labels, no skeleton */}
               <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
@@ -291,7 +291,7 @@ export default function NationwideStats() {
           {cardHeaders.map((header, i) => (
             <div
               key={i}
-              className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[70vh] sm:max-h-[520px] lg:max-h-none"
+              className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[70vh] sm:max-h-[520px] lg:max-h-[70vh]"
             >
               <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
                 <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a] mb-0.5">{header.title}</h3>
@@ -320,7 +320,7 @@ export default function NationwideStats() {
       {!!data && (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 flex-1 lg:min-h-0 lg:overflow-hidden items-stretch">
         {/* Top 15 Most Expensive */}
-        <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[70vh] sm:max-h-[520px] lg:max-h-none">
+        <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[70vh] sm:max-h-[520px] lg:max-h-[70vh]">
           <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
             <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a] mb-0.5">Most Expensive</h3>
             <p className="text-xs text-[#737373]">Top 15 by avg FMR</p>
@@ -366,7 +366,7 @@ export default function NationwideStats() {
         </div>
 
         {/* Top 15 Most Affordable */}
-        <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col h-full max-h-[70vh] sm:max-h-[520px] lg:max-h-none">
+        <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col h-full max-h-[70vh] sm:max-h-[520px] lg:max-h-[70vh]">
           <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
             <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a] mb-0.5">Most Affordable</h3>
             <p className="text-xs text-[#737373]">Top 15 by avg FMR</p>
@@ -412,7 +412,7 @@ export default function NationwideStats() {
         </div>
 
         {/* Anomalies - Compact */}
-        <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[70vh] sm:max-h-[520px] lg:max-h-none">
+        <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[70vh] sm:max-h-[520px] lg:max-h-[70vh]">
           <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
             <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a] mb-0.5">Price Jump Anomalies</h3>
             <p className="text-xs text-[#737373]">vs National Avg (Top 15)</p>
