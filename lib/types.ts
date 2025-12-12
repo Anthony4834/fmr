@@ -26,3 +26,4 @@ export interface FMRResult {
   queriedType?: 'zip' | 'city' | 'county' | 'address';
 }
 
+

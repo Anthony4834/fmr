@@ -45,3 +45,4 @@ export default async function CountySlugPage({ params }: { params: { slug: strin
   return <HomeClient initialQuery={q} initialType="county" initialData={initialData} initialError={null} />;
 }
 
+

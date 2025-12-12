@@ -48,3 +48,4 @@ export default async function ZipSlugPage({ params }: { params: { zip: string } 
   return <HomeClient initialQuery={z} initialType="zip" initialData={initialData} initialError={null} />;
 }
 
+

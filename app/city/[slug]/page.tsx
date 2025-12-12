@@ -45,3 +45,4 @@ export default async function CitySlugPage({ params }: { params: { slug: string 
   return <HomeClient initialQuery={q} initialType="city" initialData={initialData} initialError={null} />;
 }
 
+

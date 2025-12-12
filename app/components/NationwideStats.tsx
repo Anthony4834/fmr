@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { buildCitySlug, buildCountySlug } from '@/lib/location-slugs';
 
 interface Insight {
   zipCode?: string;
@@ -43,12 +45,26 @@ interface Insights {
 type DashboardType = 'zip' | 'city' | 'county';
 type FetchStatus = 'idle' | 'loading' | 'success' | 'error';
 
+type PopularItem = { query: string; count: number; lastSeen?: string; countyName?: string | null; stateCode?: string | null };
+
 export default function NationwideStats() {
-  const [activeType, setActiveType] = useState<DashboardType>('zip');
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const normalizeDashboardType = (input: string | null): DashboardType => {
+    return input === 'city' || input === 'county' || input === 'zip' ? input : 'zip';
+  };
+
+  // Persist selected tab in URL (?dash=zip|city|county) so refresh/back/forward doesn't reset.
+  const [activeType, setActiveType] = useState<DashboardType>(() => normalizeDashboardType(searchParams.get('dash')));
   const [data, setData] = useState<Insights | null>(null);
   const [status, setStatus] = useState<FetchStatus>('idle');
   const [error, setError] = useState<string | null>(null);
   const [refreshNonce, setRefreshNonce] = useState(0);
+  const [popular, setPopular] = useState<PopularItem[] | null>(null);
+  const [popularStatus, setPopularStatus] = useState<FetchStatus>('idle');
+  const [popularError, setPopularError] = useState<string | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
   const requestSeqRef = useRef(0);
@@ -58,6 +74,31 @@ export default function NationwideStats() {
     city: null,
     county: null,
   });
+
+  const popularAbortRef = useRef<AbortController | null>(null);
+  const popularSeqRef = useRef(0);
+  const popularCacheRef = useRef<Record<DashboardType, PopularItem[] | null>>({
+    zip: null,
+    city: null,
+    county: null,
+  });
+
+  // Keep local state in sync if URL changes (back/forward).
+  useEffect(() => {
+    const next = normalizeDashboardType(searchParams.get('dash'));
+    if (next !== activeType) setActiveType(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  // Update URL when user changes tabs (use replace to avoid spamming history).
+  useEffect(() => {
+    const current = searchParams.get('dash');
+    if (current === activeType) return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('dash', activeType);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeType, pathname, router]);
 
   useEffect(() => {
     // Immediate UI: show cached data for this tab if we have it; otherwise show skeleton.
@@ -120,6 +161,64 @@ export default function NationwideStats() {
     };
   }, [activeType, refreshNonce]);
 
+  useEffect(() => {
+    // Show cached popular searches immediately if present.
+    const cached = popularCacheRef.current[activeType];
+    setPopular(cached);
+    setPopularError(null);
+
+    // Cancel any in-flight request.
+    if (popularAbortRef.current) {
+      popularAbortRef.current.abort();
+    }
+    const abortController = new AbortController();
+    popularAbortRef.current = abortController;
+    const seq = ++popularSeqRef.current;
+
+    setPopularStatus('loading');
+
+    (async () => {
+      try {
+        const res = await fetch(`/api/stats/popular-searches?type=${activeType}&days=30&limit=10`, {
+          signal: abortController.signal,
+        });
+        const json = await res.json();
+        if (abortController.signal.aborted || seq !== popularSeqRef.current) return;
+        if (!res.ok) throw new Error(json?.error || 'Failed to load popular searches');
+        const rawItems: PopularItem[] = (json.items || []).map((it: any) => ({
+          query: String(it.query || ''),
+          count: Number(it.count || 0),
+          lastSeen: it.lastSeen,
+          countyName: it.countyName ?? null,
+          stateCode: it.stateCode ?? null,
+        }));
+        // Defensive de-dupe by query (also protects React keys from instability).
+        const seen = new Set<string>();
+        const items = rawItems.filter((it) => {
+          const k = it.query;
+          if (!k) return false;
+          if (seen.has(k)) return false;
+          seen.add(k);
+          return true;
+        });
+        popularCacheRef.current[activeType] = items;
+        setPopular(items);
+        setPopularStatus('success');
+      } catch (e) {
+        if (e instanceof Error && e.name === 'AbortError') return;
+        if (abortController.signal.aborted || seq !== popularSeqRef.current) return;
+        setPopularError(e instanceof Error ? e.message : 'Failed to load popular searches');
+        setPopularStatus('error');
+      }
+    })();
+
+    return () => {
+      if (popularAbortRef.current === abortController) {
+        abortController.abort();
+      }
+    };
+  }, [activeType]);
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -168,6 +267,20 @@ export default function NationwideStats() {
     return item.areaName || '';
   };
 
+  const hrefForInsight = (item: Insight): string | null => {
+    if (activeType === 'zip') {
+      const zip = item.zipCode?.match(/\b(\d{5})\b/)?.[1];
+      return zip ? `/zip/${zip}` : null;
+    }
+    if (activeType === 'city') {
+      if (!item.cityName || !item.stateCode) return null;
+      return `/city/${buildCitySlug(item.cityName, item.stateCode)}`;
+    }
+    // county
+    if (!item.areaName || !item.stateCode) return null;
+    return `/county/${buildCountySlug(item.areaName, item.stateCode)}`;
+  };
+
   // Keep tabs visible during loading - only show skeleton for content
   const tabsContent = (
     <div className="flex gap-0.5 sm:gap-1 border-b border-[#e5e5e5] flex-shrink-0 mb-3 sm:mb-4 overflow-x-auto -mx-1 sm:mx-0 px-1 sm:px-0">
@@ -213,6 +326,21 @@ export default function NationwideStats() {
     </div>
   );
 
+  const popularLinkFor = (type: DashboardType, query: string) => {
+    if (type === 'zip') {
+      const zip = query.match(/\b(\d{5})\b/)?.[1];
+      return zip ? `/zip/${zip}` : null;
+    }
+    if (type === 'city') {
+      const [city, state] = query.split(',').map((s) => s.trim());
+      if (!city || !state || state.length !== 2) return null;
+      return `/city/${buildCitySlug(city, state)}`;
+    }
+    const [county, state] = query.split(',').map((s) => s.trim());
+    if (!county || !state || state.length !== 2) return null;
+    return `/county/${buildCountySlug(county, state)}`;
+  };
+
   // Card headers with static labels
   const cardHeaders = [
     { title: 'Most Expensive', subtitle: 'Top 15 by avg FMR' },
@@ -239,6 +367,80 @@ export default function NationwideStats() {
       {/* Type Tabs - Always visible */}
       {tabsContent}
 
+      {/* Popular searches for this segment */}
+      {(popular?.length || 0) > 0 || popularStatus === 'loading' || popularError ? (
+        <div className="mb-4 sm:mb-5 flex-shrink-0">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div>
+              <h2 className="text-xs font-semibold text-[#0a0a0a] tracking-wide uppercase mb-0.5">Popular Searches</h2>
+              <p className="text-xs text-[#737373]">Most searched {activeType === 'zip' ? 'ZIP codes' : activeType === 'city' ? 'cities' : 'counties'} in the last 30 days</p>
+            </div>
+            {popularStatus === 'loading' && (
+              <div className="h-4 w-4 rounded-full border-2 border-[#d4d4d4] border-t-transparent animate-spin shrink-0" />
+            )}
+          </div>
+          {popularError && (
+            <div className="text-xs text-[#991b1b] border border-[#fecaca] bg-[#fef2f2] rounded-md px-3 py-2">
+              Failed to load popular searches{popularError ? `: ${popularError}` : ''}.
+            </div>
+          )}
+          {!popularError && popularStatus === 'loading' && (popular?.length || 0) === 0 && (
+            <div className="flex flex-wrap gap-2">
+              {[...Array(3)].map((_, i) => (
+                <div
+                  key={i}
+                  className="h-[30px] w-[120px] sm:w-[140px] rounded-md border border-[#e5e5e5] bg-[#fafafa] animate-pulse"
+                />
+              ))}
+            </div>
+          )}
+          {!popularError && (popular?.length || 0) > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {popular!.slice(0, 10).map((item) => {
+                const href = popularLinkFor(activeType, item.query);
+                if (!href) return null;
+                
+                // For ZIP codes, include county information if available
+                if (activeType === 'zip' && item.countyName && item.stateCode) {
+                  const county = item.countyName.includes('County') 
+                    ? item.countyName 
+                    : `${item.countyName} County`;
+                  return (
+                    <a
+                      key={`${activeType}:${item.query}`}
+                      href={href}
+                      className="text-xs px-3 py-1.5 rounded-md border border-[#e5e5e5] bg-white hover:border-[#d4d4d4] hover:bg-[#fafafa] transition-colors"
+                    >
+                      <span className="font-medium text-[#0a0a0a]">
+                        <span className="font-mono">{item.query}</span>
+                        <span className="text-[#737373]"> - {county}, {item.stateCode}</span>
+                      </span>
+                    </a>
+                  );
+                }
+                
+                return (
+                  <a
+                    key={`${activeType}:${item.query}`}
+                    href={href}
+                    className="text-xs px-3 py-1.5 rounded-md border border-[#e5e5e5] bg-white hover:border-[#d4d4d4] hover:bg-[#fafafa] transition-colors"
+                  >
+                    <span className={activeType === 'zip' ? 'font-mono font-medium text-[#0a0a0a]' : 'font-medium text-[#0a0a0a]'}>
+                      {item.query}
+                    </span>
+                  </a>
+                );
+              })}
+            </div>
+          )}
+          {!popularError && popularStatus !== 'loading' && (popular?.length || 0) === 0 && (
+            <div className="text-xs text-[#737373] bg-[#fafafa] border border-[#e5e5e5] rounded-md px-3 py-2">
+              No search data available yet. Start searching to see popular {activeType === 'zip' ? 'ZIP codes' : activeType === 'city' ? 'cities' : 'counties'} here.
+            </div>
+          )}
+        </div>
+      ) : null}
+
       {/* Non-blocking error banner (keep cards visible if we have data) */}
       {error && !showHardError && (
         <div className="mb-2 sm:mb-3 rounded-md border border-[#fecaca] bg-[#fef2f2] px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs text-[#991b1b]">
@@ -251,7 +453,7 @@ export default function NationwideStats() {
           {cardHeaders.map((header, i) => (
             <div
               key={i}
-              className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[70vh] sm:max-h-[520px] lg:max-h-[70vh]"
+              className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[56vh] sm:max-h-[416px] lg:max-h-[56vh]"
             >
               {/* Card Header - Static labels, no skeleton */}
               <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
@@ -291,7 +493,7 @@ export default function NationwideStats() {
           {cardHeaders.map((header, i) => (
             <div
               key={i}
-              className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[70vh] sm:max-h-[520px] lg:max-h-[70vh]"
+              className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[56vh] sm:max-h-[416px] lg:max-h-[56vh]"
             >
               <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
                 <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a] mb-0.5">{header.title}</h3>
@@ -320,7 +522,7 @@ export default function NationwideStats() {
       {!!data && (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 flex-1 lg:min-h-0 lg:overflow-hidden items-stretch">
         {/* Top 15 Most Expensive */}
-        <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[70vh] sm:max-h-[520px] lg:max-h-[70vh]">
+        <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[56vh] sm:max-h-[416px] lg:max-h-[56vh]">
           <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
             <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a] mb-0.5">Most Expensive</h3>
             <p className="text-xs text-[#737373]">Top 15 by avg FMR</p>
@@ -328,10 +530,12 @@ export default function NationwideStats() {
           <div className="divide-y divide-[#e5e5e5] overflow-y-auto flex-1 min-h-0 custom-scrollbar pb-2">
             {topItems.slice(0, 15).map((item, index) => {
               const location = formatLocation(item);
+              const href = hrefForInsight(item);
               return (
-              <div
-                key={item.zipCode || item.cityName || item.areaName}
-                className="px-3 sm:px-4 py-2 sm:py-2.5 hover:bg-[#fafafa] transition-colors"
+              <a
+                key={`${activeType}:${item.zipCode || item.cityName || item.areaName}:${index}`}
+                href={href || undefined}
+                className="block px-3 sm:px-4 py-2 sm:py-2.5 hover:bg-[#fafafa] transition-colors"
               >
                 <div className="flex items-start justify-between gap-2 sm:gap-3">
                   <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
@@ -359,14 +563,14 @@ export default function NationwideStats() {
                     )}
                   </div>
                 </div>
-              </div>
+              </a>
               );
             })}
           </div>
         </div>
 
         {/* Top 15 Most Affordable */}
-        <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col h-full max-h-[70vh] sm:max-h-[520px] lg:max-h-[70vh]">
+        <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col h-full max-h-[56vh] sm:max-h-[416px] lg:max-h-[56vh]">
           <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
             <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a] mb-0.5">Most Affordable</h3>
             <p className="text-xs text-[#737373]">Top 15 by avg FMR</p>
@@ -374,10 +578,12 @@ export default function NationwideStats() {
           <div className="divide-y divide-[#e5e5e5] overflow-y-auto flex-1 min-h-0 custom-scrollbar pb-2">
             {bottomItems.slice(0, 15).map((item, index) => {
               const location = formatLocation(item);
+              const href = hrefForInsight(item);
               return (
-              <div
-                key={item.zipCode || item.cityName || item.areaName}
-                className="px-3 sm:px-4 py-2 sm:py-2.5 hover:bg-[#fafafa] transition-colors"
+              <a
+                key={`${activeType}:${item.zipCode || item.cityName || item.areaName}:${index}`}
+                href={href || undefined}
+                className="block px-3 sm:px-4 py-2 sm:py-2.5 hover:bg-[#fafafa] transition-colors"
               >
                 <div className="flex items-start justify-between gap-2 sm:gap-3">
                   <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
@@ -405,14 +611,14 @@ export default function NationwideStats() {
                     )}
                   </div>
                 </div>
-              </div>
+              </a>
               );
             })}
           </div>
         </div>
 
         {/* Anomalies - Compact */}
-        <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[70vh] sm:max-h-[520px] lg:max-h-[70vh]">
+        <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[56vh] sm:max-h-[416px] lg:max-h-[56vh]">
           <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
             <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a] mb-0.5">Price Jump Anomalies</h3>
             <p className="text-xs text-[#737373]">vs National Avg (Top 15)</p>
@@ -431,11 +637,13 @@ export default function NationwideStats() {
               const fromValue = getBedroomValue(anomaly.jumpFrom || 0);
               const toValue = getBedroomValue(anomaly.jumpTo || 0);
               const bedroomLabels = ['0BR', '1BR', '2BR', '3BR', '4BR'];
+              const href = hrefForInsight(anomaly);
 
               return (
-                <div
-                  key={anomaly.zipCode || anomaly.cityName || anomaly.areaName}
-                  className="px-3 sm:px-4 py-2 sm:py-2.5 hover:bg-[#fafafa] transition-colors"
+                <a
+                  key={`${activeType}:${anomaly.zipCode || anomaly.cityName || anomaly.areaName}:${index}`}
+                  href={href || undefined}
+                  className="block px-3 sm:px-4 py-2 sm:py-2.5 hover:bg-[#fafafa] transition-colors"
                 >
                   <div className="flex items-start justify-between gap-2 sm:gap-3">
                     <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
@@ -468,7 +676,7 @@ export default function NationwideStats() {
                       )}
                     </div>
                   </div>
-                </div>
+                </a>
               );
             })}
           </div>

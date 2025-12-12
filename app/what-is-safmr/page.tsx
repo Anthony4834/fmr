@@ -6,3 +6,4 @@ export default function WhatIsSafmrPage() {
   redirect('/what-is-fmr#safmr');
 }
 
+

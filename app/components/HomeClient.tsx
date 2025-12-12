@@ -49,6 +49,9 @@ export default function HomeClient(props: {
   const router = useRouter();
   const mainCardRef = useRef<HTMLDivElement | null>(null);
   const [zipCardHeight, setZipCardHeight] = useState<number | null>(null);
+  const trackedSearchKeyRef = useRef<string>('');
+  const addressAbortRef = useRef<AbortController | null>(null);
+  const addressReqSeqRef = useRef(0);
 
   const computeInitial = () => {
     const q = props.initialQuery?.trim() || '';
@@ -202,6 +205,96 @@ export default function HomeClient(props: {
     };
   }, [zipRankings]);
 
+  // Track location searches for the dashboard “popular searches” (client-only, privacy-friendly).
+  useEffect(() => {
+    if (searchStatus !== 'success') return;
+    if (!viewFmrData?.queriedType || !viewFmrData.queriedLocation) return;
+    const type = viewFmrData.queriedType;
+    if (type !== 'zip' && type !== 'city' && type !== 'county') return;
+    const key = `${type}|${viewFmrData.queriedLocation}`;
+    if (trackedSearchKeyRef.current === key) return;
+    trackedSearchKeyRef.current = key;
+
+    const canonicalPath =
+      type === 'zip'
+        ? (() => {
+            const zip = String(viewFmrData.queriedLocation).match(/\b(\d{5})\b/)?.[1];
+            return zip ? `/zip/${zip}` : null;
+          })()
+        : type === 'city'
+          ? (() => {
+              const [city, state] = String(viewFmrData.queriedLocation).split(',').map((s) => s.trim());
+              return city && state && state.length === 2 ? `/city/${buildCitySlug(city, state)}` : null;
+            })()
+          : (() => {
+              const [county, state] = String(viewFmrData.queriedLocation).split(',').map((s) => s.trim());
+              return county && state && state.length === 2 ? `/county/${buildCountySlug(county, state)}` : null;
+            })();
+
+    // Fire-and-forget.
+    fetch('/api/track/search', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ type, query: viewFmrData.queriedLocation, canonicalPath }),
+      keepalive: true,
+    }).catch(() => {});
+  }, [searchStatus, viewFmrData]);
+
+  // Address searches are not SSR-fetched (privacy + infinite variants),
+  // so we need a client fetch when the URL indicates an address query.
+  useEffect(() => {
+    const q = props.initialQuery?.trim() || '';
+    const t = props.initialType || null;
+    if (!q || t !== 'address') return;
+
+    // Cancel any in-flight address search
+    if (addressAbortRef.current) {
+      addressAbortRef.current.abort();
+    }
+    const abortController = new AbortController();
+    addressAbortRef.current = abortController;
+    const seq = ++addressReqSeqRef.current;
+
+    setSearchStatus('loading');
+    setError(null);
+    setRootFmrData(null);
+    setViewFmrData(null);
+    setZipRankings(null);
+    setZipMedianAvgFMR(null);
+    setDrilldownZip(null);
+
+    (async () => {
+      try {
+        const url = `/api/search/fmr?address=${encodeURIComponent(q)}`;
+        const res = await fetch(url, { signal: abortController.signal });
+        const json = await res.json();
+        if (abortController.signal.aborted || seq !== addressReqSeqRef.current) return;
+        if (!res.ok) throw new Error(json?.error || 'Failed to fetch FMR data');
+
+        const data = json?.data as FMRResult | undefined;
+        if (!data) throw new Error('No data returned');
+
+        setRootFmrData(data);
+        setViewFmrData(data);
+        const computed = computeZipRankings(data);
+        setZipRankings(computed?.rankings || null);
+        setZipMedianAvgFMR(computed?.medianAvgFMR ?? null);
+        setSearchStatus('success');
+      } catch (e) {
+        if (e instanceof Error && e.name === 'AbortError') return;
+        if (abortController.signal.aborted || seq !== addressReqSeqRef.current) return;
+        setError(e instanceof Error ? e.message : 'Failed to fetch FMR data');
+        setSearchStatus('error');
+      }
+    })();
+
+    return () => {
+      if (addressAbortRef.current === abortController) {
+        abortController.abort();
+      }
+    };
+  }, [props.initialQuery, props.initialType]);
+
   const isSearching = searchStatus === 'loading';
 
   const handleSearch = (value: string, type: 'zip' | 'city' | 'county' | 'address') => {
@@ -213,6 +306,12 @@ export default function HomeClient(props: {
     if (type === 'zip') {
       const zip = value.trim().match(/\b(\d{5})\b/)?.[1];
       if (zip) {
+        fetch('/api/track/search', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ type, query: zip, canonicalPath: `/zip/${zip}` }),
+          keepalive: true,
+        }).catch(() => {});
         router.push(`/zip/${zip}`, { scroll: false });
         return;
       }
@@ -220,6 +319,14 @@ export default function HomeClient(props: {
     if (type === 'city') {
       const [city, state] = value.split(',').map((s) => s.trim());
       if (city && state && state.length === 2) {
+        const q = `${city}, ${state.toUpperCase()}`;
+        const slug = buildCitySlug(city, state);
+        fetch('/api/track/search', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ type, query: q, canonicalPath: `/city/${slug}` }),
+          keepalive: true,
+        }).catch(() => {});
         router.push(`/city/${buildCitySlug(city, state)}`, { scroll: false });
         return;
       }
@@ -227,6 +334,14 @@ export default function HomeClient(props: {
     if (type === 'county') {
       const [county, state] = value.split(',').map((s) => s.trim());
       if (county && state && state.length === 2) {
+        const q = `${county}, ${state.toUpperCase()}`;
+        const slug = buildCountySlug(county, state);
+        fetch('/api/track/search', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ type, query: q, canonicalPath: `/county/${slug}` }),
+          keepalive: true,
+        }).catch(() => {});
         router.push(`/county/${buildCountySlug(county, state)}`, { scroll: false });
         return;
       }
@@ -340,32 +455,6 @@ export default function HomeClient(props: {
               ) : (
                 <div className="h-full">
                   <NationwideStats />
-                  {/* Minimal internal linking (slugs redirect to the primary view) */}
-                  <div className="mt-6 pt-4 border-t border-[#e5e5e5]">
-                    <h2 className="text-xs font-semibold text-[#0a0a0a] tracking-wide uppercase mb-2">
-                      Popular searches
-                    </h2>
-                    <div className="flex flex-wrap gap-2">
-                      <a className="text-xs px-2.5 py-1 rounded-md border border-[#e5e5e5] bg-white hover:bg-[#fafafa]" href="/city/bellingham-wa">
-                        Bellingham, WA
-                      </a>
-                      <a className="text-xs px-2.5 py-1 rounded-md border border-[#e5e5e5] bg-white hover:bg-[#fafafa]" href="/county/whatcom-county-wa">
-                        Whatcom County, WA
-                      </a>
-                      <a className="text-xs px-2.5 py-1 rounded-md border border-[#e5e5e5] bg-white hover:bg-[#fafafa]" href="/zip/98225">
-                        98225
-                      </a>
-                      <a className="text-xs px-2.5 py-1 rounded-md border border-[#e5e5e5] bg-white hover:bg-[#fafafa]" href="/city/seattle-wa">
-                        Seattle, WA
-                      </a>
-                      <a className="text-xs px-2.5 py-1 rounded-md border border-[#e5e5e5] bg-white hover:bg-[#fafafa]" href="/city/los-angeles-ca">
-                        Los Angeles, CA
-                      </a>
-                      <a className="text-xs px-2.5 py-1 rounded-md border border-[#e5e5e5] bg-white hover:bg-[#fafafa]" href="/city/new-york-ny">
-                        New York, NY
-                      </a>
-                    </div>
-                  </div>
                 </div>
               )}
             </div>
@@ -451,4 +540,5 @@ export default function HomeClient(props: {
     </main>
   );
 }
+
 
