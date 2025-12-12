@@ -1,13 +1,31 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import StructuredData from './components/StructuredData';
+import Analytics from './components/Analytics';
+
+const googleVerification = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION;
 
 export const metadata: Metadata = {
   title: 'fmr.fyi - Fair Market Rent Data',
   description: 'Search Fair Market Rent data by address, city, ZIP code, or county. Find HUD FMR and SAFMR data instantly.',
+  metadataBase: new URL('https://fmr.fyi'),
+  verification: googleVerification ? { google: googleVerification } : undefined,
   icons: {
     icon: '/icon.png',
     shortcut: '/icon.png',
     apple: '/icon.png',
+  },
+  openGraph: {
+    title: 'fmr.fyi - Fair Market Rent Data',
+    description: 'Search Fair Market Rent data by address, city, ZIP code, or county. Find HUD FMR and SAFMR data instantly.',
+    url: 'https://fmr.fyi',
+    siteName: 'fmr.fyi',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'fmr.fyi - Fair Market Rent Data',
+    description: 'Search Fair Market Rent data by address, city, ZIP code, or county. Find HUD FMR and SAFMR data instantly.',
   },
 };
 
@@ -18,7 +36,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="scroll-smooth">
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        <Analytics />
+        <StructuredData />
+        {children}
+      </body>
     </html>
   );
 }

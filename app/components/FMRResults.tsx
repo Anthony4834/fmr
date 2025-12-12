@@ -1,34 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-
-interface ZIPFMRData {
-  zipCode: string;
-  bedroom0?: number;
-  bedroom1?: number;
-  bedroom2?: number;
-  bedroom3?: number;
-  bedroom4?: number;
-}
-
-interface FMRResult {
-  source: 'safmr' | 'fmr';
-  zipCode?: string;
-  zipCodes?: string[];
-  zipFMRData?: ZIPFMRData[];
-  areaName: string;
-  stateCode: string;
-  countyName?: string;
-  year: number;
-  bedroom0?: number;
-  bedroom1?: number;
-  bedroom2?: number;
-  bedroom3?: number;
-  bedroom4?: number;
-  effectiveDate?: Date;
-  queriedLocation?: string;
-  queriedType?: 'zip' | 'city' | 'county' | 'address';
-}
+import type { FMRResult } from '@/lib/types';
 
 interface FMRResultsProps {
   data: FMRResult | null;

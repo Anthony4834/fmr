@@ -1,36 +1,11 @@
 import { sql } from '@vercel/postgres';
+import type { FMRResult, ZIPFMRData } from '@/lib/types';
 
 export interface AutocompleteResult {
   type: 'zip' | 'city' | 'county';
   display: string;
   value: string;
   state?: string;
-}
-
-export interface ZIPFMRData {
-  zipCode: string;
-  bedroom0?: number;
-  bedroom1?: number;
-  bedroom2?: number;
-  bedroom3?: number;
-  bedroom4?: number;
-}
-
-export interface FMRResult {
-  source: 'safmr' | 'fmr';
-  zipCode?: string;
-  zipCodes?: string[];
-  zipFMRData?: ZIPFMRData[]; // For SAFMR: individual FMR data per ZIP
-  areaName: string;
-  stateCode: string;
-  countyName?: string;
-  year: number;
-  bedroom0?: number; // For single ZIP or county FMR
-  bedroom1?: number;
-  bedroom2?: number;
-  bedroom3?: number;
-  bedroom4?: number;
-  effectiveDate?: Date;
 }
 
 /**
