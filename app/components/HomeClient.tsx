@@ -7,6 +7,7 @@ import FMRResults from './FMRResults';
 import NationwideStats from './NationwideStats';
 import type { FMRResult, ZIPFMRData } from '@/lib/types';
 import ResultAbout from './ResultAbout';
+import { buildCitySlug, buildCountySlug } from '@/lib/location-slugs';
 
 type SearchStatus = 'idle' | 'loading' | 'success' | 'error';
 
@@ -204,13 +205,37 @@ export default function HomeClient(props: {
   const isSearching = searchStatus === 'loading';
 
   const handleSearch = (value: string, type: 'zip' | 'city' | 'county' | 'address') => {
-    // Primary view is the existing query-param view. Navigating updates SSR + metadata.
-    const params = new URLSearchParams();
-    params.set('q', value);
-    params.set('type', type);
     setSearchStatus('loading');
     setError(null);
     setDrilldownZip(null);
+
+    // Clean canonical URLs (slugs) for SERP + sharing.
+    if (type === 'zip') {
+      const zip = value.trim().match(/\b(\d{5})\b/)?.[1];
+      if (zip) {
+        router.push(`/zip/${zip}`, { scroll: false });
+        return;
+      }
+    }
+    if (type === 'city') {
+      const [city, state] = value.split(',').map((s) => s.trim());
+      if (city && state && state.length === 2) {
+        router.push(`/city/${buildCitySlug(city, state)}`, { scroll: false });
+        return;
+      }
+    }
+    if (type === 'county') {
+      const [county, state] = value.split(',').map((s) => s.trim());
+      if (county && state && state.length === 2) {
+        router.push(`/county/${buildCountySlug(county, state)}`, { scroll: false });
+        return;
+      }
+    }
+
+    // Address (and any fallback): keep the query-param view.
+    const params = new URLSearchParams();
+    params.set('q', value);
+    params.set('type', type);
     router.push(`/?${params.toString()}`, { scroll: false });
   };
 

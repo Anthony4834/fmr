@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import HomeClient from './components/HomeClient';
 import { getFMRByCity, getFMRByCounty, getFMRByZip } from '@/lib/queries';
+import { redirect } from 'next/navigation';
+import { buildCitySlug, buildCountySlug } from '@/lib/location-slugs';
 
 type SearchType = 'zip' | 'city' | 'county' | 'address';
 type SearchParams = Record<string, string | string[] | undefined>;
@@ -61,15 +63,16 @@ export async function generateMetadata({
     };
   }
 
-  // Do not index address-based pages (privacy + infinite variants).
+  // Clean SERP URLs: canonical location pages are slugs. Query-param pages are duplicates.
   const isAddress = type === 'address';
+  const isLocation = type === 'zip' || type === 'city' || type === 'county';
   const canonical = canonicalUrlFor(q, type);
 
   return {
     title: titleFor(q, type),
     description: descriptionFor(q, type),
     alternates: { canonical },
-    robots: isAddress ? { index: false, follow: false } : { index: true, follow: true },
+    robots: isAddress ? { index: false, follow: false } : isLocation ? { index: false, follow: true } : { index: true, follow: true },
     openGraph: {
       title: titleFor(q, type),
       description: descriptionFor(q, type),
@@ -92,6 +95,20 @@ export default async function Home({
 }) {
   const q = normalizeQuery(searchParams.q);
   const type = normalizeType(searchParams.type);
+
+  // Clean SERP URLs: redirect location query-param pages to slugs.
+  if (q && type === 'zip') {
+    const zip = q.trim().match(/\b(\d{5})\b/)?.[1];
+    if (zip) redirect(`/zip/${zip}`);
+  }
+  if (q && type === 'city') {
+    const [city, state] = q.split(',').map((s) => s.trim());
+    if (city && state && state.length === 2) redirect(`/city/${buildCitySlug(city, state)}`);
+  }
+  if (q && type === 'county') {
+    const [county, state] = q.split(',').map((s) => s.trim());
+    if (county && state && state.length === 2) redirect(`/county/${buildCountySlug(county, state)}`);
+  }
 
   let initialData: any | null = null;
   let initialError: string | null = null;
