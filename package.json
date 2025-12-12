@@ -17,7 +17,14 @@
     "fix:swapped-county-state": "bun scripts/fix-swapped-county-state.ts",
     "check:multi-state-zips": "bun scripts/check-multi-state-zips.ts",
     "update:current-year": "bun scripts/update-current-year.ts",
-    "create-test-views": "bun scripts/create-test-views.ts"
+    "compute:dashboard-insights": "bun scripts/compute-dashboard-insights.ts",
+    "create-test-views": "bun scripts/create-test-views.ts",
+    "populate:safmr-zips": "bun scripts/populate-required-safmr-zips.ts",
+    "count:safmr-zips": "bun scripts/count-zips-in-required-areas.ts",
+    "verify:safmr-zips": "bun scripts/verify-required-safmr-zips.ts",
+    "backfill:county-fips": "bun scripts/backfill-county-fips.ts",
+    "fix:remaining-missing-fmr-zips": "bun scripts/fix-remaining-missing-fmr-zips.ts",
+    "normalize:county-names": "bun scripts/normalize-county-names-from-fips.ts"
   },
   "dependencies": {
     "next": "^14.2.0",

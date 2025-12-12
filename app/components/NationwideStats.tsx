@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface Insight {
   zipCode?: string;
@@ -40,26 +40,85 @@ interface Insights {
   nationalAverages: { [key: number]: number };
 }
 
+type DashboardType = 'zip' | 'city' | 'county';
+type FetchStatus = 'idle' | 'loading' | 'success' | 'error';
+
 export default function NationwideStats() {
-  const [insights, setInsights] = useState<Insights | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [activeType, setActiveType] = useState<'zip' | 'city' | 'county'>('zip');
+  const [activeType, setActiveType] = useState<DashboardType>('zip');
+  const [data, setData] = useState<Insights | null>(null);
+  const [status, setStatus] = useState<FetchStatus>('idle');
+  const [error, setError] = useState<string | null>(null);
+  const [refreshNonce, setRefreshNonce] = useState(0);
+
+  const abortRef = useRef<AbortController | null>(null);
+  const requestSeqRef = useRef(0);
+  const forceRefreshTypeRef = useRef<DashboardType | null>(null);
+  const cacheRef = useRef<Record<DashboardType, Insights | null>>({
+    zip: null,
+    city: null,
+    county: null,
+  });
 
   useEffect(() => {
-    async function fetchInsights() {
-      try {
-        setLoading(true);
-        const response = await fetch(`/api/stats/insights?type=${activeType}`);
-        const data = await response.json();
-        setInsights(data);
-      } catch (error) {
-        console.error('Error fetching insights:', error);
-      } finally {
-        setLoading(false);
-      }
+    // Immediate UI: show cached data for this tab if we have it; otherwise show skeleton.
+    const cached = cacheRef.current[activeType];
+    setData(cached);
+    setError(null);
+
+    const forceRefresh = forceRefreshTypeRef.current === activeType;
+    // If we already have data for this tab and we're not explicitly refreshing it, do not refetch.
+    if (cached && !forceRefresh) {
+      setStatus('success');
+      return;
     }
-    fetchInsights();
-  }, [activeType]);
+
+    setStatus('loading');
+
+    // Cancel any in-flight request (prevents races on fast tab switching).
+    if (abortRef.current) {
+      abortRef.current.abort();
+    }
+    const abortController = new AbortController();
+    abortRef.current = abortController;
+    const seq = ++requestSeqRef.current;
+
+    (async () => {
+      try {
+        const response = await fetch(`/api/stats/insights?type=${activeType}`, {
+          signal: abortController.signal,
+        });
+        const json = await response.json();
+
+        if (abortController.signal.aborted || seq !== requestSeqRef.current) return;
+
+        if (!response.ok) {
+          throw new Error(json?.error || 'Failed to load dashboard data');
+        }
+
+        cacheRef.current[activeType] = json;
+        setData(json);
+        setStatus('success');
+        if (forceRefreshTypeRef.current === activeType) {
+          forceRefreshTypeRef.current = null;
+        }
+      } catch (e) {
+        if (e instanceof Error && e.name === 'AbortError') return;
+        if (abortController.signal.aborted || seq !== requestSeqRef.current) return;
+        setError(e instanceof Error ? e.message : 'Failed to load dashboard data');
+        setStatus('error');
+        if (forceRefreshTypeRef.current === activeType) {
+          forceRefreshTypeRef.current = null;
+        }
+      }
+    })();
+
+    return () => {
+      // Only abort if this effect owns the current controller
+      if (abortRef.current === abortController) {
+        abortController.abort();
+      }
+    };
+  }, [activeType, refreshNonce]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -90,15 +149,17 @@ export default function NationwideStats() {
   };
 
   const getTopItems = () => {
-    if (activeType === 'zip') return insights?.topZips || [];
-    if (activeType === 'city') return insights?.topCities || [];
-    return insights?.topCounties || [];
+    if (!data) return [];
+    if (activeType === 'zip') return data.topZips || [];
+    if (activeType === 'city') return data.topCities || [];
+    return data.topCounties || [];
   };
 
   const getBottomItems = () => {
-    if (activeType === 'zip') return insights?.bottomZips || [];
-    if (activeType === 'city') return insights?.bottomCities || [];
-    return insights?.bottomCounties || [];
+    if (!data) return [];
+    if (activeType === 'zip') return data.bottomZips || [];
+    if (activeType === 'city') return data.bottomCities || [];
+    return data.bottomCounties || [];
   };
 
   const getItemLabel = (item: Insight) => {
@@ -159,19 +220,42 @@ export default function NationwideStats() {
     { title: 'Price Jump Anomalies', subtitle: 'vs National Avg (Top 15)' }
   ];
 
-  if (loading) {
-    return (
-      <div className="h-full flex flex-col lg:overflow-hidden">
-        {/* Type Tabs - Always visible */}
-        {tabsContent}
+  const showSkeleton = status === 'loading' && !data;
+  const showHardError = status === 'error' && !data;
 
-        {/* Main Dashboard Grid Skeleton - 3 columns */}
+  const topItems = getTopItems();
+  const bottomItems = getBottomItems();
+  
+  // Filter anomalies based on active type
+  const filteredAnomalies = (data?.anomalies || []).filter(anomaly => {
+    if (activeType === 'zip') return !!anomaly.zipCode;
+    if (activeType === 'city') return !!anomaly.cityName && !anomaly.zipCode;
+    if (activeType === 'county') return !!anomaly.areaName && !anomaly.zipCode && !anomaly.cityName;
+    return true;
+  });
+
+  return (
+    <div className="h-full flex flex-col lg:overflow-hidden">
+      {/* Type Tabs - Always visible */}
+      {tabsContent}
+
+      {/* Non-blocking error banner (keep cards visible if we have data) */}
+      {error && !showHardError && (
+        <div className="mb-3 rounded-md border border-[#fecaca] bg-[#fef2f2] px-3 py-2 text-xs text-[#991b1b]">
+          Failed to load dashboard data{error ? `: ${error}` : ''}.
+        </div>
+      )}
+
+      {showSkeleton && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 lg:min-h-0 lg:overflow-hidden items-stretch">
           {cardHeaders.map((header, i) => (
             <div key={i} className="bg-white rounded-lg border border-[#e5e5e5] shadow-sm overflow-hidden flex flex-col">
               {/* Card Header - Static labels, no skeleton */}
               <div className="px-4 py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
-                <h3 className="text-sm font-semibold text-[#0a0a0a] mb-0.5">{header.title}</h3>
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-sm font-semibold text-[#0a0a0a] mb-0.5">{header.title}</h3>
+                  <div className="h-4 w-4 rounded-full border-2 border-[#d4d4d4] border-t-transparent animate-spin" />
+                </div>
                 <p className="text-xs text-[#737373]">{header.subtitle}</p>
               </div>
               {/* Card Content Skeleton - Only data rows */}
@@ -197,29 +281,37 @@ export default function NationwideStats() {
             </div>
           ))}
         </div>
-      </div>
-    );
-  }
+      )}
 
-  if (!insights) return null;
-
-  const topItems = getTopItems();
-  const bottomItems = getBottomItems();
-  
-  // Filter anomalies based on active type
-  const filteredAnomalies = insights.anomalies.filter(anomaly => {
-    if (activeType === 'zip') return !!anomaly.zipCode;
-    if (activeType === 'city') return !!anomaly.cityName && !anomaly.zipCode;
-    if (activeType === 'county') return !!anomaly.areaName && !anomaly.zipCode && !anomaly.cityName;
-    return true;
-  });
-
-  return (
-    <div className="h-full flex flex-col lg:overflow-hidden">
-      {/* Type Tabs - Always visible */}
-      {tabsContent}
+      {showHardError && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 lg:min-h-0 lg:overflow-hidden items-stretch">
+          {cardHeaders.map((header, i) => (
+            <div key={i} className="bg-white rounded-lg border border-[#e5e5e5] shadow-sm overflow-hidden flex flex-col">
+              <div className="px-4 py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
+                <h3 className="text-sm font-semibold text-[#0a0a0a] mb-0.5">{header.title}</h3>
+                <p className="text-xs text-[#737373]">{header.subtitle}</p>
+              </div>
+              <div className="flex-1 flex flex-col items-center justify-center text-sm text-[#737373] gap-3">
+                <div>Failed to load</div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    forceRefreshTypeRef.current = activeType;
+                    cacheRef.current[activeType] = null;
+                    setRefreshNonce((n) => n + 1);
+                  }}
+                  className="px-3 py-1.5 rounded-md border border-[#e5e5e5] bg-white text-[#0a0a0a] text-xs font-medium hover:bg-[#fafafa]"
+                >
+                  Retry
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Main Dashboard Grid - 3 columns */}
+      {!!data && (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 lg:min-h-0 lg:overflow-hidden items-stretch">
         {/* Top 15 Most Expensive */}
         <div className="bg-white rounded-lg border border-[#e5e5e5] shadow-sm overflow-hidden flex flex-col">
@@ -376,6 +468,7 @@ export default function NationwideStats() {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }

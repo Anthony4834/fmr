@@ -25,6 +25,7 @@ import {
   clearFMRDataForYear,
   insertFMRRecords,
   getCurrentFMRYear,
+  normalizeCountyFips,
   normalizeStateCode
 } from '../lib/ingestion-utils';
 
@@ -73,6 +74,7 @@ function parseFMRCSV(csvContent: string, year: number, effectiveDate?: Date): FM
       // Multiple counties can share the same hud_area_name (metro area)
       const countyName = row['countyname'] || row['county_town_name'] || '';
       const hudAreaName = row['hud_area_name'] || '';
+      const hudAreaCode = row['hud_area_code'] || row['hudareacode'] || row['area_code'] || '';
       
       // Use county name if available, otherwise fall back to hud_area_name
       const areaName = countyName || hudAreaName || row['area_name'] || row['county_name'] || '';
@@ -82,7 +84,9 @@ function parseFMRCSV(csvContent: string, year: number, effectiveDate?: Date): FM
         areaType,
         areaName: areaName,
         stateCode: normalizeStateCode(row['stusps'] || row['state_code'] || row['state'] || ''),
-        countyCode: row['fips'] || row['county_code'] || row['fips_code'] || undefined,
+        countyCode: normalizeCountyFips(row['fips'] || row['county_code'] || row['fips_code'] || ''),
+        hudAreaCode: hudAreaCode || undefined,
+        hudAreaName: hudAreaName || undefined,
         bedroom0: parseFloat(row['fmr_0'] || row['bedroom_0'] || row['efficiency'] || row['0br'] || '0') || undefined,
         bedroom1: parseFloat(row['fmr_1'] || row['bedroom_1'] || row['1br'] || '0') || undefined,
         bedroom2: parseFloat(row['fmr_2'] || row['bedroom_2'] || row['2br'] || '0') || undefined,

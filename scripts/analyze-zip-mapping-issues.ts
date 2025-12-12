@@ -221,3 +221,6 @@ analyzeMappingIssues()
     console.error('Error analyzing mapping issues:', error);
     process.exit(1);
   });
+
+
+

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface Summary {
   cities: {
@@ -13,6 +13,8 @@ interface Summary {
     zips_without_fmr: number;
     zips_with_safmr: number;
     zips_with_fmr_only: number;
+    zips_with_safmr_data_but_uses_fmr: number;
+    total_using_fmr?: number;
   };
   counties: {
     total_counties: number;
@@ -42,22 +44,103 @@ export default function TestCoveragePage() {
   const [selectedIssueType, setSelectedIssueType] = useState<string>('');
   const [data, setData] = useState<CoverageItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [summaryLoading, setSummaryLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const pageSize = 50;
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const summaryAbortControllerRef = useRef<AbortController | null>(null);
+  const currentTabRef = useRef(activeTab);
 
   useEffect(() => {
     fetchSummary();
+    
+    // Cleanup on unmount
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      if (summaryAbortControllerRef.current) {
+        summaryAbortControllerRef.current.abort();
+      }
+    };
   }, []);
 
+  // If you switch tabs while on a later page, the old page offset can yield an empty result set
+  // even though there is data. Reset pagination whenever the active tab changes.
   useEffect(() => {
+    // Clear data immediately when switching tabs to prevent showing stale data
+    if (currentTabRef.current !== activeTab) {
+      // Cancel any in-flight request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      // Clear data and update ref
+      setData([]);
+      setTotal(0);
+      setError(null);
+      setLoading(true); // Set loading immediately so we show loading state, not stale data
+      currentTabRef.current = activeTab;
+    }
+    setPage(0);
+  }, [activeTab]);
+
+  useEffect(() => {
+    // Cancel any in-flight request when dependencies change
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    // Ensure current tab ref is up to date
+    currentTabRef.current = activeTab;
     fetchData();
   }, [activeTab, showMissingOnly, selectedState, selectedIssueType, page]);
 
+  // If the underlying data changes (e.g. after ingestion/cleanup) while you're on a later page,
+  // the current offset can be out of range and the table will look empty even though `total > 0`.
+  // Snap back to page 0 in that case.
+  useEffect(() => {
+    if (total > 0 && page > 0 && page * pageSize >= total) {
+      setPage(0);
+    }
+  }, [total, page]);
+
   const fetchSummary = async () => {
+    // Cancel any previous summary request
+    if (summaryAbortControllerRef.current) {
+      summaryAbortControllerRef.current.abort();
+    }
+    
+    // Create a new abort controller for this request
+    const abortController = new AbortController();
+    summaryAbortControllerRef.current = abortController;
+    
+    setSummaryLoading(true);
+    setError(null);
     try {
-      const response = await fetch('/api/test-coverage?type=summary&_t=' + Date.now()); // Add cache busting
+      const response = await fetch('/api/test-coverage?type=summary&_t=' + Date.now(), {
+        signal: abortController.signal
+      });
+      
+      // Check if request was aborted
+      if (abortController.signal.aborted) {
+        return;
+      }
+      
       const data = await response.json();
+      
+      // Check again after async operation
+      if (abortController.signal.aborted) {
+        return;
+      }
+      
+      if (!response.ok) {
+        setError(data.error || data.details || 'Failed to fetch summary');
+        console.error('Error fetching summary:', data);
+        setSummaryLoading(false);
+        return;
+      }
+      
       // Convert string numbers to actual numbers
       const normalized = {
         cities: {
@@ -70,6 +153,8 @@ export default function TestCoveragePage() {
           zips_without_fmr: parseInt(data.zips?.zips_without_fmr || '0'),
           zips_with_safmr: parseInt(data.zips?.zips_with_safmr || '0'),
           zips_with_fmr_only: parseInt(data.zips?.zips_with_fmr_only || '0'),
+          zips_with_safmr_data_but_uses_fmr: parseInt(data.zips?.zips_with_safmr_data_but_uses_fmr || '0'),
+          total_using_fmr: parseInt(data.zips?.total_using_fmr || '0'),
         },
         counties: {
           total_counties: parseInt(data.counties?.total_counties || '0'),
@@ -87,19 +172,45 @@ export default function TestCoveragePage() {
           },
         };
       setSummary(normalized);
+      setError(null); // Clear any previous errors
     } catch (error) {
+      // Ignore abort errors
+      if (error instanceof Error && error.name === 'AbortError') {
+        return;
+      }
+      // Check if request was aborted
+      if (abortController.signal.aborted) {
+        return;
+      }
+      const errorMessage = error instanceof Error ? error.message : 'Error fetching summary';
+      setError(errorMessage);
       console.error('Error fetching summary:', error);
+    } finally {
+      // Only update loading state if this request wasn't aborted
+      if (!abortController.signal.aborted) {
+        setSummaryLoading(false);
+      }
     }
   };
 
-  const [error, setError] = useState<string | null>(null);
-
   const fetchData = async () => {
+    // Cancel any previous request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    // Create a new abort controller for this request
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+    
+    // Capture the current tab at the start of the request
+    const requestTab = activeTab;
+    
     setLoading(true);
     setError(null);
     try {
       const params = new URLSearchParams({
-        type: activeTab === 'missing-mappings' ? 'zip-mappings' : activeTab,
+        type: requestTab === 'missing-mappings' ? 'zip-mappings' : requestTab,
         missing: showMissingOnly.toString(),
         limit: pageSize.toString(),
         offset: (page * pageSize).toString(),
@@ -107,30 +218,57 @@ export default function TestCoveragePage() {
       });
       
       // Don't add missing filter for invalid-state-codes
-      if (activeTab === 'invalid-state-codes') {
+      if (requestTab === 'invalid-state-codes') {
         params.delete('missing');
       }
       if (selectedState) {
         params.append('state', selectedState);
       }
-      if ((activeTab === 'zip-mappings' && selectedIssueType) || activeTab === 'missing-mappings') {
-        params.append('issue_type', activeTab === 'missing-mappings' ? 'NO_MAPPING' : selectedIssueType);
+      if ((requestTab === 'zip-mappings' && selectedIssueType) || requestTab === 'missing-mappings') {
+        params.append('issue_type', requestTab === 'missing-mappings' ? 'NO_MAPPING' : selectedIssueType);
       }
-      const response = await fetch(`/api/test-coverage?${params}`);
+      const response = await fetch(`/api/test-coverage?${params}`, {
+        signal: abortController.signal
+      });
+      
+      // Check if request was aborted
+      if (abortController.signal.aborted) {
+        return;
+      }
+      
       const result = await response.json();
+      
+      // Check again after async operation and verify tab hasn't changed
+      if (abortController.signal.aborted || currentTabRef.current !== requestTab) {
+        return;
+      }
       
       if (!response.ok) {
         throw new Error(result.error || result.details || 'Failed to fetch data');
       }
       
-      setData(result.results || []);
-      setTotal(result.total || 0);
+      // Only update state if we're still on the same tab
+      if (currentTabRef.current === requestTab) {
+        setData(result.results || []);
+        setTotal(result.total || 0);
+      }
     } catch (err) {
+      // Ignore abort errors
+      if (err instanceof Error && err.name === 'AbortError') {
+        return;
+      }
+      // Check if request was aborted or tab changed
+      if (abortController.signal.aborted || currentTabRef.current !== requestTab) {
+        return;
+      }
       const errorMessage = err instanceof Error ? err.message : 'Error fetching data';
       setError(errorMessage);
       console.error('Error fetching data:', err);
     } finally {
-      setLoading(false);
+      // Only update loading state if this request wasn't aborted and tab hasn't changed
+      if (!abortController.signal.aborted && currentTabRef.current === requestTab) {
+        setLoading(false);
+      }
     }
   };
 
@@ -230,8 +368,121 @@ export default function TestCoveragePage() {
           </div>
         </div>
 
+        {/* Error Banner */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-400 rounded">
+            <div className="flex">
+              <div className="ml-3">
+                <p className="text-sm text-red-700 font-medium">Error loading data</p>
+                <p className="text-sm text-red-600 mt-1">{error}</p>
+                {error.includes('views') || error.includes('create-test-views') && (
+                  <p className="text-xs text-red-500 mt-2">
+                    Run: <code className="bg-red-100 px-1 rounded">bun scripts/create-test-views.ts</code>
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* FMR vs SAFMR Summary Card */}
+        {summaryLoading ? (
+          <div className="mb-6">
+            <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-lg shadow-lg p-6 border-2 border-green-200">
+              <div className="animate-pulse">
+                <div className="h-6 bg-gray-200 rounded w-48 mb-4"></div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="bg-white rounded-lg p-4 shadow">
+                    <div className="h-4 bg-gray-200 rounded w-32 mb-2"></div>
+                    <div className="h-8 bg-gray-200 rounded w-24"></div>
+                  </div>
+                  <div className="bg-white rounded-lg p-4 shadow">
+                    <div className="h-4 bg-gray-200 rounded w-32 mb-2"></div>
+                    <div className="h-8 bg-gray-200 rounded w-24"></div>
+                  </div>
+                  <div className="bg-white rounded-lg p-4 shadow">
+                    <div className="h-4 bg-gray-200 rounded w-32 mb-2"></div>
+                    <div className="h-8 bg-gray-200 rounded w-24"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : summary && (
+          <div className="mb-6">
+            <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-lg shadow-lg p-6 border-2 border-green-200">
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">FMR vs SAFMR Usage</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-white rounded-lg p-4 shadow">
+                  <div className="text-sm text-gray-600 mb-1">Total ZIPs Using SAFMR</div>
+                  <div className="text-3xl font-bold text-green-600">
+                    {formatNumber(summary.zips.zips_with_safmr)}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {getPercentage(summary.zips.zips_with_safmr, summary.zips.total_zips)} of all ZIPs
+                  </div>
+                </div>
+                <div className="bg-white rounded-lg p-4 shadow">
+                  <div className="text-sm text-gray-600 mb-1">Total ZIPs Using FMR</div>
+                  <div className="text-3xl font-bold text-blue-600">
+                    {formatNumber(summary.zips.total_using_fmr ?? (summary.zips.zips_with_fmr_only + (summary.zips.zips_with_safmr_data_but_uses_fmr || 0)))}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {getPercentage(summary.zips.total_using_fmr ?? (summary.zips.zips_with_fmr_only + (summary.zips.zips_with_safmr_data_but_uses_fmr || 0)), summary.zips.total_zips)} of all ZIPs
+                  </div>
+                  {summary.zips.zips_with_safmr_data_but_uses_fmr > 0 && (
+                    <div className="text-xs text-orange-600 mt-1">
+                      ({formatNumber(summary.zips.zips_with_safmr_data_but_uses_fmr)} have SAFMR data but use FMR)
+                    </div>
+                  )}
+                </div>
+                <div className="bg-white rounded-lg p-4 shadow">
+                  <div className="text-sm text-gray-600 mb-1">ZIPs Without FMR</div>
+                  <div className="text-3xl font-bold text-red-600">
+                    {formatNumber(summary.zips.zips_without_fmr)}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {getPercentage(summary.zips.zips_without_fmr, summary.zips.total_zips)} of all ZIPs
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Summary Cards */}
-        {summary && (
+        {summaryLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="animate-pulse">
+                <div className="h-4 bg-gray-200 rounded w-1/2 mb-4"></div>
+                <div className="h-8 bg-gray-200 rounded w-3/4 mb-2"></div>
+                <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+              </div>
+            </div>
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="animate-pulse">
+                <div className="h-4 bg-gray-200 rounded w-1/2 mb-4"></div>
+                <div className="h-8 bg-gray-200 rounded w-3/4 mb-2"></div>
+                <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+              </div>
+            </div>
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="animate-pulse">
+                <div className="h-4 bg-gray-200 rounded w-1/2 mb-4"></div>
+                <div className="h-8 bg-gray-200 rounded w-3/4 mb-2"></div>
+                <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+              </div>
+            </div>
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="animate-pulse">
+                <div className="h-4 bg-gray-200 rounded w-1/2 mb-4"></div>
+                <div className="h-8 bg-gray-200 rounded w-3/4 mb-2"></div>
+                <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+              </div>
+            </div>
+          </div>
+        ) : summary && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <div className="bg-white rounded-lg shadow p-6">
               <h3 className="text-lg font-semibold text-gray-700 mb-4">Cities</h3>
@@ -263,17 +514,25 @@ export default function TestCoveragePage() {
                   <span className="font-medium">{formatNumber(summary.zips.total_zips)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-green-600">With SAFMR:</span>
+                  <span className="text-green-600">Uses SAFMR:</span>
                   <span className="font-medium text-green-600">
                     {formatNumber(summary.zips.zips_with_safmr)} ({getPercentage(summary.zips.zips_with_safmr, summary.zips.total_zips)})
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-blue-600">With FMR only:</span>
+                  <span className="text-blue-600">Uses FMR:</span>
                   <span className="font-medium text-blue-600">
                     {formatNumber(summary.zips.zips_with_fmr_only)} ({getPercentage(summary.zips.zips_with_fmr_only, summary.zips.total_zips)})
                   </span>
                 </div>
+                {summary.zips.zips_with_safmr_data_but_uses_fmr > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-orange-600">Has SAFMR but uses FMR:</span>
+                    <span className="font-medium text-orange-600">
+                      {formatNumber(summary.zips.zips_with_safmr_data_but_uses_fmr)} ({getPercentage(summary.zips.zips_with_safmr_data_but_uses_fmr, summary.zips.total_zips)})
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-red-600">Without FMR:</span>
                   <span className="font-medium text-red-600">
@@ -530,7 +789,11 @@ export default function TestCoveragePage() {
                             <td className="px-4 py-3 text-sm text-gray-600">{item.state_code}</td>
                             <td className="px-4 py-3 text-sm">
                               {item.fmr_source === 'SAFMR' && <span className="text-green-600 font-medium">SAFMR</span>}
-                              {item.fmr_source === 'FMR' && <span className="text-blue-600 font-medium">FMR</span>}
+                              {item.fmr_source === 'FMR' && (
+                                <span className="text-blue-600 font-medium">
+                                  FMR{item.has_safmr_data_but_uses_fmr && <span className="text-orange-600 ml-1">(has SAFMR data)</span>}
+                                </span>
+                              )}
                               {item.fmr_source === 'NONE' && <span className="text-red-600 font-medium">None</span>}
                             </td>
                           </>

@@ -34,70 +34,25 @@ interface FMRResultsProps {
   data: FMRResult | null;
   loading?: boolean;
   error?: string | null;
-  onZipRankingsChange?: (rankings: Array<{zipCode: string; percentDiff: number}> | null) => void;
+  zipVsCountyMedianPercent?: number | null;
+  breadcrumbs?: { parentLabel: string; parentType: 'zip' | 'city' | 'county' | 'address'; zipCode: string } | null;
+  onBreadcrumbBack?: () => void;
 }
 
-export default function FMRResults({ data, loading, error, onZipRankingsChange }: FMRResultsProps) {
+export default function FMRResults({
+  data,
+  loading,
+  error,
+  zipVsCountyMedianPercent,
+  breadcrumbs,
+  onBreadcrumbBack
+}: FMRResultsProps) {
   const [showAllZips, setShowAllZips] = useState(false);
 
   // Reset ZIP display state when data changes
   useEffect(() => {
     setShowAllZips(false);
   }, [data]);
-
-  // Calculate and notify parent of ZIP rankings when data changes
-  useEffect(() => {
-    if (!data || !onZipRankingsChange) return;
-
-    if (data.zipFMRData && data.zipFMRData.length > 1) {
-      // Calculate composite FMR for each ZIP (average of all bedroom sizes)
-      const zipScores = data.zipFMRData.map(zip => {
-        const values = [
-          zip.bedroom0,
-          zip.bedroom1,
-          zip.bedroom2,
-          zip.bedroom3,
-          zip.bedroom4
-        ].filter(v => v !== undefined) as number[];
-        
-        const avgFMR = values.length > 0 
-          ? values.reduce((sum, val) => sum + val, 0) / values.length 
-          : 0;
-        
-        return {
-          zipCode: zip.zipCode,
-          avgFMR
-        };
-      });
-
-      // Calculate median FMR
-      const sortedScores = [...zipScores].sort((a, b) => a.avgFMR - b.avgFMR);
-      const medianIndex = Math.floor(sortedScores.length / 2);
-      const medianFMR = sortedScores.length % 2 === 0
-        ? (sortedScores[medianIndex - 1].avgFMR + sortedScores[medianIndex].avgFMR) / 2
-        : sortedScores[medianIndex].avgFMR;
-
-      // Calculate percentage difference from median and sort by highest FMR
-      const zipRankings = zipScores
-        .map(zip => ({
-          zipCode: zip.zipCode,
-          percentDiff: medianFMR > 0 
-            ? ((zip.avgFMR - medianFMR) / medianFMR) * 100 
-            : 0
-        }))
-        .sort((a, b) => {
-          // Sort by avgFMR descending
-          const aZip = zipScores.find(z => z.zipCode === a.zipCode)!;
-          const bZip = zipScores.find(z => z.zipCode === b.zipCode)!;
-          return bZip.avgFMR - aZip.avgFMR;
-        });
-
-      onZipRankingsChange(zipRankings);
-    } else {
-      // Clear rankings when no multiple ZIPs
-      onZipRankingsChange(null);
-    }
-  }, [data, onZipRankingsChange]);
 
   if (loading) {
     return (
@@ -242,6 +197,30 @@ export default function FMRResults({ data, loading, error, onZipRankingsChange }
 
   return (
     <div className="mt-6">
+      {/* Breadcrumbs (drilldown) */}
+      {breadcrumbs && onBreadcrumbBack && (
+        <div className="mb-4 flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2 text-xs text-[#737373]">
+            <button
+              type="button"
+              onClick={onBreadcrumbBack}
+              className="hover:text-[#0a0a0a] font-medium transition-colors"
+            >
+              {breadcrumbs.parentLabel}
+            </button>
+            <span className="text-[#a3a3a3]">/</span>
+            <span className="text-[#0a0a0a] font-semibold">{breadcrumbs.zipCode}</span>
+          </div>
+          <button
+            type="button"
+            onClick={onBreadcrumbBack}
+            className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-[#e5e5e5] bg-white hover:bg-[#fafafa] transition-colors"
+          >
+            Back to results
+          </button>
+        </div>
+      )}
+
       {/* Compact Header */}
       <div className="mb-5">
         <div className="flex items-start justify-between gap-3 mb-3 flex-wrap">
@@ -286,12 +265,27 @@ export default function FMRResults({ data, loading, error, onZipRankingsChange }
                 {getTypeLabel()}
               </span>
             )}
+            {dataNonNull.queriedType === 'zip' && zipVsCountyMedianPercent !== null && zipVsCountyMedianPercent !== undefined && (
+              <span
+                className={`px-2 py-0.5 rounded text-xs font-semibold tabular-nums ${
+                  zipVsCountyMedianPercent > 0
+                    ? 'bg-[#f0fdf4] text-[#16a34a]'
+                    : zipVsCountyMedianPercent < 0
+                    ? 'bg-[#fef2f2] text-[#dc2626]'
+                    : 'bg-[#fafafa] text-[#525252]'
+                }`}
+                title="Compared to the county median average FMR"
+              >
+                {zipVsCountyMedianPercent > 0 ? '+' : ''}
+                {zipVsCountyMedianPercent.toFixed(1)}% vs median
+              </span>
+            )}
             <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
               dataNonNull.source === 'safmr' 
                 ? 'bg-[#f0fdf4] text-[#16a34a]' 
                 : 'bg-[#eff6ff] text-[#2563eb]'
             }`}>
-              {dataNonNull.source.toUpperCase()}
+              {dataNonNull.source === 'safmr' ? 'SAFMR' : 'FMR'}
             </span>
           </div>
         </div>
@@ -452,8 +446,8 @@ export default function FMRResults({ data, loading, error, onZipRankingsChange }
       <div className="mt-4 pt-3 border-t border-[#e5e5e5]">
         <p className="text-xs text-[#a3a3a3]">
           {dataNonNull.source === 'safmr' 
-            ? 'Small Area Fair Market Rent (SAFMR)'
-            : 'Fair Market Rent (FMR)'}
+            ? 'Small Area Fair Market Rent (SAFMR) - ZIP code level rates for designated metropolitan areas'
+            : 'Fair Market Rent (FMR) - County/metropolitan area level rates'}
         </p>
       </div>
     </div>

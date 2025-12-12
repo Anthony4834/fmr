@@ -15,6 +15,8 @@
 import { config } from 'dotenv';
 import { ingestFMRData } from './ingest-fmr';
 import { ingestSAFMRData } from './ingest-safmr';
+import { populateRequiredSAFMRZips } from './populate-required-safmr-zips';
+import { computeAndStoreDashboardInsights } from './compute-dashboard-insights';
 import { getCurrentFMRYear } from '../lib/ingestion-utils';
 
 config();
@@ -45,7 +47,19 @@ export async function updateCurrentYearData(year?: number): Promise<void> {
       replaceExisting: true
     });
 
+    // Repopulate required SAFMR ZIPs lookup table
+    console.log('\nStep 3: Repopulating required SAFMR ZIPs lookup table...');
+    await populateRequiredSAFMRZips(targetYear);
+
+    // Precompute dashboard insights (top/bottom/anomalies) so the home dashboard is instant
+    console.log('\nStep 4: Computing and caching dashboard insights...');
+    await computeAndStoreDashboardInsights(targetYear, ['zip', 'city', 'county']);
+
     console.log(`\n✅ Successfully updated all data for year ${targetYear}`);
+    console.log('\n📝 Next steps:');
+    console.log('   - Run "bun run create-test-views" to regenerate test coverage views');
+    console.log('   - Verify data counts and test sample queries');
+    console.log('   - See YEARLY_UPDATE_GUIDE.md for complete update checklist');
   } catch (error) {
     console.error(`\n❌ Error updating data for year ${targetYear}:`, error);
     throw error;
@@ -53,7 +67,7 @@ export async function updateCurrentYearData(year?: number): Promise<void> {
 }
 
 // CLI execution
-if (require.main === module) {
+if (import.meta.main) {
   const args = process.argv.slice(2);
   let year: number | undefined;
 

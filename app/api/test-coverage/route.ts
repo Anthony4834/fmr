@@ -17,6 +17,23 @@ export async function GET(request: NextRequest) {
         'PR', 'VI', 'GU', 'MP', 'AS' // US territories: Puerto Rico, US Virgin Islands, Guam, Northern Mariana Islands, American Samoa
       ];
 
+      // Check if views exist first
+      try {
+        await sql`SELECT 1 FROM cities_without_fmr LIMIT 1`;
+      } catch (viewError: any) {
+        if (viewError?.message?.includes('does not exist') || viewError?.message?.includes('relation') || viewError?.code === '42P01') {
+          return NextResponse.json(
+            { 
+              error: 'Test coverage views do not exist',
+              details: 'The required database views need to be created first.',
+              hint: 'Run: bun scripts/create-test-views.ts'
+            },
+            { status: 500 }
+          );
+        }
+        throw viewError; // Re-throw if it's a different error
+      }
+
       // Get summary statistics (excluding PR)
       const [cityStats, zipStats, countyStats, mappingStats] = await Promise.all([
         sql`
@@ -27,14 +44,40 @@ export async function GET(request: NextRequest) {
           FROM cities_without_fmr
           WHERE state_code != 'PR'
         `,
+        // NOTE: We intentionally avoid `zips_without_fmr` here because it's a complex view and
+        // `COUNT(DISTINCT ...)` can be extremely slow on large datasets.
+        // Instead, compute the same summary directly from the base tables using FIPS joins.
         sql`
-          SELECT 
-            COUNT(*) as total_zips,
-            COUNT(*) FILTER (WHERE fmr_source = 'NONE') as zips_without_fmr,
-            COUNT(*) FILTER (WHERE fmr_source = 'SAFMR') as zips_with_safmr,
-            COUNT(*) FILTER (WHERE fmr_source = 'FMR') as zips_with_fmr_only
-          FROM zips_without_fmr
-          WHERE state_code != 'PR'
+          WITH
+          fmr_counties AS (
+            SELECT DISTINCT county_code
+            FROM fmr_data
+            WHERE year = 2026
+              AND county_code IS NOT NULL
+          ),
+          zip_base AS (
+            SELECT
+              zcm.zip_code,
+              MAX(CASE WHEN rsz.zip_code IS NOT NULL THEN 1 ELSE 0 END) AS is_required_safmr,
+              MAX(CASE WHEN sd.zip_code IS NOT NULL THEN 1 ELSE 0 END) AS has_safmr_data,
+              MAX(CASE WHEN fc.county_code IS NOT NULL THEN 1 ELSE 0 END) AS has_fmr
+            FROM zip_county_mapping zcm
+            LEFT JOIN required_safmr_zips rsz
+              ON rsz.zip_code = zcm.zip_code AND rsz.year = 2026
+            LEFT JOIN safmr_data sd
+              ON sd.zip_code = zcm.zip_code AND sd.year = 2026
+            LEFT JOIN fmr_counties fc
+              ON fc.county_code = zcm.county_fips
+            WHERE zcm.state_code != 'PR'
+            GROUP BY zcm.zip_code
+          )
+          SELECT
+            COUNT(*) AS total_zips,
+            COUNT(*) FILTER (WHERE is_required_safmr = 1) AS zips_with_safmr,
+            COUNT(*) FILTER (WHERE is_required_safmr = 0 AND has_fmr = 1 AND has_safmr_data = 0) AS zips_with_fmr_only,
+            COUNT(*) FILTER (WHERE is_required_safmr = 0 AND has_safmr_data = 1) AS zips_with_safmr_data_but_uses_fmr,
+            COUNT(*) FILTER (WHERE is_required_safmr = 0 AND has_fmr = 0) AS zips_without_fmr
+          FROM zip_base
         `,
         sql`
           SELECT 
@@ -64,7 +107,7 @@ export async function GET(request: NextRequest) {
       );
       
       const invalidCountiesCount = await sql.query(
-        `SELECT COUNT(DISTINCT county_name, state_code) as count
+        `SELECT COUNT(DISTINCT (county_name, state_code)) as count
          FROM zip_county_mapping
          WHERE state_code NOT IN (${validUSStates.map((_, i) => `$${i + 1}`).join(', ')})`,
         validUSStates
@@ -89,6 +132,8 @@ export async function GET(request: NextRequest) {
           zips_without_fmr: parseInt(zipStats.rows[0]?.zips_without_fmr || '0'),
           zips_with_safmr: parseInt(zipStats.rows[0]?.zips_with_safmr || '0'),
           zips_with_fmr_only: parseInt(zipStats.rows[0]?.zips_with_fmr_only || '0'),
+          zips_with_safmr_data_but_uses_fmr: parseInt(zipStats.rows[0]?.zips_with_safmr_data_but_uses_fmr || '0'),
+          total_using_fmr: parseInt(zipStats.rows[0]?.zips_with_fmr_only || '0') + parseInt(zipStats.rows[0]?.zips_with_safmr_data_but_uses_fmr || '0'),
         },
         counties: {
           total_counties: parseInt(countyStats.rows[0]?.total_counties || '0'),
@@ -179,34 +224,84 @@ export async function GET(request: NextRequest) {
       const limit = exportAll ? 999999999 : parseInt(searchParams.get('limit') || '100');
       const offset = exportAll ? 0 : parseInt(searchParams.get('offset') || '0');
 
-      let whereClause = '';
+      // IMPORTANT: don't rely on `zips_without_fmr` here.
+      // It can be slow/stale and may not match the current gating + FIPS-join behavior.
+      //
+      // Instead, compute per-ZIP status directly from base tables.
       const params: any[] = [];
       let paramIndex = 1;
 
-      if (missingOnly) {
-        whereClause += " WHERE fmr_source = 'NONE'";
-      }
+      let stateFilterClause = '';
       if (state) {
-        whereClause += missingOnly ? ' AND state_code = $' + paramIndex : ' WHERE state_code = $' + paramIndex;
+        stateFilterClause = `AND zcm.state_code = $${paramIndex}`;
         params.push(state.toUpperCase());
         paramIndex++;
       }
 
+      // Build a computed rowset and then filter on fmr_source (can't reference alias directly in WHERE).
       const results = await sql.query(
-        `SELECT zip_code, county_name, state_code, state_name, fmr_source
-         FROM zips_without_fmr
-         ${whereClause}
-         ORDER BY state_code, zip_code
-         ${exportAll ? '' : `LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`}`,
+        `
+        WITH zip_status AS (
+          SELECT DISTINCT ON (zcm.zip_code)
+            zcm.zip_code,
+            zcm.county_name,
+            zcm.state_code,
+            zcm.state_name,
+            CASE
+              WHEN EXISTS (
+                SELECT 1
+                FROM required_safmr_zips rsz
+                WHERE rsz.zip_code = zcm.zip_code
+                  AND rsz.year = 2026
+              ) THEN 'SAFMR'
+              WHEN EXISTS (
+                SELECT 1
+                FROM zip_county_mapping z2
+                JOIN fmr_data fd
+                  ON fd.year = 2026
+                 AND fd.county_code IS NOT NULL
+                 AND fd.county_code = z2.county_fips
+                WHERE z2.zip_code = zcm.zip_code
+                  AND z2.state_code != 'PR'
+              ) THEN 'FMR'
+              ELSE 'NONE'
+            END AS fmr_source,
+            CASE
+              WHEN EXISTS (
+                SELECT 1
+                FROM safmr_data sd
+                WHERE sd.zip_code = zcm.zip_code
+                  AND sd.year = 2026
+              )
+              AND NOT EXISTS (
+                SELECT 1
+                FROM required_safmr_zips rsz
+                WHERE rsz.zip_code = zcm.zip_code
+                  AND rsz.year = 2026
+              )
+              THEN TRUE
+              ELSE FALSE
+            END AS has_safmr_data_but_uses_fmr
+          FROM zip_county_mapping zcm
+          WHERE zcm.state_code != 'PR'
+            ${stateFilterClause}
+          ORDER BY zcm.zip_code, zcm.state_code, zcm.county_name
+        )
+        SELECT zip_code, county_name, state_code, state_name, fmr_source, has_safmr_data_but_uses_fmr
+        FROM zip_status
+        ${missingOnly ? "WHERE fmr_source = 'NONE'" : ''}
+        ORDER BY state_code, zip_code
+        ${exportAll ? '' : `LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`}
+        `,
         exportAll ? params : [...params, limit, offset]
       );
 
       if (exportAll) {
         // Format as text file
         const lines = [
-          'ZIP Code\tCounty Name\tState Code\tState Name\tFMR Source',
+          'ZIP Code\tCounty Name\tState Code\tState Name\tFMR Source\tHas SAFMR Data But Uses FMR',
           ...results.rows.map(row => 
-            `${row.zip_code}\t${row.county_name || ''}\t${row.state_code}\t${row.state_name || ''}\t${row.fmr_source || 'NONE'}`
+            `${row.zip_code}\t${row.county_name || ''}\t${row.state_code}\t${row.state_name || ''}\t${row.fmr_source || 'NONE'}\t${row.has_safmr_data_but_uses_fmr ? 'Yes' : 'No'}`
           )
         ];
         return new NextResponse(lines.join('\n'), {
@@ -218,9 +313,38 @@ export async function GET(request: NextRequest) {
       }
 
       const total = await sql.query(
-        `SELECT COUNT(*) as count
-         FROM zips_without_fmr
-         ${whereClause}`,
+        `
+        WITH zip_status AS (
+          SELECT DISTINCT ON (zcm.zip_code)
+            zcm.zip_code,
+            CASE
+              WHEN EXISTS (
+                SELECT 1
+                FROM required_safmr_zips rsz
+                WHERE rsz.zip_code = zcm.zip_code
+                  AND rsz.year = 2026
+              ) THEN 'SAFMR'
+              WHEN EXISTS (
+                SELECT 1
+                FROM zip_county_mapping z2
+                JOIN fmr_data fd
+                  ON fd.year = 2026
+                 AND fd.county_code IS NOT NULL
+                 AND fd.county_code = z2.county_fips
+                WHERE z2.zip_code = zcm.zip_code
+                  AND z2.state_code != 'PR'
+              ) THEN 'FMR'
+              ELSE 'NONE'
+            END AS fmr_source
+          FROM zip_county_mapping zcm
+          WHERE zcm.state_code != 'PR'
+            ${stateFilterClause}
+          ORDER BY zcm.zip_code, zcm.state_code, zcm.county_name
+        )
+        SELECT COUNT(*) as count
+        FROM zip_status
+        ${missingOnly ? "WHERE fmr_source = 'NONE'" : ''}
+        `,
         params
       );
 

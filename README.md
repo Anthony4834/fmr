@@ -49,7 +49,9 @@ This project includes reusable, configurable scripts for indexing FMR and SAFMR 
 
 ### Yearly Updates
 
-To update data for the current year (typically run in October):
+**📖 See [YEARLY_UPDATE_GUIDE.md](./YEARLY_UPDATE_GUIDE.md) for complete instructions including data sources and step-by-step process.**
+
+Quick update for the current year (typically run in October):
 
 ```bash
 bun run update:current-year
@@ -57,8 +59,15 @@ bun run update:current-year
 
 Or specify a year:
 ```bash
-bun run update:current-year -- --year 2024
+bun run update:current-year -- --year 2026
 ```
+
+**Important**: After running the update script, also run:
+```bash
+bun run create-test-views
+```
+
+This will regenerate the test coverage views with the latest data.
 
 ### Script Options
 

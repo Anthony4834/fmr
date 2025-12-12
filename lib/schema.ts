@@ -31,6 +31,41 @@ export async function createSchema() {
     );
   `);
 
+  // FMR county -> HUD metro mapping
+  // This preserves HUD's metro naming (hud_area_name / hud_area_code) even though fmr_data.area_name
+  // is stored as the county name for better county-level lookups.
+  await execute(`
+    CREATE TABLE IF NOT EXISTS fmr_county_metro (
+      id SERIAL PRIMARY KEY,
+      year INTEGER NOT NULL,
+      state_code VARCHAR(2) NOT NULL,
+      county_name TEXT,
+      county_fips VARCHAR(5),
+      hud_area_code TEXT,
+      hud_area_name TEXT,
+      is_metro BOOLEAN NOT NULL DEFAULT false,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(year, state_code, county_fips, hud_area_code)
+    );
+  `);
+
+  // If the table existed from an older schema, widen hud_area_code (HUD values like "METRO33860M33860"
+  // exceed 10 chars).
+  await execute(`
+    DO $$
+    BEGIN
+      IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_name = 'fmr_county_metro'
+          AND column_name = 'hud_area_code'
+          AND data_type <> 'text'
+      ) THEN
+        ALTER TABLE fmr_county_metro ALTER COLUMN hud_area_code TYPE TEXT;
+      END IF;
+    END $$;
+  `);
+
   // SAFMR Data table (ZIP code level)
   await execute(`
     CREATE TABLE IF NOT EXISTS safmr_data (
@@ -94,6 +129,27 @@ export async function createSchema() {
     );
   `);
 
+  // Required SAFMR ZIP codes index (ZIPs that fall within the 65 required SAFMR metropolitan areas)
+  await execute(`
+    CREATE TABLE IF NOT EXISTS required_safmr_zips (
+      zip_code VARCHAR(10) NOT NULL,
+      year INTEGER NOT NULL DEFAULT 2026,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (zip_code, year)
+    );
+  `);
+
+  // Cached dashboard insights (precomputed annually; avoids expensive aggregation at request time)
+  await execute(`
+    CREATE TABLE IF NOT EXISTS dashboard_insights_cache (
+      year INTEGER NOT NULL,
+      type VARCHAR(10) NOT NULL CHECK (type IN ('zip', 'city', 'county')),
+      payload JSONB NOT NULL,
+      computed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (year, type)
+    );
+  `);
+
   // Create indexes
   console.log('Creating indexes...');
 
@@ -107,6 +163,11 @@ export async function createSchema() {
   await execute('CREATE INDEX IF NOT EXISTS idx_fmr_year ON fmr_data(year);');
   await execute('CREATE INDEX IF NOT EXISTS idx_fmr_state ON fmr_data(state_code);');
   await execute('CREATE INDEX IF NOT EXISTS idx_fmr_year_state ON fmr_data(year, state_code);');
+
+  await execute('CREATE INDEX IF NOT EXISTS idx_fmr_county_metro_year ON fmr_county_metro(year);');
+  await execute('CREATE INDEX IF NOT EXISTS idx_fmr_county_metro_year_hud_name ON fmr_county_metro(year, hud_area_name);');
+  await execute('CREATE INDEX IF NOT EXISTS idx_fmr_county_metro_year_hud_code ON fmr_county_metro(year, hud_area_code);');
+  await execute('CREATE INDEX IF NOT EXISTS idx_fmr_county_metro_year_county_fips ON fmr_county_metro(year, county_fips);');
   
   await execute('CREATE INDEX IF NOT EXISTS idx_safmr_year ON safmr_data(year);');
   await execute('CREATE INDEX IF NOT EXISTS idx_safmr_zip ON safmr_data(zip_code);');
@@ -119,6 +180,12 @@ export async function createSchema() {
   
   await execute('CREATE INDEX IF NOT EXISTS idx_geocoded_zip ON geocoded_addresses(zip_code);');
   await execute('CREATE INDEX IF NOT EXISTS idx_geocoded_state ON geocoded_addresses(state_code);');
+  
+  await execute('CREATE INDEX IF NOT EXISTS idx_required_safmr_zip ON required_safmr_zips(zip_code);');
+  await execute('CREATE INDEX IF NOT EXISTS idx_required_safmr_year ON required_safmr_zips(year);');
+  await execute('CREATE INDEX IF NOT EXISTS idx_required_safmr_zip_year ON required_safmr_zips(zip_code, year);');
+
+  await execute('CREATE INDEX IF NOT EXISTS idx_dashboard_insights_year ON dashboard_insights_cache(year);');
 
   console.log('Schema created successfully!');
 }

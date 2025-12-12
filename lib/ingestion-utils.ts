@@ -12,6 +12,8 @@ export interface FMRRecord {
   areaName: string;
   stateCode: string;
   countyCode?: string;
+  hudAreaCode?: string;
+  hudAreaName?: string;
   bedroom0?: number;
   bedroom1?: number;
   bedroom2?: number;
@@ -35,6 +37,7 @@ export interface SAFMRRecord {
  * Clears existing FMR data for a given year
  */
 export async function clearFMRDataForYear(year: number): Promise<void> {
+  await execute('DELETE FROM fmr_county_metro WHERE year = $1', [year]);
   await execute('DELETE FROM fmr_data WHERE year = $1', [year]);
   console.log(`Cleared existing FMR data for year ${year}`);
 }
@@ -95,6 +98,42 @@ export async function insertFMRRecords(records: FMRRecord[]): Promise<void> {
 
   await execute(queryText, values);
   console.log(`Inserted ${records.length} FMR records`);
+
+  // Also populate the HUD metro mapping table so we can accurately map required SAFMR metro areas
+  // to their constituent counties (by FIPS).
+  const metroValues: any[] = [];
+  const metroPlaceholders: string[] = [];
+  let metroParamIndex = 1;
+
+  for (const record of records) {
+    if (!record.countyCode || !record.hudAreaName) continue;
+    metroPlaceholders.push(
+      `($${metroParamIndex++}, $${metroParamIndex++}, $${metroParamIndex++}, $${metroParamIndex++}, $${metroParamIndex++}, $${metroParamIndex++}, $${metroParamIndex++})`
+    );
+    metroValues.push(
+      record.year,
+      record.stateCode,
+      record.areaName, // county name (we store counties in areaName)
+      record.countyCode,
+      record.hudAreaCode || null,
+      record.hudAreaName,
+      record.areaType === 'metropolitan'
+    );
+  }
+
+  if (metroPlaceholders.length > 0) {
+    const metroQueryText = `
+      INSERT INTO fmr_county_metro (
+        year, state_code, county_name, county_fips, hud_area_code, hud_area_name, is_metro
+      ) VALUES ${metroPlaceholders.join(', ')}
+      ON CONFLICT (year, state_code, county_fips, hud_area_code)
+      DO UPDATE SET
+        county_name = EXCLUDED.county_name,
+        hud_area_name = EXCLUDED.hud_area_name,
+        is_metro = EXCLUDED.is_metro
+    `;
+    await execute(metroQueryText, metroValues);
+  }
 }
 
 /**
@@ -170,5 +209,40 @@ export function normalizeZipCode(zip: string): string {
  */
 export function normalizeStateCode(state: string): string {
   return state.trim().toUpperCase().substring(0, 2);
+}
+
+/**
+ * Normalizes a county FIPS code to 5 digits.
+ *
+ * HUD's FMR CSV sometimes uses 9-digit "FIPS-like" values (e.g. 010019999),
+ * where the first 5 digits are the county FIPS and the trailing 4 are filler.
+ * We store the 5-digit county FIPS so it can join to zip_county_mapping.county_fips.
+ */
+export function normalizeCountyFips(fips: string): string | undefined {
+  const digits = (fips || '').replace(/\D/g, '');
+  if (!digits) return undefined;
+
+  // Common HUD FMR CSV format:
+  // - metro/non-metro rows often have a "FIPS-like" code with a trailing 99999 suffix
+  //   e.g. "100199999" => state_fips="1", county="001", suffix="99999" => "01001"
+  //   e.g. "3602999999" => state_fips="36", county="029", suffix="99999" => "36029"
+  // Detect by trailing 99999 (or length >= 9) and reconstruct.
+  if (digits.length >= 9) {
+    const withoutSuffix = digits.slice(0, -5);
+    if (withoutSuffix.length >= 4) {
+      const county3 = withoutSuffix.slice(-3);
+      const state = withoutSuffix.slice(0, -3).padStart(2, '0');
+      return `${state}${county3}`;
+    }
+  }
+
+  // If it's already a plain county FIPS (5 digits), keep it.
+  if (digits.length === 5) return digits;
+
+  // If it's state+county without suffix (4 or 5 digits), left-pad.
+  if (digits.length < 5) return digits.padStart(5, '0');
+
+  // Fallback: take last 5 (more reliable than first 5 for some HUD encodings)
+  return digits.slice(-5);
 }
 
