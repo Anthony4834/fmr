@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import type { FMRResult } from '@/lib/types';
 import HistoricalFMRChart from '@/app/components/HistoricalFMRChart';
 import { buildCitySlug, buildCountySlug } from '@/lib/location-slugs';
@@ -22,6 +23,7 @@ export default function FMRResults({
   breadcrumbs,
   onBreadcrumbBack
 }: FMRResultsProps) {
+  const router = useRouter();
   const [showAllZips, setShowAllZips] = useState(false);
 
   // Reset ZIP display state when data changes
@@ -182,7 +184,10 @@ export default function FMRResults({
 
     // Prepend Home only on county-level pages (as requested)
     if (dataNonNull.queriedType === 'county') {
-      crumbs.push({ label: 'Home', href: '/' });
+      crumbs.push({ 
+        label: 'Home', 
+        onClick: () => router.replace('/')
+      });
     }
 
     if (county && state) {

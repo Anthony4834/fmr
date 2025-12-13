@@ -364,7 +364,7 @@ export default function HomeClient(props: {
     setZipMedianAvgFMR(null);
     setDrilldownZip(null);
     setSearchStatus('idle');
-    router.push('/', { scroll: false });
+    router.replace('/', { scroll: false });
   };
 
   const handleZipDrilldown = (zipCode: string) => {
