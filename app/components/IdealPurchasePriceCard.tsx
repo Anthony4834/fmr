@@ -92,6 +92,25 @@ function parseNumberOrZero(raw: string) {
 
 function getRentForBedrooms(data: FMRResult, bedrooms: number): number | null {
   const b = Math.max(0, Math.min(8, Math.round(bedrooms)));
+  
+  // If SAFMR with exactly one ZIP in zipFMRData, use that ZIP's values
+  if (data.source === 'safmr' && data.zipFMRData && data.zipFMRData.length === 1) {
+    const zipData = data.zipFMRData[0];
+    const base =
+      b === 0 ? zipData.bedroom0 :
+      b === 1 ? zipData.bedroom1 :
+      b === 2 ? zipData.bedroom2 :
+      b === 3 ? zipData.bedroom3 :
+      b === 4 ? zipData.bedroom4 :
+      undefined;
+    if (base !== undefined && base !== null) return base;
+    if (b > 4 && zipData.bedroom4) {
+      return Math.round(zipData.bedroom4 * Math.pow(1.15, b - 4));
+    }
+    return null;
+  }
+  
+  // Otherwise use top-level data
   const base =
     b === 0 ? data.bedroom0 :
     b === 1 ? data.bedroom1 :
@@ -109,14 +128,21 @@ function getRentForBedrooms(data: FMRResult, bedrooms: number): number | null {
 function canRenderForData(data: FMRResult | null): boolean {
   if (!data) return false;
   if (data.source === 'fmr') return true;
-  // SAFMR drilldown: single ZIP view, not an aggregate zip list
-  if (data.source === 'safmr' && data.queriedType === 'zip' && !!data.zipCode && !data.zipFMRData) return true;
+  // SAFMR drilldown: single ZIP view (zip or address query), not an aggregate zip list
+  if (data.source === 'safmr' && (data.queriedType === 'zip' || data.queriedType === 'address') && !!data.zipCode && !data.zipFMRData) return true;
+  // SAFMR city/county with exactly one ZIP: treat as single-ZIP view
+  if (data.source === 'safmr' && data.zipFMRData && data.zipFMRData.length === 1) return true;
   return false;
 }
 
 function marketQueryForData(data: FMRResult): { zip?: string; county?: string; state?: string } {
   // Prefer zip when present; else fall back to county+state.
   if (data.zipCode && /^\d{5}$/.test(String(data.zipCode))) return { zip: String(data.zipCode) };
+  // If SAFMR with exactly one ZIP in zipFMRData, use that ZIP
+  if (data.source === 'safmr' && data.zipFMRData && data.zipFMRData.length === 1) {
+    const zip = data.zipFMRData[0].zipCode;
+    if (zip && /^\d{5}$/.test(String(zip))) return { zip: String(zip) };
+  }
   if (data.queriedType === 'zip' && data.queriedLocation) {
     const m = String(data.queriedLocation).match(/\b(\d{5})\b/);
     if (m) return { zip: m[1] };
