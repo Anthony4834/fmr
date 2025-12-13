@@ -1,8 +1,13 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@vercel/postgres';
+import { getLatestFMRYear } from '@/lib/queries';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const searchParams = request.nextUrl.searchParams;
+    const yearParam = searchParams.get('year');
+    const year = yearParam ? parseInt(yearParam, 10) : await getLatestFMRYear();
+
     // Get FMR statistics (excluding PR)
     const fmrStats = await sql`
       SELECT 
@@ -16,7 +21,7 @@ export async function GET() {
         MAX(bedroom_2) as max_2br,
         PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY bedroom_2) as median_2br
       FROM fmr_data
-      WHERE year = 2026 
+      WHERE year = ${year} 
         AND state_code != 'PR'
         AND bedroom_1 IS NOT NULL 
         AND bedroom_2 IS NOT NULL
@@ -28,7 +33,7 @@ export async function GET() {
         COUNT(DISTINCT sd.zip_code) as total_zips
       FROM safmr_data sd
       INNER JOIN zip_county_mapping zcm ON sd.zip_code = zcm.zip_code
-      WHERE sd.year = 2026
+      WHERE sd.year = ${year}
         AND zcm.state_code != 'PR'
     `;
 
@@ -55,6 +60,7 @@ export async function GET() {
     );
   }
 }
+
 
 
 

@@ -35,10 +35,16 @@ function normalizeDays(input: string | null): number {
   return Math.min(365, Math.max(1, Math.floor(n)));
 }
 
-function normalizeYear(input: string | null): number {
-  const n = Number(input || '2026');
-  if (!Number.isFinite(n)) return 2026;
-  return Math.min(2100, Math.max(2000, Math.floor(n)));
+async function normalizeYear(input: string | null): Promise<number> {
+  if (input) {
+    const n = Number(input);
+    if (Number.isFinite(n)) {
+      return Math.min(2100, Math.max(2000, Math.floor(n)));
+    }
+  }
+  // Import dynamically to avoid circular dependencies
+  const { getLatestFMRYear } = await import('@/lib/queries');
+  return await getLatestFMRYear();
 }
 
 export async function GET(request: NextRequest) {
@@ -47,7 +53,7 @@ export async function GET(request: NextRequest) {
     const type = normalizeSegment(sp.get('type'));
     const limit = normalizeLimit(sp.get('limit'));
     const days = normalizeDays(sp.get('days'));
-    const year = normalizeYear(sp.get('year'));
+    const year = await normalizeYear(sp.get('year'));
 
     await ensureTable();
 
@@ -230,5 +236,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to fetch popular searches' }, { status: 500 });
   }
 }
+
+
 
 

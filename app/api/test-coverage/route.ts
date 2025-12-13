@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@vercel/postgres';
+import { getLatestFMRYear } from '@/lib/queries';
 
 export const dynamic = 'force-dynamic';
 
@@ -7,6 +8,8 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const type = searchParams.get('type') || 'summary'; // summary, cities, zips, counties
+    const yearParam = searchParams.get('year');
+    const year = yearParam ? parseInt(yearParam, 10) : await getLatestFMRYear();
 
     if (type === 'summary') {
       // Valid US state codes (50 states + DC + US territories)
@@ -19,84 +22,183 @@ export async function GET(request: NextRequest) {
         'PR', 'VI', 'GU', 'MP', 'AS' // US territories: Puerto Rico, US Virgin Islands, Guam, Northern Mariana Islands, American Samoa
       ];
 
-      // Check if views exist first
-      try {
-        await sql`SELECT 1 FROM cities_without_fmr LIMIT 1`;
-      } catch (viewError: any) {
-        if (viewError?.message?.includes('does not exist') || viewError?.message?.includes('relation') || viewError?.code === '42P01') {
-          return NextResponse.json(
-            { 
-              error: 'Test coverage views do not exist',
-              details: 'The required database views need to be created first.',
-              hint: 'Run: bun scripts/create-test-views.ts'
-            },
-            { status: 500 }
-          );
-        }
-        throw viewError; // Re-throw if it's a different error
-      }
+      // Note: Test coverage is computed from base tables and the requested `year`.
+      // We no longer require SQL views to exist for this endpoint.
 
       // Get summary statistics (excluding PR)
-      const [cityStats, zipStats, countyStats, mappingStats] = await Promise.all([
+      const [cityStats, zipStats, countyStats, mappingStats, requiredSafmrTotals, safmrTotals] = await Promise.all([
         sql`
+          WITH city_fmr_status AS (
+            SELECT DISTINCT
+              c.city_name,
+              c.state_code,
+              CASE 
+                WHEN EXISTS (
+                  SELECT 1 
+                  FROM safmr_data sd 
+                  WHERE sd.zip_code = ANY(c.zip_codes) 
+                  AND sd.year = ${year}
+                ) THEN true
+                WHEN EXISTS (
+                  SELECT 1 
+                  FROM zip_county_mapping zcm
+                  JOIN fmr_data fd ON (
+                    fd.county_code = zcm.county_fips
+                    AND fd.state_code = zcm.state_code
+                    AND fd.year = ${year}
+                  )
+                  WHERE zcm.zip_code = ANY(c.zip_codes)
+                ) THEN true
+                ELSE false
+              END as has_fmr_data
+            FROM cities c
+            WHERE c.state_code != 'PR'
+          )
           SELECT 
             COUNT(*) as total_cities,
             COUNT(*) FILTER (WHERE has_fmr_data = false) as cities_without_fmr,
             COUNT(*) FILTER (WHERE has_fmr_data = true) as cities_with_fmr
-          FROM cities_without_fmr
-          WHERE state_code != 'PR'
+          FROM city_fmr_status
         `,
         // NOTE: We intentionally avoid `zips_without_fmr` here because it's a complex view and
         // `COUNT(DISTINCT ...)` can be extremely slow on large datasets.
         // Instead, compute the same summary directly from the base tables using FIPS joins.
         sql`
           WITH
-          fmr_counties AS (
-            SELECT DISTINCT county_code
-            FROM fmr_data
-            WHERE year = 2026
-              AND county_code IS NOT NULL
-          ),
           zip_base AS (
             SELECT
               zcm.zip_code,
-              MAX(CASE WHEN rsz.zip_code IS NOT NULL THEN 1 ELSE 0 END) AS is_required_safmr,
-              MAX(CASE WHEN sd.zip_code IS NOT NULL THEN 1 ELSE 0 END) AS has_safmr_data,
-              MAX(CASE WHEN fc.county_code IS NOT NULL THEN 1 ELSE 0 END) AS has_fmr
-            FROM zip_county_mapping zcm
-            LEFT JOIN required_safmr_zips rsz
-              ON rsz.zip_code = zcm.zip_code AND rsz.year = 2026
-            LEFT JOIN safmr_data sd
-              ON sd.zip_code = zcm.zip_code AND sd.year = 2026
-            LEFT JOIN fmr_counties fc
-              ON fc.county_code = zcm.county_fips
-            WHERE zcm.state_code != 'PR'
-            GROUP BY zcm.zip_code
+              CASE
+                WHEN EXISTS (
+                  SELECT 1
+                  FROM required_safmr_zips rsz
+                  WHERE rsz.zip_code = zcm.zip_code
+                    AND rsz.year = ${year}
+                ) THEN 1 ELSE 0
+              END AS is_required_safmr,
+              CASE
+                WHEN EXISTS (
+                  SELECT 1
+                  FROM safmr_data sd
+                  WHERE sd.zip_code = zcm.zip_code
+                    AND sd.year = ${year}
+                ) THEN 1 ELSE 0
+              END AS has_safmr_data,
+              CASE
+                WHEN EXISTS (
+                  SELECT 1
+                  FROM zip_county_mapping z2
+                  JOIN fmr_data fd
+                    ON fd.year = ${year}
+                   AND fd.county_code IS NOT NULL
+                   AND fd.county_code = z2.county_fips
+                   AND (
+                     fd.state_code = z2.state_code
+                     OR (z2.state_code = 'DC' AND fd.state_code IN ('MD', 'VA'))
+                   )
+                  WHERE z2.zip_code = zcm.zip_code
+                ) THEN 1 ELSE 0
+              END AS has_fmr
+            FROM (
+              SELECT DISTINCT zip_code
+              FROM zip_county_mapping
+              WHERE state_code != 'PR'
+            ) zcm
           )
           SELECT
             COUNT(*) AS total_zips,
             COUNT(*) FILTER (WHERE is_required_safmr = 1) AS zips_with_safmr,
             COUNT(*) FILTER (WHERE is_required_safmr = 0 AND has_fmr = 1 AND has_safmr_data = 0) AS zips_with_fmr_only,
             COUNT(*) FILTER (WHERE is_required_safmr = 0 AND has_safmr_data = 1) AS zips_with_safmr_data_but_uses_fmr,
-            COUNT(*) FILTER (WHERE is_required_safmr = 0 AND has_fmr = 0) AS zips_without_fmr
+            COUNT(*) FILTER (WHERE is_required_safmr = 0 AND has_fmr = 0 AND has_safmr_data = 0) AS zips_without_fmr
           FROM zip_base
         `,
         sql`
+          WITH county_fmr_status AS (
+            SELECT DISTINCT
+              zcm.county_name,
+              zcm.state_code,
+              CASE
+                WHEN EXISTS (
+                  SELECT 1
+                  FROM zip_county_mapping z2
+                  JOIN fmr_data fd
+                    ON fd.year = ${year}
+                   AND fd.county_code IS NOT NULL
+                   AND fd.county_code = z2.county_fips
+                   AND (
+                     fd.state_code = z2.state_code
+                     OR (z2.state_code = 'DC' AND fd.state_code IN ('MD', 'VA'))
+                   )
+                  WHERE z2.county_name = zcm.county_name
+                    AND z2.state_code = zcm.state_code
+                    AND z2.county_fips IS NOT NULL
+                ) THEN true
+                ELSE false
+              END as has_fmr_data
+            FROM zip_county_mapping zcm
+            WHERE zcm.state_code != 'PR'
+          )
           SELECT 
             COUNT(*) as total_counties,
             COUNT(*) FILTER (WHERE has_fmr_data = false) as counties_without_fmr,
             COUNT(*) FILTER (WHERE has_fmr_data = true) as counties_with_fmr
-          FROM counties_without_fmr
-          WHERE state_code != 'PR'
+          FROM county_fmr_status
         `,
         sql`
-          SELECT 
-            COUNT(*) as total_issues,
-            COUNT(*) FILTER (WHERE issue_type = 'NO_MAPPING') as zips_without_mapping,
-            COUNT(*) FILTER (WHERE issue_type = 'MULTIPLE_MAPPINGS') as zips_with_multiple_mappings
-          FROM zip_county_mapping_issues zmi
-          INNER JOIN zip_county_mapping zcm ON zmi.zip_code = zcm.zip_code
-          WHERE zcm.state_code != 'PR'
+          WITH zip_mapping_counts AS (
+            SELECT 
+              zip_code,
+              COUNT(*)::int as county_count
+            FROM zip_county_mapping
+            GROUP BY zip_code
+          ),
+          zips_without_mapping AS (
+            SELECT COUNT(DISTINCT sd.zip_code)::int as count
+            FROM safmr_data sd
+            WHERE sd.year = ${year}
+              AND NOT EXISTS (
+                SELECT 1 FROM zip_county_mapping zcm WHERE zcm.zip_code = sd.zip_code
+              )
+          ),
+          zips_with_multiple_mappings AS (
+            SELECT COUNT(*)::int as count
+            FROM zip_mapping_counts
+            WHERE county_count > 1
+          )
+          SELECT
+            (SELECT count FROM zips_without_mapping) + (SELECT count FROM zips_with_multiple_mappings) as total_issues,
+            (SELECT count FROM zips_without_mapping) as zips_without_mapping,
+            (SELECT count FROM zips_with_multiple_mappings) as zips_with_multiple_mappings
+        `
+        ,
+        // Required SAFMR ZIP totals (source-of-truth derived from mandatory metro list)
+        sql`
+          SELECT
+            COUNT(*)::int AS required_safmr_zips_total,
+            COUNT(*) FILTER (
+              WHERE EXISTS (
+                SELECT 1 FROM safmr_data sd
+                WHERE sd.year = ${year}
+                  AND sd.zip_code = rsz.zip_code
+              )
+            )::int AS required_safmr_zips_with_safmr_data
+          FROM required_safmr_zips rsz
+          WHERE rsz.year = ${year}
+        `,
+        // SAFMR data totals (regardless of whether required)
+        sql`
+          SELECT
+            COUNT(*)::int AS safmr_zips_total,
+            COUNT(*) FILTER (
+              WHERE EXISTS (
+                SELECT 1 FROM required_safmr_zips rsz
+                WHERE rsz.year = ${year}
+                  AND rsz.zip_code = sd.zip_code
+              )
+            )::int AS safmr_zips_required
+          FROM safmr_data sd
+          WHERE sd.year = ${year}
         `
       ]);
 
@@ -123,7 +225,7 @@ export async function GET(request: NextRequest) {
       };
 
       // Convert string numbers to integers for consistency
-      return NextResponse.json({
+      const payload: any = {
         cities: {
           total_cities: parseInt(cityStats.rows[0]?.total_cities || '0'),
           cities_without_fmr: parseInt(cityStats.rows[0]?.cities_without_fmr || '0'),
@@ -136,6 +238,19 @@ export async function GET(request: NextRequest) {
           zips_with_fmr_only: parseInt(zipStats.rows[0]?.zips_with_fmr_only || '0'),
           zips_with_safmr_data_but_uses_fmr: parseInt(zipStats.rows[0]?.zips_with_safmr_data_but_uses_fmr || '0'),
           total_using_fmr: parseInt(zipStats.rows[0]?.zips_with_fmr_only || '0') + parseInt(zipStats.rows[0]?.zips_with_safmr_data_but_uses_fmr || '0'),
+
+          // These are based directly on the mandatory SAFMR list-derived lookup table.
+          required_safmr_zips_total: parseInt(requiredSafmrTotals.rows[0]?.required_safmr_zips_total || '0'),
+          required_safmr_zips_with_safmr_data: parseInt(requiredSafmrTotals.rows[0]?.required_safmr_zips_with_safmr_data || '0'),
+          required_safmr_zips_missing_safmr_data:
+            parseInt(requiredSafmrTotals.rows[0]?.required_safmr_zips_total || '0') -
+            parseInt(requiredSafmrTotals.rows[0]?.required_safmr_zips_with_safmr_data || '0'),
+
+          safmr_zips_total: parseInt(safmrTotals.rows[0]?.safmr_zips_total || '0'),
+          safmr_zips_required: parseInt(safmrTotals.rows[0]?.safmr_zips_required || '0'),
+          safmr_zips_not_required:
+            parseInt(safmrTotals.rows[0]?.safmr_zips_total || '0') -
+            parseInt(safmrTotals.rows[0]?.safmr_zips_required || '0'),
         },
         counties: {
           total_counties: parseInt(countyStats.rows[0]?.total_counties || '0'),
@@ -151,7 +266,9 @@ export async function GET(request: NextRequest) {
           invalid_cities: parseInt(invalidStateStats.rows[0]?.invalid_cities || '0'),
           invalid_counties: parseInt(invalidStateStats.rows[0]?.invalid_counties || '0'),
         },
-      });
+      };
+
+      return NextResponse.json(payload);
     }
 
     if (type === 'cities') {
@@ -161,28 +278,61 @@ export async function GET(request: NextRequest) {
       const limit = exportAll ? 999999999 : parseInt(searchParams.get('limit') || '100');
       const offset = exportAll ? 0 : parseInt(searchParams.get('offset') || '0');
 
-      let whereClause = '';
-      const params: any[] = [];
-      let paramIndex = 1;
-
-      if (missingOnly) {
-        whereClause += ' WHERE has_fmr_data = false AND state_code != \'PR\'';
-      } else {
-        whereClause += ' WHERE state_code != \'PR\'';
-      }
+      // Use sql.query + explicit params to avoid driver quirks around nested sql fragments.
+      const params: any[] = [year];
+      let p = 2;
+      let stateClause = '';
       if (state) {
-        whereClause += ' AND state_code = $' + paramIndex;
+        stateClause = ` AND c.state_code = $${p++}`;
         params.push(state.toUpperCase());
-        paramIndex++;
+      }
+
+      let outerWhere = '';
+      if (missingOnly) outerWhere = `WHERE has_fmr_data = false`;
+
+      let limitOffset = '';
+      if (!exportAll) {
+        limitOffset = ` LIMIT $${p++} OFFSET $${p++}`;
+        params.push(limit, offset);
       }
 
       const results = await sql.query(
-        `SELECT city_name, state_code, state_name, zip_codes, has_fmr_data
-         FROM cities_without_fmr
-         ${whereClause}
-         ORDER BY state_code, city_name
-         ${exportAll ? '' : `LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`}`,
-        exportAll ? params : [...params, limit, offset]
+        `
+        WITH city_fmr_status AS (
+          SELECT DISTINCT
+            c.city_name,
+            c.state_code,
+            c.state_name,
+            c.zip_codes,
+            CASE 
+              WHEN EXISTS (
+                SELECT 1 
+                FROM safmr_data sd 
+                WHERE sd.zip_code = ANY(c.zip_codes) 
+                  AND sd.year = $1
+              ) THEN true
+              WHEN EXISTS (
+                SELECT 1 
+                FROM zip_county_mapping zcm
+                JOIN fmr_data fd ON (
+                  fd.county_code = zcm.county_fips
+                  AND fd.state_code = zcm.state_code
+                  AND fd.year = $1
+                )
+                WHERE zcm.zip_code = ANY(c.zip_codes)
+              ) THEN true
+              ELSE false
+            END as has_fmr_data
+          FROM cities c
+          WHERE c.state_code != 'PR'${stateClause}
+        )
+        SELECT city_name, state_code, state_name, zip_codes, has_fmr_data
+        FROM city_fmr_status
+        ${outerWhere}
+        ORDER BY state_code, city_name
+        ${limitOffset}
+        `,
+        params
       );
 
       if (exportAll) {
@@ -204,11 +354,48 @@ export async function GET(request: NextRequest) {
         });
       }
 
+      const totalParams: any[] = [year];
+      let tp = 2;
+      let totalStateClause = '';
+      if (state) {
+        totalStateClause = ` AND c.state_code = $${tp++}`;
+        totalParams.push(state.toUpperCase());
+      }
+      const totalWhere = missingOnly ? `WHERE has_fmr_data = false` : ``;
+
       const total = await sql.query(
-        `SELECT COUNT(*) as count
-         FROM cities_without_fmr
-         ${whereClause.includes('WHERE') ? whereClause : 'WHERE state_code != \'PR\''}`,
-        params
+        `
+        WITH city_fmr_status AS (
+          SELECT DISTINCT
+            c.city_name,
+            c.state_code,
+            CASE 
+              WHEN EXISTS (
+                SELECT 1 
+                FROM safmr_data sd 
+                WHERE sd.zip_code = ANY(c.zip_codes) 
+                  AND sd.year = $1
+              ) THEN true
+              WHEN EXISTS (
+                SELECT 1 
+                FROM zip_county_mapping zcm
+                JOIN fmr_data fd ON (
+                  fd.county_code = zcm.county_fips
+                  AND fd.state_code = zcm.state_code
+                  AND fd.year = $1
+                )
+                WHERE zcm.zip_code = ANY(c.zip_codes)
+              ) THEN true
+              ELSE false
+            END as has_fmr_data
+          FROM cities c
+          WHERE c.state_code != 'PR'${totalStateClause}
+        )
+        SELECT COUNT(*) as count
+        FROM city_fmr_status
+        ${totalWhere}
+        `,
+        totalParams
       );
 
       return NextResponse.json({
@@ -230,17 +417,20 @@ export async function GET(request: NextRequest) {
       // It can be slow/stale and may not match the current gating + FIPS-join behavior.
       //
       // Instead, compute per-ZIP status directly from base tables.
-      const params: any[] = [];
-      let paramIndex = 1;
-
-      let stateFilterClause = '';
+      const zipParams: any[] = [year];
+      let zp = 2;
+      let zipStateClause = '';
       if (state) {
-        stateFilterClause = `AND zcm.state_code = $${paramIndex}`;
-        params.push(state.toUpperCase());
-        paramIndex++;
+        zipStateClause = ` AND zcm.state_code = $${zp++}`;
+        zipParams.push(state.toUpperCase());
+      }
+      const zipWhere = missingOnly ? `WHERE fmr_source = 'NONE'` : ``;
+      let zipLimitOffset = '';
+      if (!exportAll) {
+        zipLimitOffset = ` LIMIT $${zp++} OFFSET $${zp++}`;
+        zipParams.push(limit, offset);
       }
 
-      // Build a computed rowset and then filter on fmr_source (can't reference alias directly in WHERE).
       const results = await sql.query(
         `
         WITH zip_status AS (
@@ -254,15 +444,19 @@ export async function GET(request: NextRequest) {
                 SELECT 1
                 FROM required_safmr_zips rsz
                 WHERE rsz.zip_code = zcm.zip_code
-                  AND rsz.year = 2026
+                  AND rsz.year = $1
               ) THEN 'SAFMR'
               WHEN EXISTS (
                 SELECT 1
                 FROM zip_county_mapping z2
                 JOIN fmr_data fd
-                  ON fd.year = 2026
+                  ON fd.year = $1
                  AND fd.county_code IS NOT NULL
                  AND fd.county_code = z2.county_fips
+                 AND (
+                   fd.state_code = z2.state_code
+                   OR (z2.state_code = 'DC' AND fd.state_code IN ('MD', 'VA'))
+                 )
                 WHERE z2.zip_code = zcm.zip_code
                   AND z2.state_code != 'PR'
               ) THEN 'FMR'
@@ -273,29 +467,28 @@ export async function GET(request: NextRequest) {
                 SELECT 1
                 FROM safmr_data sd
                 WHERE sd.zip_code = zcm.zip_code
-                  AND sd.year = 2026
+                  AND sd.year = $1
               )
               AND NOT EXISTS (
                 SELECT 1
                 FROM required_safmr_zips rsz
                 WHERE rsz.zip_code = zcm.zip_code
-                  AND rsz.year = 2026
+                  AND rsz.year = $1
               )
               THEN TRUE
               ELSE FALSE
             END AS has_safmr_data_but_uses_fmr
           FROM zip_county_mapping zcm
-          WHERE zcm.state_code != 'PR'
-            ${stateFilterClause}
+          WHERE zcm.state_code != 'PR'${zipStateClause}
           ORDER BY zcm.zip_code, zcm.state_code, zcm.county_name
         )
         SELECT zip_code, county_name, state_code, state_name, fmr_source, has_safmr_data_but_uses_fmr
         FROM zip_status
-        ${missingOnly ? "WHERE fmr_source = 'NONE'" : ''}
+        ${zipWhere}
         ORDER BY state_code, zip_code
-        ${exportAll ? '' : `LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`}
+        ${zipLimitOffset}
         `,
-        exportAll ? params : [...params, limit, offset]
+        zipParams
       );
 
       if (exportAll) {
@@ -314,6 +507,15 @@ export async function GET(request: NextRequest) {
         });
       }
 
+      const totalZipParams: any[] = [year];
+      let tzp = 2;
+      let totalZipStateClause = '';
+      if (state) {
+        totalZipStateClause = ` AND zcm.state_code = $${tzp++}`;
+        totalZipParams.push(state.toUpperCase());
+      }
+      const totalZipWhere = missingOnly ? `WHERE fmr_source = 'NONE'` : ``;
+
       const total = await sql.query(
         `
         WITH zip_status AS (
@@ -324,30 +526,33 @@ export async function GET(request: NextRequest) {
                 SELECT 1
                 FROM required_safmr_zips rsz
                 WHERE rsz.zip_code = zcm.zip_code
-                  AND rsz.year = 2026
+                  AND rsz.year = $1
               ) THEN 'SAFMR'
               WHEN EXISTS (
                 SELECT 1
                 FROM zip_county_mapping z2
                 JOIN fmr_data fd
-                  ON fd.year = 2026
+                  ON fd.year = $1
                  AND fd.county_code IS NOT NULL
                  AND fd.county_code = z2.county_fips
+                 AND (
+                   fd.state_code = z2.state_code
+                   OR (z2.state_code = 'DC' AND fd.state_code IN ('MD', 'VA'))
+                 )
                 WHERE z2.zip_code = zcm.zip_code
                   AND z2.state_code != 'PR'
               ) THEN 'FMR'
               ELSE 'NONE'
             END AS fmr_source
           FROM zip_county_mapping zcm
-          WHERE zcm.state_code != 'PR'
-            ${stateFilterClause}
+          WHERE zcm.state_code != 'PR'${totalZipStateClause}
           ORDER BY zcm.zip_code, zcm.state_code, zcm.county_name
         )
         SELECT COUNT(*) as count
         FROM zip_status
-        ${missingOnly ? "WHERE fmr_source = 'NONE'" : ''}
+        ${totalZipWhere}
         `,
-        params
+        totalZipParams
       );
 
       return NextResponse.json({
@@ -365,29 +570,297 @@ export async function GET(request: NextRequest) {
       const limit = exportAll ? 999999999 : parseInt(searchParams.get('limit') || '100');
       const offset = exportAll ? 0 : parseInt(searchParams.get('offset') || '0');
 
-      let whereClause = '';
-      const params: any[] = [];
-      let paramIndex = 1;
-
-      if (missingOnly) {
-        whereClause += ' WHERE has_fmr_data = false AND state_code != \'PR\'';
-      } else {
-        whereClause += ' WHERE state_code != \'PR\'';
-      }
+      let results;
+      
       if (state) {
-        whereClause += ' AND state_code = $' + paramIndex;
-        params.push(state.toUpperCase());
-        paramIndex++;
+        if (missingOnly && exportAll) {
+          results = await sql`
+            WITH county_fmr_status AS (
+              SELECT DISTINCT
+                zcm.county_name,
+                zcm.state_code,
+                zcm.state_name,
+                COUNT(DISTINCT zcm.zip_code) as zip_count,
+                CASE
+                  WHEN EXISTS (
+                    SELECT 1
+                    FROM zip_county_mapping z2
+                    JOIN fmr_data fd
+                      ON fd.year = ${year}
+                     AND fd.county_code IS NOT NULL
+                     AND fd.county_code = z2.county_fips
+                     AND (
+                       fd.state_code = z2.state_code
+                       OR (z2.state_code = 'DC' AND fd.state_code IN ('MD', 'VA'))
+                     )
+                    WHERE z2.county_name = zcm.county_name
+                      AND z2.state_code = zcm.state_code
+                      AND z2.county_fips IS NOT NULL
+                  ) THEN true
+                  ELSE false
+                END as has_fmr_data
+              FROM zip_county_mapping zcm
+              WHERE zcm.state_code != 'PR'
+              AND zcm.state_code = ${state.toUpperCase()}
+              GROUP BY zcm.county_name, zcm.state_code, zcm.state_name
+            )
+            SELECT county_name, state_code, state_name, zip_count, has_fmr_data
+            FROM county_fmr_status
+            WHERE has_fmr_data = false
+            ORDER BY state_code, county_name
+          `;
+        } else if (missingOnly && !exportAll) {
+          results = await sql`
+            WITH county_fmr_status AS (
+              SELECT DISTINCT
+                zcm.county_name,
+                zcm.state_code,
+                zcm.state_name,
+                COUNT(DISTINCT zcm.zip_code) as zip_count,
+                CASE
+                  WHEN EXISTS (
+                    SELECT 1
+                    FROM zip_county_mapping z2
+                    JOIN fmr_data fd
+                      ON fd.year = ${year}
+                     AND fd.county_code IS NOT NULL
+                     AND fd.county_code = z2.county_fips
+                     AND (
+                       fd.state_code = z2.state_code
+                       OR (z2.state_code = 'DC' AND fd.state_code IN ('MD', 'VA'))
+                     )
+                    WHERE z2.county_name = zcm.county_name
+                      AND z2.state_code = zcm.state_code
+                      AND z2.county_fips IS NOT NULL
+                  ) THEN true
+                  ELSE false
+                END as has_fmr_data
+              FROM zip_county_mapping zcm
+              WHERE zcm.state_code != 'PR'
+              AND zcm.state_code = ${state.toUpperCase()}
+              GROUP BY zcm.county_name, zcm.state_code, zcm.state_name
+            )
+            SELECT county_name, state_code, state_name, zip_count, has_fmr_data
+            FROM county_fmr_status
+            WHERE has_fmr_data = false
+            ORDER BY state_code, county_name
+            LIMIT ${limit} OFFSET ${offset}
+          `;
+        } else if (!missingOnly && exportAll) {
+          results = await sql`
+            WITH county_fmr_status AS (
+              SELECT DISTINCT
+                zcm.county_name,
+                zcm.state_code,
+                zcm.state_name,
+                COUNT(DISTINCT zcm.zip_code) as zip_count,
+                CASE
+                  WHEN EXISTS (
+                    SELECT 1
+                    FROM zip_county_mapping z2
+                    JOIN fmr_data fd
+                      ON fd.year = ${year}
+                     AND fd.county_code IS NOT NULL
+                     AND fd.county_code = z2.county_fips
+                     AND (
+                       fd.state_code = z2.state_code
+                       OR (z2.state_code = 'DC' AND fd.state_code IN ('MD', 'VA'))
+                     )
+                    WHERE z2.county_name = zcm.county_name
+                      AND z2.state_code = zcm.state_code
+                      AND z2.county_fips IS NOT NULL
+                  ) THEN true
+                  ELSE false
+                END as has_fmr_data
+              FROM zip_county_mapping zcm
+              WHERE zcm.state_code != 'PR'
+              AND zcm.state_code = ${state.toUpperCase()}
+              GROUP BY zcm.county_name, zcm.state_code, zcm.state_name
+            )
+            SELECT county_name, state_code, state_name, zip_count, has_fmr_data
+            FROM county_fmr_status
+            ORDER BY state_code, county_name
+          `;
+        } else {
+          results = await sql`
+            WITH county_fmr_status AS (
+              SELECT DISTINCT
+                zcm.county_name,
+                zcm.state_code,
+                zcm.state_name,
+                COUNT(DISTINCT zcm.zip_code) as zip_count,
+                CASE
+                  WHEN EXISTS (
+                    SELECT 1
+                    FROM zip_county_mapping z2
+                    JOIN fmr_data fd
+                      ON fd.year = ${year}
+                     AND fd.county_code IS NOT NULL
+                     AND fd.county_code = z2.county_fips
+                     AND (
+                       fd.state_code = z2.state_code
+                       OR (z2.state_code = 'DC' AND fd.state_code IN ('MD', 'VA'))
+                     )
+                    WHERE z2.county_name = zcm.county_name
+                      AND z2.state_code = zcm.state_code
+                      AND z2.county_fips IS NOT NULL
+                  ) THEN true
+                  ELSE false
+                END as has_fmr_data
+              FROM zip_county_mapping zcm
+              WHERE zcm.state_code != 'PR'
+              AND zcm.state_code = ${state.toUpperCase()}
+              GROUP BY zcm.county_name, zcm.state_code, zcm.state_name
+            )
+            SELECT county_name, state_code, state_name, zip_count, has_fmr_data
+            FROM county_fmr_status
+            ORDER BY state_code, county_name
+            LIMIT ${limit} OFFSET ${offset}
+          `;
+        }
+      } else {
+        if (missingOnly && exportAll) {
+          results = await sql`
+            WITH county_fmr_status AS (
+              SELECT DISTINCT
+                zcm.county_name,
+                zcm.state_code,
+                zcm.state_name,
+                COUNT(DISTINCT zcm.zip_code) as zip_count,
+                CASE
+                  WHEN EXISTS (
+                    SELECT 1
+                    FROM zip_county_mapping z2
+                    JOIN fmr_data fd
+                      ON fd.year = ${year}
+                     AND fd.county_code IS NOT NULL
+                     AND fd.county_code = z2.county_fips
+                     AND (
+                       fd.state_code = z2.state_code
+                       OR (z2.state_code = 'DC' AND fd.state_code IN ('MD', 'VA'))
+                     )
+                    WHERE z2.county_name = zcm.county_name
+                      AND z2.state_code = zcm.state_code
+                      AND z2.county_fips IS NOT NULL
+                  ) THEN true
+                  ELSE false
+                END as has_fmr_data
+              FROM zip_county_mapping zcm
+              WHERE zcm.state_code != 'PR'
+              GROUP BY zcm.county_name, zcm.state_code, zcm.state_name
+            )
+            SELECT county_name, state_code, state_name, zip_count, has_fmr_data
+            FROM county_fmr_status
+            WHERE has_fmr_data = false
+            ORDER BY state_code, county_name
+          `;
+        } else if (missingOnly && !exportAll) {
+          results = await sql`
+            WITH county_fmr_status AS (
+              SELECT DISTINCT
+                zcm.county_name,
+                zcm.state_code,
+                zcm.state_name,
+                COUNT(DISTINCT zcm.zip_code) as zip_count,
+                CASE
+                  WHEN EXISTS (
+                    SELECT 1
+                    FROM zip_county_mapping z2
+                    JOIN fmr_data fd
+                      ON fd.year = ${year}
+                     AND fd.county_code IS NOT NULL
+                     AND fd.county_code = z2.county_fips
+                     AND (
+                       fd.state_code = z2.state_code
+                       OR (z2.state_code = 'DC' AND fd.state_code IN ('MD', 'VA'))
+                     )
+                    WHERE z2.county_name = zcm.county_name
+                      AND z2.state_code = zcm.state_code
+                      AND z2.county_fips IS NOT NULL
+                  ) THEN true
+                  ELSE false
+                END as has_fmr_data
+              FROM zip_county_mapping zcm
+              WHERE zcm.state_code != 'PR'
+              GROUP BY zcm.county_name, zcm.state_code, zcm.state_name
+            )
+            SELECT county_name, state_code, state_name, zip_count, has_fmr_data
+            FROM county_fmr_status
+            WHERE has_fmr_data = false
+            ORDER BY state_code, county_name
+            LIMIT ${limit} OFFSET ${offset}
+          `;
+        } else if (!missingOnly && exportAll) {
+          results = await sql`
+            WITH county_fmr_status AS (
+              SELECT DISTINCT
+                zcm.county_name,
+                zcm.state_code,
+                zcm.state_name,
+                COUNT(DISTINCT zcm.zip_code) as zip_count,
+                CASE
+                  WHEN EXISTS (
+                    SELECT 1
+                    FROM zip_county_mapping z2
+                    JOIN fmr_data fd
+                      ON fd.year = ${year}
+                     AND fd.county_code IS NOT NULL
+                     AND fd.county_code = z2.county_fips
+                     AND (
+                       fd.state_code = z2.state_code
+                       OR (z2.state_code = 'DC' AND fd.state_code IN ('MD', 'VA'))
+                     )
+                    WHERE z2.county_name = zcm.county_name
+                      AND z2.state_code = zcm.state_code
+                      AND z2.county_fips IS NOT NULL
+                  ) THEN true
+                  ELSE false
+                END as has_fmr_data
+              FROM zip_county_mapping zcm
+              WHERE zcm.state_code != 'PR'
+              GROUP BY zcm.county_name, zcm.state_code, zcm.state_name
+            )
+            SELECT county_name, state_code, state_name, zip_count, has_fmr_data
+            FROM county_fmr_status
+            ORDER BY state_code, county_name
+          `;
+        } else {
+          results = await sql`
+            WITH county_fmr_status AS (
+              SELECT DISTINCT
+                zcm.county_name,
+                zcm.state_code,
+                zcm.state_name,
+                COUNT(DISTINCT zcm.zip_code) as zip_count,
+                CASE
+                  WHEN EXISTS (
+                    SELECT 1
+                    FROM zip_county_mapping z2
+                    JOIN fmr_data fd
+                      ON fd.year = ${year}
+                     AND fd.county_code IS NOT NULL
+                     AND fd.county_code = z2.county_fips
+                     AND (
+                       fd.state_code = z2.state_code
+                       OR (z2.state_code = 'DC' AND fd.state_code IN ('MD', 'VA'))
+                     )
+                    WHERE z2.county_name = zcm.county_name
+                      AND z2.state_code = zcm.state_code
+                      AND z2.county_fips IS NOT NULL
+                  ) THEN true
+                  ELSE false
+                END as has_fmr_data
+              FROM zip_county_mapping zcm
+              WHERE zcm.state_code != 'PR'
+              GROUP BY zcm.county_name, zcm.state_code, zcm.state_name
+            )
+            SELECT county_name, state_code, state_name, zip_count, has_fmr_data
+            FROM county_fmr_status
+            ORDER BY state_code, county_name
+            LIMIT ${limit} OFFSET ${offset}
+          `;
+        }
       }
-
-      const results = await sql.query(
-        `SELECT county_name, state_code, state_name, zip_count, has_fmr_data
-         FROM counties_without_fmr
-         ${whereClause}
-         ORDER BY state_code, county_name
-         ${exportAll ? '' : `LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`}`,
-        exportAll ? params : [...params, limit, offset]
-      );
 
       if (exportAll) {
         // Format as text file
@@ -405,12 +878,140 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      const total = await sql.query(
-        `SELECT COUNT(*) as count
-         FROM counties_without_fmr
-         ${whereClause.includes('WHERE') ? whereClause : 'WHERE state_code != \'PR\''}`,
-        params
-      );
+      let total;
+      if (state) {
+        if (missingOnly) {
+          total = await sql`
+            WITH county_fmr_status AS (
+              SELECT DISTINCT
+                zcm.county_name,
+                zcm.state_code,
+                CASE
+                  WHEN EXISTS (
+                    SELECT 1
+                    FROM zip_county_mapping z2
+                    JOIN fmr_data fd
+                      ON fd.year = ${year}
+                     AND fd.county_code IS NOT NULL
+                     AND fd.county_code = z2.county_fips
+                     AND (
+                       fd.state_code = z2.state_code
+                       OR (z2.state_code = 'DC' AND fd.state_code IN ('MD', 'VA'))
+                     )
+                    WHERE z2.county_name = zcm.county_name
+                      AND z2.state_code = zcm.state_code
+                      AND z2.county_fips IS NOT NULL
+                  ) THEN true
+                  ELSE false
+                END as has_fmr_data
+              FROM zip_county_mapping zcm
+              WHERE zcm.state_code != 'PR'
+              AND zcm.state_code = ${state.toUpperCase()}
+              GROUP BY zcm.county_name, zcm.state_code
+            )
+            SELECT COUNT(*) as count
+            FROM county_fmr_status
+            WHERE has_fmr_data = false
+          `;
+        } else {
+          total = await sql`
+            WITH county_fmr_status AS (
+              SELECT DISTINCT
+                zcm.county_name,
+                zcm.state_code,
+                CASE
+                  WHEN EXISTS (
+                    SELECT 1
+                    FROM zip_county_mapping z2
+                    JOIN fmr_data fd
+                      ON fd.year = ${year}
+                     AND fd.county_code IS NOT NULL
+                     AND fd.county_code = z2.county_fips
+                     AND (
+                       fd.state_code = z2.state_code
+                       OR (z2.state_code = 'DC' AND fd.state_code IN ('MD', 'VA'))
+                     )
+                    WHERE z2.county_name = zcm.county_name
+                      AND z2.state_code = zcm.state_code
+                      AND z2.county_fips IS NOT NULL
+                  ) THEN true
+                  ELSE false
+                END as has_fmr_data
+              FROM zip_county_mapping zcm
+              WHERE zcm.state_code != 'PR'
+              AND zcm.state_code = ${state.toUpperCase()}
+              GROUP BY zcm.county_name, zcm.state_code
+            )
+            SELECT COUNT(*) as count
+            FROM county_fmr_status
+          `;
+        }
+      } else {
+        if (missingOnly) {
+          total = await sql`
+            WITH county_fmr_status AS (
+              SELECT DISTINCT
+                zcm.county_name,
+                zcm.state_code,
+                CASE
+                  WHEN EXISTS (
+                    SELECT 1
+                    FROM zip_county_mapping z2
+                    JOIN fmr_data fd
+                      ON fd.year = ${year}
+                     AND fd.county_code IS NOT NULL
+                     AND fd.county_code = z2.county_fips
+                     AND (
+                       fd.state_code = z2.state_code
+                       OR (z2.state_code = 'DC' AND fd.state_code IN ('MD', 'VA'))
+                     )
+                    WHERE z2.county_name = zcm.county_name
+                      AND z2.state_code = zcm.state_code
+                      AND z2.county_fips IS NOT NULL
+                  ) THEN true
+                  ELSE false
+                END as has_fmr_data
+              FROM zip_county_mapping zcm
+              WHERE zcm.state_code != 'PR'
+              GROUP BY zcm.county_name, zcm.state_code
+            )
+            SELECT COUNT(*) as count
+            FROM county_fmr_status
+            WHERE has_fmr_data = false
+          `;
+        } else {
+          total = await sql`
+            WITH county_fmr_status AS (
+              SELECT DISTINCT
+                zcm.county_name,
+                zcm.state_code,
+                CASE
+                  WHEN EXISTS (
+                    SELECT 1
+                    FROM zip_county_mapping z2
+                    JOIN fmr_data fd
+                      ON fd.year = ${year}
+                     AND fd.county_code IS NOT NULL
+                     AND fd.county_code = z2.county_fips
+                     AND (
+                       fd.state_code = z2.state_code
+                       OR (z2.state_code = 'DC' AND fd.state_code IN ('MD', 'VA'))
+                     )
+                    WHERE z2.county_name = zcm.county_name
+                      AND z2.state_code = zcm.state_code
+                      AND z2.county_fips IS NOT NULL
+                  ) THEN true
+                  ELSE false
+                END as has_fmr_data
+              FROM zip_county_mapping zcm
+              WHERE zcm.state_code != 'PR'
+              GROUP BY zcm.county_name, zcm.state_code
+            )
+            SELECT COUNT(*) as count
+            FROM county_fmr_status
+          `;
+        }
+      }
 
       return NextResponse.json({
         results: results.rows,
@@ -588,7 +1189,7 @@ export async function GET(request: NextRequest) {
       { 
         error: 'Failed to fetch test coverage data',
         details: error?.message || String(error),
-        hint: 'Make sure to run: bun scripts/create-test-views.ts first'
+        hint: 'This endpoint computes coverage from base tables. Ensure DB tables are populated (FMR/SAFMR/ZIP-county mapping) and try again.'
       },
       { status: 500 }
     );

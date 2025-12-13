@@ -15,6 +15,12 @@ interface Summary {
     zips_with_fmr_only: number;
     zips_with_safmr_data_but_uses_fmr: number;
     total_using_fmr?: number;
+    required_safmr_zips_total?: number;
+    required_safmr_zips_with_safmr_data?: number;
+    required_safmr_zips_missing_safmr_data?: number;
+    safmr_zips_total?: number;
+    safmr_zips_required?: number;
+    safmr_zips_not_required?: number;
   };
   counties: {
     total_counties: number;
@@ -42,6 +48,7 @@ export default function TestCoveragePage() {
   const [showMissingOnly, setShowMissingOnly] = useState(true);
   const [selectedState, setSelectedState] = useState('');
   const [selectedIssueType, setSelectedIssueType] = useState<string>('');
+  const [selectedYear, setSelectedYear] = useState<number>(2025);
   const [data, setData] = useState<CoverageItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [summaryLoading, setSummaryLoading] = useState(true);
@@ -65,7 +72,7 @@ export default function TestCoveragePage() {
         summaryAbortControllerRef.current.abort();
       }
     };
-  }, []);
+  }, [selectedYear]);
 
   // If you switch tabs while on a later page, the old page offset can yield an empty result set
   // even though there is data. Reset pagination whenever the active tab changes.
@@ -94,7 +101,7 @@ export default function TestCoveragePage() {
     // Ensure current tab ref is up to date
     currentTabRef.current = activeTab;
     fetchData();
-  }, [activeTab, showMissingOnly, selectedState, selectedIssueType, page]);
+  }, [activeTab, showMissingOnly, selectedState, selectedIssueType, selectedYear, page]);
 
   // If the underlying data changes (e.g. after ingestion/cleanup) while you're on a later page,
   // the current offset can be out of range and the table will look empty even though `total > 0`.
@@ -118,7 +125,7 @@ export default function TestCoveragePage() {
     setSummaryLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/test-coverage?type=summary&_t=' + Date.now(), {
+      const response = await fetch(`/api/test-coverage?type=summary&year=${selectedYear}&_t=` + Date.now(), {
         signal: abortController.signal
       });
       
@@ -212,6 +219,7 @@ export default function TestCoveragePage() {
       const params = new URLSearchParams({
         type: requestTab === 'missing-mappings' ? 'zip-mappings' : requestTab,
         missing: showMissingOnly.toString(),
+        year: selectedYear.toString(),
         limit: pageSize.toString(),
         offset: (page * pageSize).toString(),
         _t: Date.now().toString(), // Cache busting
@@ -290,6 +298,7 @@ export default function TestCoveragePage() {
       });
       
       // Add filters based on current tab
+      params.append('year', selectedYear.toString());
       if (activeTab === 'cities' || activeTab === 'zips' || activeTab === 'counties') {
         if (showMissingOnly) {
           params.append('missing', 'true');
@@ -433,6 +442,11 @@ export default function TestCoveragePage() {
                   {summary.zips.zips_with_safmr_data_but_uses_fmr > 0 && (
                     <div className="text-xs text-orange-600 mt-1">
                       ({formatNumber(summary.zips.zips_with_safmr_data_but_uses_fmr)} have SAFMR data but use FMR)
+                    </div>
+                  )}
+                  {typeof summary.zips.safmr_zips_not_required === 'number' && summary.zips.safmr_zips_not_required > 0 && (
+                    <div className="text-xs text-gray-600 mt-1">
+                      Mandatory list-based: {formatNumber(summary.zips.safmr_zips_not_required)} SAFMR ZIPs are not required (so use FMR)
                     </div>
                   )}
                 </div>
@@ -650,6 +664,23 @@ export default function TestCoveragePage() {
                 Invalid State Codes
               </button>
             </div>
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-gray-600">Year:</label>
+              <select
+                value={selectedYear}
+                onChange={(e) => {
+                  setSelectedYear(parseInt(e.target.value));
+                  setPage(0);
+                }}
+                className="px-3 py-2 border rounded text-sm"
+              >
+                <option value="2022">2022</option>
+                <option value="2023">2023</option>
+                <option value="2024">2024</option>
+                <option value="2025">2025</option>
+                <option value="2026">2026</option>
+              </select>
+            </div>
             {activeTab !== 'zip-mappings' && activeTab !== 'missing-mappings' && activeTab !== 'invalid-state-codes' && (
               <label className="flex items-center gap-2">
                 <input
@@ -703,7 +734,7 @@ export default function TestCoveragePage() {
                   <p className="text-sm text-red-700 font-medium">Error loading data</p>
                   <p className="text-sm text-red-600 mt-1">{error}</p>
                   <p className="text-xs text-red-500 mt-2">
-                    Make sure to run: <code className="bg-red-100 px-1 rounded">bun scripts/create-test-views.ts</code> first
+                    Ensure you have ingested FMR/SAFMR + ZIP-county mapping data for the selected year.
                   </p>
                 </div>
               </div>

@@ -72,9 +72,19 @@ function parseFMRCSV(csvContent: string, year: number, effectiveDate?: Date): FM
 
       // Use countyname as primary identifier to avoid deduplication issues
       // Multiple counties can share the same hud_area_name (metro area)
-      const countyName = row['countyname'] || row['county_town_name'] || '';
-      const hudAreaName = row['hud_area_name'] || '';
-      const hudAreaCode = row['hud_area_code'] || row['hudareacode'] || row['area_code'] || '';
+      const countyName = row['countyname'] || row['county_town_name'] || row['county_name'] || '';
+
+      // HUD naming varies by year/file:
+      // - FY2026+: hud_area_name / hud_area_code
+      // - FY2023 revised: hud_area_name / hud_area_code (plus state_alpha)
+      // - FY2022 revised: areaname / metro_code (and fips2010)
+      const hudAreaName = row['hud_area_name'] || row['areaname'] || '';
+      const hudAreaCode =
+        row['hud_area_code'] ||
+        row['hudareacode'] ||
+        row['metro_code'] ||
+        row['area_code'] ||
+        '';
       
       // Use county name if available, otherwise fall back to hud_area_name
       const areaName = countyName || hudAreaName || row['area_name'] || row['county_name'] || '';
@@ -83,8 +93,22 @@ function parseFMRCSV(csvContent: string, year: number, effectiveDate?: Date): FM
         year,
         areaType,
         areaName: areaName,
-        stateCode: normalizeStateCode(row['stusps'] || row['state_code'] || row['state'] || ''),
-        countyCode: normalizeCountyFips(row['fips'] || row['county_code'] || row['fips_code'] || ''),
+        // FY2023 revised format uses `state_alpha` instead of `stusps`.
+        // Also some files include a numeric `state` field, so keep that as a last-resort fallback.
+        stateCode: normalizeStateCode(
+          row['stusps'] ||
+            row['state_alpha'] ||
+            row['state_code'] ||
+            row['state'] ||
+            ''
+        ),
+        countyCode: normalizeCountyFips(
+          row['fips'] ||
+            row['fips2010'] ||
+            row['county_code'] ||
+            row['fips_code'] ||
+            ''
+        ),
         hudAreaCode: hudAreaCode || undefined,
         hudAreaName: hudAreaName || undefined,
         bedroom0: parseFloat(row['fmr_0'] || row['bedroom_0'] || row['efficiency'] || row['0br'] || '0') || undefined,

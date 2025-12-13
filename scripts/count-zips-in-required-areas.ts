@@ -75,152 +75,35 @@ async function ensureNormalizeAccents() {
 export async function countZIPsInRequiredAreas(year: number = 2026) {
   console.log(`\n=== Counting ZIPs in Required SAFMR Areas for Year ${year} ===\n`);
 
-  await ensureNormalizeAccents();
-
-  const requiredAreas = loadRequiredSAFMRAreas();
-  console.log(`Loaded ${requiredAreas.length} required SAFMR areas from file\n`);
-
-  const mappingCount = await query(
-    `SELECT COUNT(*)::int as count FROM fmr_county_metro WHERE year = $1 AND is_metro = true AND hud_area_name IS NOT NULL`,
+  // This script is intended to report what's currently in the lookup table.
+  // Ensure you've run `bun run populate:safmr-zips -- <year>` first.
+  const requiredCount = await query(
+    `SELECT COUNT(DISTINCT zip_code)::int as count FROM required_safmr_zips WHERE year = $1`,
     [year]
   );
+  const totalRequired = requiredCount[0]?.count ?? 0;
 
-  if (!mappingCount[0]?.count || mappingCount[0].count === 0) {
-    throw new Error(
-      `fmr_county_metro is empty for year ${year}. Re-run ingest:fmr (with --replace) for ${year} first.`
-    );
+  if (totalRequired === 0) {
+    console.log(`required_safmr_zips has 0 ZIPs for ${year}. Run: bun run populate:safmr-zips -- ${year}`);
+    return;
   }
 
-  const hudMetroNames = await query(
-    `SELECT DISTINCT hud_area_name FROM fmr_county_metro WHERE year = $1 AND is_metro = true AND hud_area_name IS NOT NULL`,
+  const withSafmrCount = await query(
+    `
+    SELECT COUNT(DISTINCT rsz.zip_code)::int as count
+    FROM required_safmr_zips rsz
+    INNER JOIN safmr_data sd
+      ON sd.zip_code = rsz.zip_code
+     AND sd.year = rsz.year
+    WHERE rsz.year = $1
+    `,
     [year]
   );
-
-  const hudByNormalized = new Map<string, string[]>();
-  for (const row of hudMetroNames) {
-    const raw = String(row.hud_area_name || '').trim();
-    if (!raw) continue;
-    const key = normalizeHudMetroName(raw);
-    const existing = hudByNormalized.get(key);
-    if (existing) {
-      if (!existing.includes(raw)) existing.push(raw);
-    } else {
-      hudByNormalized.set(key, [raw]);
-    }
-  }
-
-  const allZIPs = new Set<string>();
-  const allZIPsWithSafmr = new Set<string>();
-  const missingAreas: string[] = [];
-
-  for (const requiredArea of requiredAreas) {
-    const requiredKey = normalizeHudMetroName(requiredArea);
-
-    const rawHudNames = hudByNormalized.get(requiredKey);
-    if (!rawHudNames || rawHudNames.length === 0) {
-      missingAreas.push(requiredArea);
-      continue;
-    }
-
-    const counties = await query(
-      `
-      SELECT DISTINCT state_code, county_name
-      FROM fmr_county_metro
-      WHERE year = $1
-        AND is_metro = true
-        AND county_name IS NOT NULL
-        AND hud_area_name = ANY($2::text[])
-      `,
-      [year, rawHudNames]
-    );
-
-    if (counties.length === 0) {
-      missingAreas.push(requiredArea);
-      continue;
-    }
-
-    const zips = await query(
-      `
-      WITH metro_counties AS (
-        SELECT DISTINCT
-          state_code,
-          lower(
-            regexp_replace(
-              normalize_accents(county_name),
-              '\\\\s+(county|parish|municipio|municipality|borough|census area)\\\\s*$',
-              ''
-            )
-          ) AS county_key
-        FROM fmr_county_metro
-        WHERE year = $1
-          AND is_metro = true
-          AND county_name IS NOT NULL
-          AND hud_area_name = ANY($2::text[])
-      )
-      SELECT DISTINCT zcm.zip_code
-      FROM zip_county_mapping zcm
-      INNER JOIN metro_counties mc
-        ON zcm.state_code = mc.state_code
-       AND lower(
-            regexp_replace(
-              normalize_accents(zcm.county_name),
-              '\\\\s+(county|parish|municipio|municipality|borough|census area)\\\\s*$',
-              ''
-            )
-          ) = mc.county_key
-      `,
-      [year, rawHudNames]
-    );
-
-    for (const row of zips) allZIPs.add(row.zip_code);
-
-    const zipsWithSafmr = await query(
-      `
-      WITH metro_counties AS (
-        SELECT DISTINCT
-          state_code,
-          lower(
-            regexp_replace(
-              normalize_accents(county_name),
-              '\\\\s+(county|parish|municipio|municipality|borough|census area)\\\\s*$',
-              ''
-            )
-          ) AS county_key
-        FROM fmr_county_metro
-        WHERE year = $1
-          AND is_metro = true
-          AND county_name IS NOT NULL
-          AND hud_area_name = ANY($2::text[])
-      )
-      SELECT DISTINCT zcm.zip_code
-      FROM zip_county_mapping zcm
-      INNER JOIN metro_counties mc
-        ON zcm.state_code = mc.state_code
-       AND lower(
-            regexp_replace(
-              normalize_accents(zcm.county_name),
-              '\\\\s+(county|parish|municipio|municipality|borough|census area)\\\\s*$',
-              ''
-            )
-          ) = mc.county_key
-      INNER JOIN safmr_data sd
-        ON sd.zip_code = zcm.zip_code
-       AND sd.year = $1
-      `,
-      [year, rawHudNames]
-    );
-
-    for (const row of zipsWithSafmr) allZIPsWithSafmr.add(row.zip_code);
-  }
+  const totalWithSafmr = withSafmrCount[0]?.count ?? 0;
 
   console.log(`📊 Summary:`);
-  console.log(`  Total unique ZIPs across all required SAFMR areas: ${allZIPs.size.toLocaleString()}`);
-  console.log(`  Total unique ZIPs in required areas that have SAFMR data: ${allZIPsWithSafmr.size.toLocaleString()}`);
-
-  if (missingAreas.length > 0) {
-    console.log(`\n⚠️ No HUD-metro match found for ${missingAreas.length}/65 required areas:`);
-    for (const a of missingAreas) console.log(`  - ${a}`);
-  }
+  console.log(`  Total unique ZIPs across all required SAFMR areas: ${totalRequired.toLocaleString()}`);
+  console.log(`  Total unique ZIPs in required areas that have SAFMR data: ${totalWithSafmr.toLocaleString()}`);
 }
 
 if (import.meta.main) {
@@ -235,4 +118,6 @@ if (import.meta.main) {
       process.exit(1);
     });
 }
+
+
 

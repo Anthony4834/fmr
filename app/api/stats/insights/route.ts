@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@vercel/postgres';
 import { computeDashboardInsights, type DashboardInsightsType } from '../../../../lib/dashboard-insights';
+import { getLatestFMRYear } from '@/lib/queries';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,7 +9,8 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const rawType = (searchParams.get('type') || 'zip') as DashboardInsightsType;
-    const year = parseInt(searchParams.get('year') || '2026', 10);
+    const yearParam = searchParams.get('year');
+    const year = yearParam ? parseInt(yearParam, 10) : await getLatestFMRYear();
     const refresh = searchParams.get('refresh') === 'true';
 
     const type: DashboardInsightsType =

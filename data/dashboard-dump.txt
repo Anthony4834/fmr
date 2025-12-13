@@ -1,0 +1,447 @@
+fmr.fyi
+Fair Market Rent Data
+
+Search HUD Fair Market Rent data by address, city, ZIP code, or county
+
+Search ZIP, city, county, or address…
+Search
+ZIP Codes
+Cities
+Counties
+Most Expensive
+Top 15 by avg FMR
+
+#1
+95060
+Santa Cruz County, CA
+$2615/br
+$3,950 - $7,020
+#2
+92660
+Orange County, CA
+$2380/br
+$3,950 - $7,720
+#3
+92673
+Orange County, CA
+$2370/br
+$3,930 - $7,680
+#4
+92603
+Orange County, CA
+$2335/br
+$3,870 - $7,570
+#5
+92657
+Orange County, CA
+$2315/br
+$3,840 - $7,510
+#6
+92823
+Orange County, CA
+$2300/br
+$3,810 - $7,460
+#7
+92625
+Orange County, CA
+$2270/br
+$3,770 - $7,370
+#8
+94404
+San Mateo County, CA
+$2505/br
+$3,450 - $6,630
+#9
+95062
+Santa Cruz County, CA
+$2470/br
+$3,730 - $6,630
+#10
+95134
+Santa Clara County, CA
+$2370/br
+$3,570 - $6,820
+#11
+92618
+Orange County, CA
+$2240/br
+$3,710 - $7,260
+#12
+92679
+Orange County, CA
+$2205/br
+$3,660 - $7,150
+#13
+91914
+San Diego County, CA
+$2250/br
+$3,430 - $7,270
+#14
+92014
+San Diego County, CA
+$2250/br
+$3,430 - $7,270
+#15
+92118
+San Diego County, CA
+$2250/br
+$3,430 - $7,270
+Most Affordable
+Top 15 by avg FMR
+
+#1
+36251
+Calhoun County, AL
+$390/br
+$580 - $1,030
+#2
+36310
+Henry County, AL
+$390/br
+$590 - $1,080
+#3
+36861
+Tallapoosa County, AL
+$390/br
+$580 - $1,110
+#4
+36266
+Calhoun County, AL
+$390/br
+$570 - $1,050
+#5
+36033
+Elmore County, AL
+$390/br
+$580 - $1,080
+#6
+36071
+Elmore County, AL
+$400/br
+$610 - $1,060
+#7
+36278
+Randolph County, AL
+$390/br
+$540 - $1,120
+#8
+36267
+Clay County, AL
+$390/br
+$570 - $1,070
+#9
+36028
+Crenshaw County, AL
+$390/br
+$580 - $1,170
+#10
+35032
+Talladega County, AL
+$390/br
+$540 - $1,070
+#11
+35044
+Talladega County, AL
+$390/br
+$540 - $1,070
+#12
+35072
+Jefferson County, AL
+$390/br
+$580 - $1,110
+#13
+35160
+Jefferson County, AL
+$390/br
+$540 - $1,070
+#14
+35592
+Lamar County, AL
+$390/br
+$620 - $1,050
+#15
+35586
+Lamar County, AL
+$390/br
+$620 - $1,050
+Popular Searches
+Top 10 ZIP codes (last 30 days)
+
+#1
+98229
+Skagit County, WA
+$945/br
+$1,540 - $3,170
+#2
+36251
+Calhoun County, AL
+$390/br
+$580 - $1,030
+#3
+46796
+Noble County, IN
+$510/br
+$720 - $1,720
+#4
+98121
+King County, WA
+$1870/br
+$3,100 - $5,750
+#5
+98101
+King County, WA
+$1735/br
+$2,880 - $5,340
+#6
+22003
+Fairfax County, VA
+$1125/br
+$1,960 - $3,340
+#7
+98286
+San Juan County, WA
+$895/br
+$1,240 - $2,380
+#8
+92673
+Orange County, CA
+$2370/br
+$3,930 - $7,680
+#9
+99640
+Lake and Peninsula Borough County, AK
+$910/br
+$1,590 - $2,410
+#10
+49401
+Ottawa County, MI
+$840/br
+$1,160 - $2,500
+Price Jump Anomalies
+vs National Avg (Top 15)
+
+Location	Step	Δ vs Nat	Jump	Nat Avg	FMR
+#1	
+46796
+Noble County, IN
+3BR→4BR	+26.0%	+41.0%	14.9%	$1,220→$1,720
+#2	
+77964
+Colorado County, TX
+3BR→4BR	+25.8%	+40.7%	14.9%	$1,350→$1,900
+#3	
+83802
+Shoshone County, ID
+3BR→4BR	+25.8%	+40.7%	14.9%	$1,350→$1,900
+#4	
+83812
+Shoshone County, ID
+3BR→4BR	+25.8%	+40.7%	14.9%	$1,350→$1,900
+#5	
+59217
+Richland County, MT
+3BR→4BR	+25.7%	+40.7%	14.9%	$1,450→$2,040
+#6	
+24086
+Giles County, VA
+3BR→4BR	+25.7%	+40.7%	14.9%	$1,180→$1,660
+#7	
+24134
+Bland County, VA
+3BR→4BR	+25.7%	+40.7%	14.9%	$1,230→$1,730
+#8	
+24167
+Giles County, VA
+3BR→4BR	+25.7%	+40.7%	14.9%	$1,230→$1,730
+#9	
+46760
+Noble County, IN
+3BR→4BR	+25.7%	+40.7%	14.9%	$1,230→$1,730
+#10	
+22747
+Rappahannock County, VA
+3BR→4BR	+25.7%	+40.6%	14.9%	$1,650→$2,320
+#11	
+22749
+Rappahannock County, VA
+3BR→4BR	+25.7%	+40.6%	14.9%	$1,650→$2,320
+#12	
+50065
+Decatur County, IA
+3BR→4BR	+25.7%	+40.6%	14.9%	$1,650→$2,320
+#13	
+63934
+Wayne County, MO
+3BR→4BR	+25.6%	+40.6%	14.9%	$1,060→$1,490
+#14	
+63944
+Wayne County, MO
+3BR→4BR	+25.6%	+40.6%	14.9%	$1,060→$1,490
+#15	
+63950
+Wayne County, MO
+3BR→4BR	+25.6%	+40.6%	14.9%	$1,060→$1,490
+Rising
+Top 15 highest YoY increases
+
+#1
+99640
++103.8%
+0BR
+$1,590 - $2,410
+#2
+79331
++98.6%
+0BR
+$1,430 - $2,730
+#3
+79783
++96.4%
+4BR
+$1,430 - $2,730
+#4
+84055
++93.4%
+4BR
+$2,240 - $4,410
+#5
+59020
++91.9%
+1BR
+$1,320 - $3,200
+#6
+59927
++91.2%
+0BR
+$1,300 - $2,850
+#7
+35615
++88.9%
+0BR
+$1,530 - $3,140
+#8
+27301
++87.1%
+0BR
+$1,740 - $2,950
+#9
+59081
++83.5%
+1BR
+$1,180 - $2,860
+#10
+21715
++83.5%
+0BR
+$1,560 - $2,860
+#11
+97438
++83.0%
+0BR
+$1,830 - $4,240
+#12
+68948
++79.1%
+4BR
+$960 - $2,310
+#13
+14614
++73.5%
+2BR
+$1,670 - $3,120
+#14
+84013
++71.7%
+2BR
+$1,670 - $3,250
+#15
+97037
++71.4%
+0BR
+$1,920 - $3,880
+Falling
+Top 15 highest YoY decreases
+
+#1
+10005
+-10.0%
+3BR
+$3,250 - $5,050
+#2
+10006
+-10.0%
+3BR
+$3,250 - $5,050
+#3
+10282
+-10.0%
+3BR
+$3,250 - $5,050
+#4
+10504
+-10.0%
+3BR
+$3,250 - $5,070
+#5
+11932
+-10.0%
+3BR
+$1,970 - $3,910
+#6
+12027
+-10.0%
+1BR
+$1,420 - $2,610
+#7
+12480
+-10.0%
+4BR
+$1,260 - $2,250
+#8
+12503
+-10.0%
+2BR
+$1,420 - $2,160
+#9
+12722
+-10.0%
+3BR
+$1,280 - $2,430
+#10
+12743
+-10.0%
+3BR
+$1,190 - $2,300
+#11
+12836
+-10.0%
+1BR
+$1,040 - $1,800
+#12
+12863
+-10.0%
+1BR
+$1,100 - $2,020
+#13
+12874
+-10.0%
+3BR
+$1,020 - $1,760
+#14
+13602
+-10.0%
+1BR
+$1,130 - $2,720
+#15
+13863
+-10.0%
+0BR
+$990 - $2,080
+fmr.fyi
+
+Fair Market Rent data made simple
+
+Data source: U.S. Department of Housing and Urban Development (HUD)
+
+Fiscal Year 2026 • Updated October 2025
+

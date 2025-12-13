@@ -112,3 +112,4 @@ export default function ResultAbout({ data }: { data: FMRResult }) {
 }
 
 
+

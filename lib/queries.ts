@@ -1,11 +1,82 @@
 import { sql } from '@vercel/postgres';
-import type { FMRResult, ZIPFMRData } from '@/lib/types';
+import type { FMRHistoryPoint, FMRResult, ZIPFMRData } from '@/lib/types';
 
 export interface AutocompleteResult {
   type: 'zip' | 'city' | 'county';
   display: string;
   value: string;
   state?: string;
+}
+
+let cachedLatestFY: number | null = null;
+let cachedLatestFYAtMs = 0;
+const LATEST_FY_TTL_MS = 6 * 60 * 60 * 1000; // 6h
+
+async function getLatestFYFromDb(): Promise<number> {
+  // Use the max year across both datasets (covers SAFMR-only years and FMR-only years).
+  const [fmr, safmr] = await Promise.all([
+    sql`SELECT MAX(year) as max_year FROM fmr_data`,
+    sql`SELECT MAX(year) as max_year FROM safmr_data`,
+  ]);
+  const fmrYear = fmr.rows?.[0]?.max_year ? Number(fmr.rows[0].max_year) : 0;
+  const safmrYear = safmr.rows?.[0]?.max_year ? Number(safmr.rows[0].max_year) : 0;
+  const latest = Math.max(fmrYear || 0, safmrYear || 0);
+  // Fallback if tables are empty/unavailable.
+  return latest > 0 ? latest : 2026;
+}
+
+export async function getLatestFMRYear(): Promise<number> {
+  const now = Date.now();
+  if (cachedLatestFY && now - cachedLatestFYAtMs < LATEST_FY_TTL_MS) {
+    return cachedLatestFY;
+  }
+  const latest = await getLatestFYFromDb();
+  cachedLatestFY = latest;
+  cachedLatestFYAtMs = now;
+  return latest;
+}
+
+function median(values: number[]): number | undefined {
+  if (values.length === 0) return undefined;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  if (sorted.length % 2 === 0) {
+    return (sorted[mid - 1] + sorted[mid]) / 2;
+  }
+  return sorted[mid];
+}
+
+function aggregateResultToHistoryPoint(result: FMRResult): FMRHistoryPoint {
+  // For SAFMR results with many ZIPs, aggregate to a single representative value per bedroom (median).
+  if (result.zipFMRData && result.zipFMRData.length > 0) {
+    const b0 = result.zipFMRData.map(z => z.bedroom0).filter(v => v !== undefined) as number[];
+    const b1 = result.zipFMRData.map(z => z.bedroom1).filter(v => v !== undefined) as number[];
+    const b2 = result.zipFMRData.map(z => z.bedroom2).filter(v => v !== undefined) as number[];
+    const b3 = result.zipFMRData.map(z => z.bedroom3).filter(v => v !== undefined) as number[];
+    const b4 = result.zipFMRData.map(z => z.bedroom4).filter(v => v !== undefined) as number[];
+
+    return {
+      year: result.year,
+      source: result.source,
+      bedroom0: median(b0),
+      bedroom1: median(b1),
+      bedroom2: median(b2),
+      bedroom3: median(b3),
+      bedroom4: median(b4),
+      effectiveDate: result.effectiveDate
+    };
+  }
+
+  return {
+    year: result.year,
+    source: result.source,
+    bedroom0: result.bedroom0,
+    bedroom1: result.bedroom1,
+    bedroom2: result.bedroom2,
+    bedroom3: result.bedroom3,
+    bedroom4: result.bedroom4,
+    effectiveDate: result.effectiveDate
+  };
 }
 
 /**
@@ -196,8 +267,8 @@ export async function searchAutocomplete(query: string, type?: 'zip' | 'city' | 
  * Get FMR data by ZIP code (checks SAFMR only if ZIP is in required SAFMR area, otherwise uses county FMR)
  */
 export async function getFMRByZip(zipCode: string, year?: number): Promise<FMRResult | null> {
-  // Default to 2026 (current FMR year) instead of current calendar year
-  const targetYear = year || 2026;
+  // Default to latest available FY unless explicitly provided
+  const targetYear = year ?? (await getLatestFMRYear());
   
   // Get county info first (excluding PR)
   const countyInfo = await sql`
@@ -320,11 +391,27 @@ export async function getFMRByZip(zipCode: string, year?: number): Promise<FMRRe
 }
 
 /**
+ * Get historical (FY2022–FY2026) FMR/SAFMR data by ZIP code.
+ * Returns an aggregated series (median for SAFMR multi-ZIP results).
+ */
+export async function getFMRHistoryByZip(zipCode: string): Promise<FMRHistoryPoint[]> {
+  const latest = await getLatestFMRYear();
+  const years = Array.from({ length: 5 }, (_, i) => latest - 4 + i);
+  const results = await Promise.all(
+    years.map(async (y) => {
+      const r = await getFMRByZip(zipCode, y);
+      return r ? aggregateResultToHistoryPoint(r) : null;
+    })
+  );
+  return results.filter(Boolean) as FMRHistoryPoint[];
+}
+
+/**
  * Get FMR data by county name and state
  */
 export async function getFMRByCounty(countyName: string, stateCode: string, year?: number): Promise<FMRResult | null> {
-  // Default to 2026 (current FMR year) instead of current calendar year
-  const targetYear = year || 2026;
+  // Default to latest available FY unless explicitly provided
+  const targetYear = year ?? (await getLatestFMRYear());
   
   // Exclude PR
   if (stateCode.toUpperCase() === 'PR') {
@@ -431,11 +518,27 @@ export async function getFMRByCounty(countyName: string, stateCode: string, year
 }
 
 /**
+ * Get historical (FY2022–FY2026) FMR/SAFMR data by county + state.
+ * Returns an aggregated series (median for SAFMR multi-ZIP results).
+ */
+export async function getFMRHistoryByCounty(countyName: string, stateCode: string): Promise<FMRHistoryPoint[]> {
+  const latest = await getLatestFMRYear();
+  const years = Array.from({ length: 5 }, (_, i) => latest - 4 + i);
+  const results = await Promise.all(
+    years.map(async (y) => {
+      const r = await getFMRByCounty(countyName, stateCode, y);
+      return r ? aggregateResultToHistoryPoint(r) : null;
+    })
+  );
+  return results.filter(Boolean) as FMRHistoryPoint[];
+}
+
+/**
  * Get FMR data by city name and state
  */
 export async function getFMRByCity(cityName: string, stateCode: string, year?: number): Promise<FMRResult | null> {
-  // Default to 2026 (current FMR year) instead of current calendar year
-  const targetYear = year || 2026;
+  // Default to latest available FY unless explicitly provided
+  const targetYear = year ?? (await getLatestFMRYear());
   
   // Exclude PR
   if (stateCode.toUpperCase() === 'PR') {
@@ -519,5 +622,21 @@ export async function getFMRByCity(cityName: string, stateCode: string, year?: n
     return result;
   }
   return null;
+}
+
+/**
+ * Get historical (FY2022–FY2026) FMR/SAFMR data by city + state.
+ * Returns an aggregated series (median for SAFMR multi-ZIP results).
+ */
+export async function getFMRHistoryByCity(cityName: string, stateCode: string): Promise<FMRHistoryPoint[]> {
+  const latest = await getLatestFMRYear();
+  const years = Array.from({ length: 5 }, (_, i) => latest - 4 + i);
+  const results = await Promise.all(
+    years.map(async (y) => {
+      const r = await getFMRByCity(cityName, stateCode, y);
+      return r ? aggregateResultToHistoryPoint(r) : null;
+    })
+  );
+  return results.filter(Boolean) as FMRHistoryPoint[];
 }
 

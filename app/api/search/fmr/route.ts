@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getFMRByZip, getFMRByCounty, getFMRByCity } from '@/lib/queries';
+import { getFMRByZip, getFMRByCounty, getFMRByCity, getFMRHistoryByZip, getFMRHistoryByCounty, getFMRHistoryByCity } from '@/lib/queries';
 import { geocodeAddress } from '@/lib/geocoding';
 
 export const dynamic = 'force-dynamic';
@@ -17,20 +17,25 @@ export async function GET(request: NextRequest) {
     let result = null;
     let queriedLocation = '';
     let queriedType: 'zip' | 'city' | 'county' | 'address' = 'address';
+    let history: Awaited<ReturnType<typeof getFMRHistoryByZip>> | null = null;
+    let historyZipCode: string | null = null;
 
     // Priority: ZIP > City > County > Address
     if (zip) {
       queriedLocation = zip;
       queriedType = 'zip';
       result = await getFMRByZip(zip, year);
+      historyZipCode = zip;
     } else if (city && state) {
       queriedLocation = `${city}, ${state}`;
       queriedType = 'city';
       result = await getFMRByCity(city, state, year);
+      history = await getFMRHistoryByCity(city, state);
     } else if (county && state) {
       queriedLocation = `${county}, ${state}`;
       queriedType = 'county';
       result = await getFMRByCounty(county, state, year);
+      history = await getFMRHistoryByCounty(county, state);
     } else if (address) {
       queriedLocation = address;
       queriedType = 'address';
@@ -84,6 +89,7 @@ export async function GET(request: NextRequest) {
           // Successfully found FMR data using extracted ZIP
           queriedLocation = addressParts?.[0] || address; // Use address part if split, otherwise full address
           queriedType = 'address';
+          historyZipCode = zipCode;
         }
       }
       
@@ -112,6 +118,7 @@ export async function GET(request: NextRequest) {
             queriedLocation = address;
             queriedType = 'address';
             result = await getFMRByZip(geocodeResult.zipCode, year);
+            historyZipCode = geocodeResult.zipCode;
           }
         } catch (geocodeError) {
           console.error('Geocoding failed:', geocodeError);
@@ -127,9 +134,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Attach historical series (FY2022–FY2026) for ZIP-based results.
+    // For city/county, history is already fetched above.
+    if (!history && historyZipCode) {
+      history = await getFMRHistoryByZip(historyZipCode);
+    }
+
     return NextResponse.json({ 
       data: {
         ...result,
+        history: history ?? undefined,
         queriedLocation,
         queriedType
       }

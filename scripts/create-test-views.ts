@@ -9,8 +9,23 @@ if (!process.env.POSTGRES_URL) {
 }
 configureDatabase({ connectionString: process.env.POSTGRES_URL });
 
-async function createTestViews() {
-  console.log('Creating test views for data coverage...\n');
+function parseYearArg(): number {
+  const raw = process.argv[2];
+  if (!raw) return 2025;
+  const y = parseInt(raw, 10);
+  if (!Number.isFinite(y) || y < 2000 || y > 2100) {
+    throw new Error(`Invalid year argument: "${raw}". Usage: bun scripts/create-test-views.ts <year>`);
+  }
+  return y;
+}
+
+async function createTestViews(year: number) {
+  console.log(`Creating test views for data coverage (year=${year})...\n`);
+  const suffix = `_y${year}`;
+  const citiesView = `cities_without_fmr${suffix}`;
+  const zipsView = `zips_without_fmr${suffix}`;
+  const countiesView = `counties_without_fmr${suffix}`;
+  const mappingIssuesView = `zip_county_mapping_issues${suffix}`;
 
   // Create a function to normalize accents (if it doesn't exist)
   await execute(`
@@ -38,7 +53,7 @@ async function createTestViews() {
 
   // View: Cities without FMR data
   await execute(`
-    CREATE OR REPLACE VIEW cities_without_fmr AS
+    CREATE OR REPLACE VIEW ${citiesView} AS
     SELECT 
       c.city_name,
       c.state_code,
@@ -49,7 +64,7 @@ async function createTestViews() {
           SELECT 1 
           FROM safmr_data sd 
           WHERE sd.zip_code = ANY(c.zip_codes) 
-          AND sd.year = 2026
+          AND sd.year = ${year}
         ) THEN true
         WHEN EXISTS (
           SELECT 1 
@@ -72,7 +87,7 @@ async function createTestViews() {
               ))
             )
             AND (fd.state_code = zcm.state_code OR (zcm.state_code = 'DC' AND fd.state_code IN ('MD', 'VA')))
-            AND fd.year = 2026
+            AND fd.year = ${year}
           )
           WHERE zcm.zip_code = ANY(c.zip_codes)
         ) THEN true
@@ -81,7 +96,7 @@ async function createTestViews() {
     FROM cities c
     ORDER BY has_fmr_data ASC, c.state_code, c.city_name;
   `);
-  console.log('✅ Created view: cities_without_fmr');
+  console.log(`✅ Created view: ${citiesView}`);
 
   // View: ZIP codes without FMR data
   // This view can take a while to create due to the large zip_county_mapping table
@@ -93,7 +108,7 @@ async function createTestViews() {
   console.log('  If you need to check progress, you can query: SELECT COUNT(*) FROM zip_county_mapping;');
   const viewStartTime = Date.now();
   await execute(`
-    CREATE OR REPLACE VIEW zips_without_fmr AS
+    CREATE OR REPLACE VIEW ${zipsView} AS
     SELECT 
       zcm.zip_code,
       zcm.county_name,
@@ -106,7 +121,7 @@ async function createTestViews() {
         WHEN EXISTS (
           SELECT 1
           FROM fmr_data fd
-          WHERE fd.year = 2026
+          WHERE fd.year = ${year}
             AND fd.county_code IS NOT NULL
             AND fd.county_code = zcm.county_fips
             AND fd.state_code = zcm.state_code
@@ -127,7 +142,7 @@ async function createTestViews() {
             ))
           )
           AND (fd.state_code = zcm.state_code OR (zcm.state_code = 'DC' AND fd.state_code IN ('MD', 'VA')))
-          AND fd.year = 2026
+          AND fd.year = ${year}
         ) THEN 'FMR'
         ELSE 'NONE'
       END as fmr_source,
@@ -137,15 +152,15 @@ async function createTestViews() {
         ELSE FALSE
       END as has_safmr_data_but_uses_fmr
     FROM zip_county_mapping zcm
-    LEFT JOIN required_safmr_zips rsz ON rsz.zip_code = zcm.zip_code AND rsz.year = 2026
-    LEFT JOIN safmr_data sd ON sd.zip_code = zcm.zip_code AND sd.year = 2026;
+    LEFT JOIN required_safmr_zips rsz ON rsz.zip_code = zcm.zip_code AND rsz.year = ${year}
+    LEFT JOIN safmr_data sd ON sd.zip_code = zcm.zip_code AND sd.year = ${year};
   `);
   const viewDuration = ((Date.now() - viewStartTime) / 1000).toFixed(1);
-  console.log(`✅ Created view: zips_without_fmr (took ${viewDuration}s)`);
+  console.log(`✅ Created view: ${zipsView} (took ${viewDuration}s)`);
 
   // View: Counties without FMR data
   await execute(`
-    CREATE OR REPLACE VIEW counties_without_fmr AS
+    CREATE OR REPLACE VIEW ${countiesView} AS
     SELECT
       zcm.county_name,
       zcm.state_code,
@@ -157,7 +172,7 @@ async function createTestViews() {
           SELECT 1
           FROM zip_county_mapping z2
           JOIN fmr_data fd
-            ON fd.year = 2026
+            ON fd.year = ${year}
            AND fd.county_code IS NOT NULL
            AND fd.county_code = z2.county_fips
            AND (
@@ -185,7 +200,7 @@ async function createTestViews() {
             OR (zcm.state_code = 'MP' AND fd.area_name ILIKE '%Northern Mariana Islands%')
           )
           AND fd.state_code = zcm.state_code
-          AND fd.year = 2026
+          AND fd.year = ${year}
         ) THEN true
         ELSE false
       END as has_fmr_data
@@ -193,11 +208,11 @@ async function createTestViews() {
     WHERE zcm.state_code != 'PR'
     GROUP BY zcm.county_name, zcm.state_code, zcm.state_name;
   `);
-  console.log('✅ Created view: counties_without_fmr');
+  console.log(`✅ Created view: ${countiesView}`);
 
   // View: ZIP codes with problematic county mappings
   await execute(`
-    CREATE OR REPLACE VIEW zip_county_mapping_issues AS
+    CREATE OR REPLACE VIEW ${mappingIssuesView} AS
     WITH zip_mapping_counts AS (
       SELECT 
         zip_code,
@@ -213,7 +228,7 @@ async function createTestViews() {
         NULL::text as counties,
         'NO_MAPPING' as issue_type
       FROM safmr_data sd
-      WHERE sd.year = 2026
+      WHERE sd.year = ${year}
         AND NOT EXISTS (
           SELECT 1 
           FROM zip_county_mapping zcm 
@@ -235,7 +250,7 @@ async function createTestViews() {
     SELECT zip_code, county_count, counties, issue_type
     FROM zips_with_multiple_mappings;
   `);
-  console.log('✅ Created view: zip_county_mapping_issues');
+  console.log(`✅ Created view: ${mappingIssuesView}`);
 
   console.log('\n📊 View Statistics:');
   console.log('Fetching statistics...');
@@ -247,7 +262,7 @@ async function createTestViews() {
       COUNT(*) as total_cities,
       COUNT(*) FILTER (WHERE has_fmr_data = false) as cities_without_fmr,
       COUNT(*) FILTER (WHERE has_fmr_data = true) as cities_with_fmr
-    FROM cities_without_fmr
+    FROM ${citiesView}
   `);
   
   console.log('  Fetching ZIP statistics...');
@@ -258,7 +273,7 @@ async function createTestViews() {
       COUNT(*) FILTER (WHERE fmr_source = 'SAFMR') as zips_with_safmr,
       COUNT(*) FILTER (WHERE fmr_source = 'FMR' AND has_safmr_data_but_uses_fmr = FALSE) as zips_with_fmr_only,
       COUNT(*) FILTER (WHERE has_safmr_data_but_uses_fmr = TRUE) as zips_with_safmr_data_but_uses_fmr
-    FROM zips_without_fmr
+    FROM ${zipsView}
   `);
   
   console.log('  Fetching county statistics...');
@@ -267,7 +282,7 @@ async function createTestViews() {
       COUNT(*) as total_counties,
       COUNT(*) FILTER (WHERE has_fmr_data = false) as counties_without_fmr,
       COUNT(*) FILTER (WHERE has_fmr_data = true) as counties_with_fmr
-    FROM counties_without_fmr
+    FROM ${countiesView}
   `);
   
   console.log('  Fetching ZIP mapping statistics...');
@@ -276,7 +291,7 @@ async function createTestViews() {
       COUNT(*) as total_issues,
       COUNT(*) FILTER (WHERE issue_type = 'NO_MAPPING') as zips_without_mapping,
       COUNT(*) FILTER (WHERE issue_type = 'MULTIPLE_MAPPINGS') as zips_with_multiple_mappings
-    FROM zip_county_mapping_issues
+    FROM ${mappingIssuesView}
   `);
 
   console.log('\nCities:');
@@ -303,13 +318,14 @@ async function createTestViews() {
   
   console.log('\n✅ Test views created successfully!');
   console.log('\nTo query missing data:');
-  console.log('  SELECT * FROM cities_without_fmr WHERE has_fmr_data = false LIMIT 10;');
-  console.log('  SELECT * FROM zips_without_fmr WHERE fmr_source = \'NONE\' LIMIT 10;');
-  console.log('  SELECT * FROM counties_without_fmr WHERE has_fmr_data = false LIMIT 10;');
-  console.log('  SELECT * FROM zip_county_mapping_issues LIMIT 10;');
+  console.log(`  SELECT * FROM ${citiesView} WHERE has_fmr_data = false LIMIT 10;`);
+  console.log(`  SELECT * FROM ${zipsView} WHERE fmr_source = 'NONE' LIMIT 10;`);
+  console.log(`  SELECT * FROM ${countiesView} WHERE has_fmr_data = false LIMIT 10;`);
+  console.log(`  SELECT * FROM ${mappingIssuesView} LIMIT 10;`);
 }
 
-createTestViews()
+const year = parseYearArg();
+createTestViews(year)
   .then(() => {
     console.log('\nDone!');
     process.exit(0);

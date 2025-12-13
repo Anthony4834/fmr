@@ -2,6 +2,7 @@ import { config } from 'dotenv';
 import { execute, query, configureDatabase } from '../lib/db';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { existsSync } from 'fs';
 
 config();
 
@@ -10,8 +11,20 @@ if (!process.env.POSTGRES_URL) {
 }
 configureDatabase({ connectionString: process.env.POSTGRES_URL });
 
-function loadRequiredSAFMRAreas(): string[] {
-  const filePath = join(process.cwd(), 'app', 'required-safmr-areas.txt');
+function getRequiredAreasFilePath(year: number): string {
+  // FY2023/FY2024 used the original (pre-expansion) mandatory SAFMR list (24 areas).
+  // FY2025+ uses the expanded list (65 areas) in app/required-safmr-areas.txt.
+  if (year <= 2024) {
+    return join(process.cwd(), 'data', 'mandatory-safmr-zips-2023.txt');
+  }
+  return join(process.cwd(), 'app', 'required-safmr-areas.txt');
+}
+
+function loadRequiredSAFMRAreas(year: number): { areas: string[]; filePath: string } {
+  const filePath = getRequiredAreasFilePath(year);
+  if (!existsSync(filePath)) {
+    throw new Error(`Required SAFMR areas file not found for year ${year}: ${filePath}`);
+  }
   const content = readFileSync(filePath, 'utf-8');
 
   const lines = content.split('\n');
@@ -32,12 +45,17 @@ function loadRequiredSAFMRAreas(): string[] {
       continue;
     }
 
-    if (trimmed.includes('MSA') || trimmed.includes('HUD Metro FMR Area')) {
+    // Accept common HUD naming variants across years/files
+    if (
+      trimmed.includes('MSA') ||
+      trimmed.includes('HUD Metro FMR Area') ||
+      trimmed.includes('Metro Division')
+    ) {
       areas.push(trimmed);
     }
   }
 
-  return areas;
+  return { areas, filePath };
 }
 
 function normalizeHudMetroName(name: string): string {
@@ -46,6 +64,15 @@ function normalizeHudMetroName(name: string): string {
     .toLowerCase()
     .replace(/\s+hud metro fmr area\s*$/i, '')
     .replace(/\s+msa\s*$/i, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function normalizeCountyKeyJs(name: string): string {
+  return String(name || '')
+    .toLowerCase()
+    .replace(/\s+(county|parish|municipio|municipality|borough|census area)\s*$/i, '')
     .replace(/[^a-z0-9]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
@@ -124,6 +151,26 @@ async function ensureSupportTables() {
     END;
     $$ LANGUAGE plpgsql IMMUTABLE;
   `);
+
+  // One canonical county-key normalization function, so joins behave consistently.
+  await execute(`
+    CREATE OR REPLACE FUNCTION normalize_county_key(name text)
+    RETURNS text AS $$
+    BEGIN
+      IF name IS NULL THEN
+        RETURN NULL;
+      END IF;
+      RETURN lower(
+        regexp_replace(
+          normalize_accents(lower(name)),
+          '\\s+(county|parish|municipio|municipality|borough|census area)\\s*$',
+          '',
+          'i'
+        )
+      );
+    END;
+    $$ LANGUAGE plpgsql IMMUTABLE;
+  `);
 }
 
 export async function populateRequiredSAFMRZips(year: number = 2026) {
@@ -131,8 +178,8 @@ export async function populateRequiredSAFMRZips(year: number = 2026) {
 
   await ensureSupportTables();
 
-  const requiredAreas = loadRequiredSAFMRAreas();
-  console.log(`Loaded ${requiredAreas.length} required SAFMR areas from file`);
+  const { areas: requiredAreas, filePath } = loadRequiredSAFMRAreas(year);
+  console.log(`Loaded ${requiredAreas.length} required SAFMR areas from file: ${filePath}`);
 
   const mappingCount = await query(
     `SELECT COUNT(*)::int as count FROM fmr_county_metro WHERE year = $1 AND is_metro = true AND hud_area_name IS NOT NULL`,
@@ -188,15 +235,14 @@ export async function populateRequiredSAFMRZips(year: number = 2026) {
   await execute('DELETE FROM required_safmr_zips WHERE year = $1', [year]);
   console.log('✅ Cleared\n');
 
-  let totalInserted = 0;
   const missingAreas: string[] = [];
+  const matchedHudNames = new Set<string>();
 
   for (const requiredArea of requiredAreas) {
     const requiredKey = normalizeHudMetroName(requiredArea);
-
     let rawHudNames = hudByNormalized.get(requiredKey);
 
-    // Fallback matcher: within the required state's HUD metros, pick best token overlap.
+    // Fuzzy matcher: within the required state's HUD metros, pick best token overlap.
     if (!rawHudNames || rawHudNames.length === 0) {
       const stateCodes = extractStateCodesFromRequiredArea(requiredArea);
       const candidateRawNames = new Set<string>();
@@ -208,15 +254,17 @@ export async function populateRequiredSAFMRZips(year: number = 2026) {
           for (const raw of set) candidateRawNames.add(raw);
         }
       } else {
-        // If we can't parse states, fall back to all HUD names (still token-based).
         for (const raw of hudMetroNames.map(r => String(r.hud_area_name || '').trim()).filter(Boolean)) {
           candidateRawNames.add(raw);
         }
       }
 
       const requiredTokens = tokenizeMetroKey(requiredKey);
+      const primaryToken = requiredTokens.length > 0 ? requiredTokens[0] : null;
+
+      let bestRaw: string | null = null;
       let bestNorm: string | null = null;
-      let bestScore = 0;
+      let bestScore = -1;
 
       for (const raw of candidateRawNames) {
         const norm = normalizeHudMetroName(raw);
@@ -225,18 +273,20 @@ export async function populateRequiredSAFMRZips(year: number = 2026) {
         for (const t of requiredTokens) {
           if (hay.includes(` ${t} `)) score++;
         }
-        if (score > bestScore) {
-          bestScore = score;
+
+        // Bias toward matching the primary token (usually main city)
+        const hasPrimary = primaryToken ? hay.includes(` ${primaryToken} `) : false;
+        const effectiveScore = hasPrimary ? score + 0.25 : score;
+
+        if (effectiveScore > bestScore) {
+          bestScore = effectiveScore;
+          bestRaw = raw;
           bestNorm = norm;
         }
       }
 
-      if (bestNorm) {
-        // Require a reasonable overlap to avoid false positives
-        const minNeeded = Math.max(2, Math.ceil(requiredTokens.length * 0.6));
-        if (bestScore >= minNeeded) {
-          rawHudNames = hudByNormalized.get(bestNorm);
-        }
+      if (bestRaw && bestNorm) {
+        rawHudNames = hudByNormalized.get(bestNorm) ?? [bestRaw];
       }
     }
 
@@ -245,82 +295,57 @@ export async function populateRequiredSAFMRZips(year: number = 2026) {
       continue;
     }
 
-    // Find counties that belong to this HUD metro area.
-    // IMPORTANT: we intentionally join ZIPs by (state_code + normalized county_name),
-    // not by county_fips, because different sources store county FIPS differently.
-    const counties = await query(
-      `
-      SELECT DISTINCT state_code, county_name
+    for (const n of rawHudNames) matchedHudNames.add(n);
+  }
+
+  if (missingAreas.length > 0) {
+    console.log(`\n⚠️ No HUD-metro match found for ${missingAreas.length}/${requiredAreas.length} required areas:`);
+    for (const a of missingAreas) console.log(`  - ${a}`);
+    console.log(
+      `\nThis usually means the HUD metro name in the FMR CSV (hud_area_name) differs from the text in required-safmr-areas.txt.`
+    );
+  }
+
+  const hudNamesList = Array.from(matchedHudNames).sort();
+  if (hudNamesList.length === 0) {
+    console.log(`\n✅ required_safmr_zips populated for ${year}: 0 ZIPs`);
+    return;
+  }
+
+  // Single deterministic insert for all matched metros (more reliable than per-area looping).
+  const hudPlaceholders = hudNamesList.map((_, i) => `$${i + 2}`).join(', ');
+  const inserted = await query(
+    `
+    WITH metro_counties AS (
+      SELECT DISTINCT
+        state_code,
+        normalize_county_key(county_name) AS county_key
       FROM fmr_county_metro
       WHERE year = $1
         AND is_metro = true
         AND county_name IS NOT NULL
-        AND hud_area_name = ANY($2::text[])
-      `,
-      [year, rawHudNames]
-    );
-
-    if (counties.length === 0) {
-      missingAreas.push(requiredArea);
-      continue;
-    }
-
-    // Insert ZIPs in those counties that have SAFMR data
-    const inserted = await query(
-      `
-      WITH metro_counties AS (
-        SELECT DISTINCT
-          state_code,
-          lower(
-            regexp_replace(
-              normalize_accents(county_name),
-              '\\\\s+(county|parish|municipio|municipality|borough|census area)\\\\s*$',
-              ''
-            )
-          ) AS county_key
-        FROM fmr_county_metro
-        WHERE year = $1
-          AND is_metro = true
-          AND county_name IS NOT NULL
-          AND hud_area_name = ANY($2::text[])
-      ),
-      zips AS (
-        SELECT DISTINCT zcm.zip_code
-        FROM zip_county_mapping zcm
-        INNER JOIN metro_counties mc
-          ON zcm.state_code = mc.state_code
-         AND lower(
-              regexp_replace(
-                normalize_accents(zcm.county_name),
-                '\\\\s+(county|parish|municipio|municipality|borough|census area)\\\\s*$',
-                ''
-              )
-            ) = mc.county_key
-        INNER JOIN safmr_data sd
-          ON sd.zip_code = zcm.zip_code
-         AND sd.year = $1
-      )
-      INSERT INTO required_safmr_zips (zip_code, year)
-      SELECT zip_code, $1
-      FROM zips
-      ON CONFLICT (zip_code, year) DO NOTHING
-      RETURNING zip_code
-      `,
-      [year, rawHudNames]
-    );
-
-    totalInserted += inserted.length;
-  }
+        AND hud_area_name IN (${hudPlaceholders})
+    ),
+    zips AS (
+      SELECT DISTINCT zcm.zip_code
+      FROM zip_county_mapping zcm
+      INNER JOIN metro_counties mc
+        ON zcm.state_code = mc.state_code
+       AND normalize_county_key(zcm.county_name) = mc.county_key
+      WHERE zcm.state_code != 'PR'
+    )
+    INSERT INTO required_safmr_zips (zip_code, year)
+    SELECT zip_code, $1
+    FROM zips
+    ON CONFLICT (zip_code, year) DO NOTHING
+    RETURNING zip_code
+    `,
+    [year, ...hudNamesList]
+  );
 
   const finalCount = await query('SELECT COUNT(*)::int as count FROM required_safmr_zips WHERE year = $1', [year]);
   console.log(`\n✅ required_safmr_zips populated for ${year}: ${finalCount[0]?.count ?? 0} ZIPs`);
-  console.log(`(Inserted rows this run: ${totalInserted.toLocaleString()})`);
-
-  if (missingAreas.length > 0) {
-    console.log(`\n⚠️ No HUD-metro match found for ${missingAreas.length}/65 required areas:`);
-    for (const a of missingAreas) console.log(`  - ${a}`);
-    console.log(`\nThis usually means the HUD metro name in the FMR CSV (hud_area_name) differs from the text in required-safmr-areas.txt.`);
-  }
+  console.log(`(Inserted rows this run: ${inserted.length.toLocaleString()})`);
 }
 
 if (import.meta.main) {
@@ -335,4 +360,6 @@ if (import.meta.main) {
       process.exit(1);
     });
 }
+
+
 

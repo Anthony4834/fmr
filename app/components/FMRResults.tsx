@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import type { FMRResult } from '@/lib/types';
+import HistoricalFMRChart from '@/app/components/HistoricalFMRChart';
 
 interface FMRResultsProps {
   data: FMRResult | null;
@@ -99,6 +100,13 @@ export default function FMRResults({
   // TypeScript: data is guaranteed to be non-null after the check above
   const dataNonNull = data;
 
+  const median = (values: number[]) => {
+    if (values.length === 0) return undefined;
+    const sorted = [...values].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+  };
+
   const formatCurrency = (value?: number) => {
     if (!value) return 'N/A';
     return new Intl.NumberFormat('en-US', {
@@ -167,6 +175,71 @@ export default function FMRResults({
   
   const hasManyZips = zipCodesToShow.length > 10;
   const zipDisplayLimit = 8;
+
+  // Representative “current year” values used for YoY comparisons.
+  // - For SAFMR multi-ZIP results, use median across ZIPs (matches how history is aggregated).
+  // - Otherwise, use the current record values directly.
+  const representative = (() => {
+    if (dataNonNull.zipFMRData && dataNonNull.zipFMRData.length > 0) {
+      const b0 = dataNonNull.zipFMRData.map(z => z.bedroom0).filter(v => v !== undefined) as number[];
+      const b1 = dataNonNull.zipFMRData.map(z => z.bedroom1).filter(v => v !== undefined) as number[];
+      const b2 = dataNonNull.zipFMRData.map(z => z.bedroom2).filter(v => v !== undefined) as number[];
+      const b3 = dataNonNull.zipFMRData.map(z => z.bedroom3).filter(v => v !== undefined) as number[];
+      const b4 = dataNonNull.zipFMRData.map(z => z.bedroom4).filter(v => v !== undefined) as number[];
+      return {
+        bedroom0: median(b0),
+        bedroom1: median(b1),
+        bedroom2: median(b2),
+        bedroom3: median(b3),
+        bedroom4: median(b4),
+      };
+    }
+    return {
+      bedroom0: dataNonNull.bedroom0,
+      bedroom1: dataNonNull.bedroom1,
+      bedroom2: dataNonNull.bedroom2,
+      bedroom3: dataNonNull.bedroom3,
+      bedroom4: dataNonNull.bedroom4,
+    };
+  })();
+
+  const historyByYear = (() => {
+    if (!dataNonNull.history) return null;
+    return new Map(dataNonNull.history.map((p) => [p.year, p]));
+  })();
+
+  const yoyChange = (bedroomKey: keyof typeof representative) => {
+    if (!historyByYear) return null;
+    const currentYear = dataNonNull.year;
+    const prevYear = currentYear - 1;
+    const prev = historyByYear.get(prevYear)?.[bedroomKey] as number | undefined;
+    const curr = representative[bedroomKey];
+    if (curr === undefined || prev === undefined || prev <= 0) return null;
+    const delta = curr - prev;
+    const pct = (delta / prev) * 100;
+    return { prevYear, prev, curr, delta, pct };
+  };
+
+  const YoYBadge = ({ bedroomKey }: { bedroomKey: keyof typeof representative }) => {
+    const c = yoyChange(bedroomKey);
+    if (!c) return <span className="text-xs text-[#a3a3a3]">—</span>;
+    const isPositive = c.pct > 0.0001;
+    const isNegative = c.pct < -0.0001;
+    const cls = isPositive
+      ? 'bg-[#f0fdf4] text-[#16a34a]'
+      : isNegative
+        ? 'bg-[#fef2f2] text-[#dc2626]'
+        : 'bg-[#fafafa] text-[#525252]';
+    return (
+      <span
+        className={`inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-semibold tabular-nums ${cls}`}
+        title={`YoY change vs FY ${c.prevYear}`}
+      >
+        {c.pct > 0 ? '+' : ''}
+        {c.pct.toFixed(1)}%
+      </span>
+    );
+  };
 
   return (
     <div className="mt-4 sm:mt-6">
@@ -312,6 +385,7 @@ export default function FMRResults({
             <tr className="border-b border-[#e5e5e5]">
               <th className="text-left py-2 px-2 sm:px-3 font-medium text-[#737373] text-xs uppercase tracking-wider">Bedroom</th>
               <th className="text-right py-2 px-2 sm:px-3 font-medium text-[#737373] text-xs uppercase tracking-wider">Rent</th>
+              <th className="text-right py-2 px-2 sm:px-3 font-medium text-[#737373] text-xs uppercase tracking-wider">YoY</th>
             </tr>
           </thead>
           <tbody>
@@ -329,25 +403,23 @@ export default function FMRResults({
                   const min = Math.min(...values);
                   const max = Math.max(...values);
                   const sorted = [...values].sort((a, b) => a - b);
-                  const median = sorted.length % 2 === 0
+                  const medianValue = sorted.length % 2 === 0
                     ? (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2
                     : sorted[Math.floor(sorted.length / 2)];
                   
                   if (min === max) {
                     return <span>{formatCurrency(min)}</span>;
                   }
-                  
-                  // For large datasets, show range with median
-                  if (values.length > 15) {
-                    return (
-                      <span className="flex flex-col items-end gap-0.5">
-                        <span>{formatCurrency(min)} - {formatCurrency(max)}</span>
-                        <span className="text-xs text-[#737373] font-normal">Median: {formatCurrency(median)}</span>
+
+                  // Show the range, and put the median on a dedicated line below (SAFMR summary).
+                  return (
+                    <span className="flex flex-col items-end gap-0.5">
+                      <span>{formatCurrency(min)} - {formatCurrency(max)}</span>
+                      <span className="text-xs text-[#737373] font-normal font-sans">
+                        Median: {formatCurrency(medianValue)}
                       </span>
-                    );
-                  }
-                  
-                  return <span>{formatCurrency(min)} - {formatCurrency(max)}</span>;
+                    </span>
+                  );
                 };
 
                 return (
@@ -357,11 +429,17 @@ export default function FMRResults({
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#0a0a0a] font-semibold tabular-nums">
                         {formatRange(bedroom0Values)}
                       </td>
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
+                        <YoYBadge bedroomKey="bedroom0" />
+                      </td>
                     </tr>
                     <tr className="border-b border-[#e5e5e5] hover:bg-[#fafafa] transition-colors">
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm text-[#0a0a0a]">1 BR</td>
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#0a0a0a] font-semibold tabular-nums">
                         {formatRange(bedroom1Values)}
+                      </td>
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
+                        <YoYBadge bedroomKey="bedroom1" />
                       </td>
                     </tr>
                     <tr className="border-b border-[#e5e5e5] hover:bg-[#fafafa] transition-colors">
@@ -369,17 +447,26 @@ export default function FMRResults({
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#0a0a0a] font-semibold tabular-nums">
                         {formatRange(bedroom2Values)}
                       </td>
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
+                        <YoYBadge bedroomKey="bedroom2" />
+                      </td>
                     </tr>
                     <tr className="border-b border-[#e5e5e5] hover:bg-[#fafafa] transition-colors">
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm text-[#0a0a0a]">3 BR</td>
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#0a0a0a] font-semibold tabular-nums">
                         {formatRange(bedroom3Values)}
                       </td>
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
+                        <YoYBadge bedroomKey="bedroom3" />
+                      </td>
                     </tr>
                     <tr className="hover:bg-[#fafafa] transition-colors">
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm text-[#0a0a0a]">4 BR</td>
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#0a0a0a] font-semibold tabular-nums">
                         {formatRange(bedroom4Values)}
+                      </td>
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
+                        <YoYBadge bedroomKey="bedroom4" />
                       </td>
                     </tr>
                   </>
@@ -390,23 +477,48 @@ export default function FMRResults({
                   <>
                     <tr className="border-b border-[#e5e5e5] hover:bg-[#fafafa] transition-colors">
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm text-[#0a0a0a]">0 BR</td>
-                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#0a0a0a] font-semibold tabular-nums">{formatCurrency(dataNonNull.bedroom0)}</td>
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#0a0a0a] font-semibold tabular-nums">
+                        {formatCurrency(dataNonNull.bedroom0)}
+                      </td>
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
+                        <YoYBadge bedroomKey="bedroom0" />
+                      </td>
                     </tr>
                     <tr className="border-b border-[#e5e5e5] hover:bg-[#fafafa] transition-colors">
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm text-[#0a0a0a]">1 BR</td>
-                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#0a0a0a] font-semibold tabular-nums">{formatCurrency(dataNonNull.bedroom1)}</td>
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#0a0a0a] font-semibold tabular-nums">
+                        {formatCurrency(dataNonNull.bedroom1)}
+                      </td>
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
+                        <YoYBadge bedroomKey="bedroom1" />
+                      </td>
                     </tr>
                     <tr className="border-b border-[#e5e5e5] hover:bg-[#fafafa] transition-colors">
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm text-[#0a0a0a]">2 BR</td>
-                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#0a0a0a] font-semibold tabular-nums">{formatCurrency(dataNonNull.bedroom2)}</td>
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#0a0a0a] font-semibold tabular-nums">
+                        {formatCurrency(dataNonNull.bedroom2)}
+                      </td>
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
+                        <YoYBadge bedroomKey="bedroom2" />
+                      </td>
                     </tr>
                     <tr className="border-b border-[#e5e5e5] hover:bg-[#fafafa] transition-colors">
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm text-[#0a0a0a]">3 BR</td>
-                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#0a0a0a] font-semibold tabular-nums">{formatCurrency(dataNonNull.bedroom3)}</td>
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#0a0a0a] font-semibold tabular-nums">
+                        {formatCurrency(dataNonNull.bedroom3)}
+                      </td>
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
+                        <YoYBadge bedroomKey="bedroom3" />
+                      </td>
                     </tr>
                     <tr className="hover:bg-[#fafafa] transition-colors">
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm text-[#0a0a0a]">4 BR</td>
-                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#0a0a0a] font-semibold tabular-nums">{formatCurrency(dataNonNull.bedroom4)}</td>
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#0a0a0a] font-semibold tabular-nums">
+                        {formatCurrency(dataNonNull.bedroom4)}
+                      </td>
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
+                        <YoYBadge bedroomKey="bedroom4" />
+                      </td>
                     </tr>
                   </>
                 );
@@ -423,6 +535,11 @@ export default function FMRResults({
             : 'Fair Market Rent (FMR) - County/metropolitan area level rates'}
         </p>
       </div>
+
+      {/* Historical (below current section) */}
+      {dataNonNull.history && dataNonNull.history.length >= 2 && (
+        <HistoricalFMRChart history={dataNonNull.history} />
+      )}
     </div>
   );
 }

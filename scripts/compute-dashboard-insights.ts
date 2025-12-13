@@ -7,17 +7,19 @@
  * We want these metrics to be indexed annually as part of the yearly ingestion workflow.
  *
  * Usage:
- *   bun scripts/compute-dashboard-insights.ts --year 2026
- *   bun scripts/compute-dashboard-insights.ts --year 2026 --types zip,city,county
+ *   bun scripts/compute-dashboard-insights.ts                    # Uses latest available year
+ *   bun scripts/compute-dashboard-insights.ts --year 2026        # Specific year
+ *   bun scripts/compute-dashboard-insights.ts --types zip,city   # Specific types only
  */
 
 import { config } from 'dotenv';
 import { sql } from '@vercel/postgres';
 import { computeDashboardInsights, type DashboardInsightsType } from '../lib/dashboard-insights';
+import { getLatestFMRYear } from '../lib/queries';
 
 config();
 
-function parseArgs(argv: string[]) {
+async function parseArgs(argv: string[]) {
   const args = argv.slice(2);
   let year: number | undefined;
   let types: DashboardInsightsType[] = ['zip', 'city', 'county'];
@@ -40,8 +42,10 @@ function parseArgs(argv: string[]) {
     }
   }
 
+  // Default to latest available year if not specified
   if (!year || Number.isNaN(year)) {
-    throw new Error('Missing required --year <YYYY>');
+    year = await getLatestFMRYear();
+    console.log(`No --year specified, using latest available year: ${year}`);
   }
 
   return { year, types };
@@ -79,8 +83,8 @@ export async function computeAndStoreDashboardInsights(year: number, types: Dash
 }
 
 if (import.meta.main) {
-  const { year, types } = parseArgs(process.argv);
-  computeAndStoreDashboardInsights(year, types)
+  parseArgs(process.argv)
+    .then(({ year, types }) => computeAndStoreDashboardInsights(year, types))
     .then(() => {
       console.log('✅ Dashboard insights cached.');
       process.exit(0);
@@ -90,4 +94,6 @@ if (import.meta.main) {
       process.exit(1);
     });
 }
+
+
 

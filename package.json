@@ -27,12 +27,13 @@
     "normalize:county-names": "bun scripts/normalize-county-names-from-fips.ts"
   },
   "dependencies": {
+    "@vercel/postgres": "^0.9.0",
+    "chart.js": "^4",
+    "csv-parse": "^5.5.0",
+    "dotenv": "^16.4.0",
     "next": "^14.2.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
-    "@vercel/postgres": "^0.9.0",
-    "csv-parse": "^5.5.0",
-    "dotenv": "^16.4.0",
     "use-debounce": "^10.0.0"
   },
   "devDependencies": {

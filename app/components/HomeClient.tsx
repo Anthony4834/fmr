@@ -50,6 +50,7 @@ export default function HomeClient(props: {
   const mainCardRef = useRef<HTMLDivElement | null>(null);
   const [zipCardHeight, setZipCardHeight] = useState<number | null>(null);
   const trackedSearchKeyRef = useRef<string>('');
+  const drilldownHistoryCacheRef = useRef<Map<string, any>>(new Map());
   const addressAbortRef = useRef<AbortController | null>(null);
   const addressReqSeqRef = useRef(0);
 
@@ -387,6 +388,29 @@ export default function HomeClient(props: {
       queriedLocation: zipCode,
       queriedType: 'zip',
     });
+
+    // Fetch ZIP-specific historical series so the chart renders on drilldown.
+    // Cache per ZIP to avoid repeat requests while browsing the ZIP list.
+    const cached = drilldownHistoryCacheRef.current.get(zipCode);
+    if (cached) {
+      setViewFmrData((prev) => (prev?.zipCode === zipCode ? { ...prev, history: cached } : prev));
+      return;
+    }
+
+    (async () => {
+      try {
+        const url = `/api/search/fmr?zip=${encodeURIComponent(zipCode)}&year=${encodeURIComponent(String(rootFmrData.year))}&_t=${Date.now()}`;
+        const res = await fetch(url);
+        const json = await res.json();
+        if (!res.ok) return;
+        const hist = json?.data?.history;
+        if (!Array.isArray(hist) || hist.length < 2) return;
+        drilldownHistoryCacheRef.current.set(zipCode, hist);
+        setViewFmrData((prev) => (prev?.zipCode === zipCode ? { ...prev, history: hist } : prev));
+      } catch {
+        // ignore
+      }
+    })();
   };
 
   const handleBackToRoot = () => {
@@ -540,5 +564,7 @@ export default function HomeClient(props: {
     </main>
   );
 }
+
+
 
 
