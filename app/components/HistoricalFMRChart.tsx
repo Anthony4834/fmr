@@ -15,11 +15,11 @@ const BEDROOMS: { key: BedroomKey; label: string }[] = [
 ];
 
 const BEDROOM_COLORS: Record<BedroomKey, { stroke: string; fill: string }> = {
-  bedroom0: { stroke: '#7c3aed', fill: 'rgba(124, 58, 237, 0.12)' }, // violet
-  bedroom1: { stroke: '#059669', fill: 'rgba(5, 150, 105, 0.12)' }, // emerald
-  bedroom2: { stroke: '#2563eb', fill: 'rgba(37, 99, 235, 0.12)' }, // blue
-  bedroom3: { stroke: '#ea580c', fill: 'rgba(234, 88, 12, 0.12)' }, // orange
-  bedroom4: { stroke: '#dc2626', fill: 'rgba(220, 38, 38, 0.12)' }, // red
+  bedroom0: { stroke: '#a855f7', fill: 'rgba(168, 85, 247, 0.1)' }, // purple
+  bedroom1: { stroke: '#14b8a6', fill: 'rgba(20, 184, 166, 0.1)' }, // teal
+  bedroom2: { stroke: '#0ea5e9', fill: 'rgba(14, 165, 233, 0.1)' }, // sky blue
+  bedroom3: { stroke: '#f97316', fill: 'rgba(249, 115, 22, 0.1)' }, // orange
+  bedroom4: { stroke: '#e11d48', fill: 'rgba(225, 29, 72, 0.1)' }, // rose
 };
 
 function formatCurrencyShort(value: number) {

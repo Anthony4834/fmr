@@ -176,6 +176,63 @@ export default function FMRResults({
   const hasManyZips = zipCodesToShow.length > 10;
   const zipDisplayLimit = 8;
 
+  // Build Zillow URL based on location type
+  const getZillowUrl = (): string | null => {
+    const stateCodeLower = dataNonNull.stateCode.toLowerCase();
+    
+    if (dataNonNull.queriedType === 'zip') {
+      const zip = zipCodesToShow.length > 0 ? zipCodesToShow[0] : dataNonNull.zipCode;
+      if (!zip) return null;
+      return `https://www.zillow.com/${zip}/`;
+    }
+    
+    if (dataNonNull.queriedType === 'city') {
+      const cityName = dataNonNull.queriedLocation || dataNonNull.areaName;
+      if (!cityName) return null;
+      // Format: lowercase, replace spaces with hyphens, remove special chars
+      const formatted = cityName
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .trim();
+      return `https://www.zillow.com/${formatted}-${stateCodeLower}/`;
+    }
+    
+    if (dataNonNull.queriedType === 'county') {
+      const countyName = dataNonNull.countyName || dataNonNull.areaName;
+      if (!countyName) return null;
+      // Remove "County" suffix if present, format: lowercase, replace spaces with hyphens
+      const cleaned = countyName.replace(/\s+county$/i, '').trim();
+      const formatted = cleaned
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .trim();
+      return `https://www.zillow.com/${formatted}-county-${stateCodeLower}/`;
+    }
+    
+    // For address queries, try to use county or zip if available
+    if (dataNonNull.queriedType === 'address') {
+      if (zipCodesToShow.length > 0) {
+        return `https://www.zillow.com/${zipCodesToShow[0]}/`;
+      }
+      if (dataNonNull.countyName) {
+        const cleaned = dataNonNull.countyName.replace(/\s+county$/i, '').trim();
+        const formatted = cleaned
+          .toLowerCase()
+          .replace(/[^a-z0-9\s-]/g, '')
+          .replace(/\s+/g, '-')
+          .replace(/-+/g, '-')
+          .trim();
+        return `https://www.zillow.com/${formatted}-county-${stateCodeLower}/`;
+      }
+    }
+    
+    return null;
+  };
+
   // Representative “current year” values used for YoY comparisons.
   // - For SAFMR multi-ZIP results, use median across ZIPs (matches how history is aggregated).
   // - Otherwise, use the current record values directly.
@@ -296,6 +353,20 @@ export default function FMRResults({
             </div>
           </div>
           <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap shrink-0">
+            {getZillowUrl() && (
+              <a
+                href={getZillowUrl() || '#'}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg border border-[#e5e5e5] bg-white hover:bg-[#fafafa] transition-colors text-xs font-medium text-[#0a0a0a] shrink-0 flex items-center gap-1.5"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+                <span className="hidden sm:inline">View on Zillow</span>
+                <span className="sm:hidden">Zillow</span>
+              </a>
+            )}
             {dataNonNull.queriedLocation && (
               <span className={`px-1.5 sm:px-2 py-0.5 rounded text-xs font-medium shrink-0 ${
                 dataNonNull.queriedType === 'zip'
@@ -426,7 +497,7 @@ export default function FMRResults({
                   <>
                     <tr className="border-b border-[#e5e5e5] hover:bg-[#fafafa] transition-colors">
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm text-[#0a0a0a]">0 BR</td>
-                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#0a0a0a] font-semibold tabular-nums">
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#525252] font-semibold tabular-nums">
                         {formatRange(bedroom0Values)}
                       </td>
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
@@ -435,7 +506,7 @@ export default function FMRResults({
                     </tr>
                     <tr className="border-b border-[#e5e5e5] hover:bg-[#fafafa] transition-colors">
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm text-[#0a0a0a]">1 BR</td>
-                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#0a0a0a] font-semibold tabular-nums">
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#525252] font-semibold tabular-nums">
                         {formatRange(bedroom1Values)}
                       </td>
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
@@ -444,7 +515,7 @@ export default function FMRResults({
                     </tr>
                     <tr className="border-b border-[#e5e5e5] hover:bg-[#fafafa] transition-colors">
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm text-[#0a0a0a]">2 BR</td>
-                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#0a0a0a] font-semibold tabular-nums">
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#525252] font-semibold tabular-nums">
                         {formatRange(bedroom2Values)}
                       </td>
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
@@ -453,7 +524,7 @@ export default function FMRResults({
                     </tr>
                     <tr className="border-b border-[#e5e5e5] hover:bg-[#fafafa] transition-colors">
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm text-[#0a0a0a]">3 BR</td>
-                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#0a0a0a] font-semibold tabular-nums">
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#525252] font-semibold tabular-nums">
                         {formatRange(bedroom3Values)}
                       </td>
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
@@ -462,7 +533,7 @@ export default function FMRResults({
                     </tr>
                     <tr className="hover:bg-[#fafafa] transition-colors">
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm text-[#0a0a0a]">4 BR</td>
-                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#0a0a0a] font-semibold tabular-nums">
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#525252] font-semibold tabular-nums">
                         {formatRange(bedroom4Values)}
                       </td>
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
@@ -477,7 +548,7 @@ export default function FMRResults({
                   <>
                     <tr className="border-b border-[#e5e5e5] hover:bg-[#fafafa] transition-colors">
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm text-[#0a0a0a]">0 BR</td>
-                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#0a0a0a] font-semibold tabular-nums">
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#525252] font-semibold tabular-nums">
                         {formatCurrency(dataNonNull.bedroom0)}
                       </td>
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
@@ -486,7 +557,7 @@ export default function FMRResults({
                     </tr>
                     <tr className="border-b border-[#e5e5e5] hover:bg-[#fafafa] transition-colors">
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm text-[#0a0a0a]">1 BR</td>
-                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#0a0a0a] font-semibold tabular-nums">
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#525252] font-semibold tabular-nums">
                         {formatCurrency(dataNonNull.bedroom1)}
                       </td>
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
@@ -495,7 +566,7 @@ export default function FMRResults({
                     </tr>
                     <tr className="border-b border-[#e5e5e5] hover:bg-[#fafafa] transition-colors">
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm text-[#0a0a0a]">2 BR</td>
-                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#0a0a0a] font-semibold tabular-nums">
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#525252] font-semibold tabular-nums">
                         {formatCurrency(dataNonNull.bedroom2)}
                       </td>
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
@@ -504,7 +575,7 @@ export default function FMRResults({
                     </tr>
                     <tr className="border-b border-[#e5e5e5] hover:bg-[#fafafa] transition-colors">
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm text-[#0a0a0a]">3 BR</td>
-                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#0a0a0a] font-semibold tabular-nums">
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#525252] font-semibold tabular-nums">
                         {formatCurrency(dataNonNull.bedroom3)}
                       </td>
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
@@ -513,7 +584,7 @@ export default function FMRResults({
                     </tr>
                     <tr className="hover:bg-[#fafafa] transition-colors">
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm text-[#0a0a0a]">4 BR</td>
-                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#0a0a0a] font-semibold tabular-nums">
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#525252] font-semibold tabular-nums">
                         {formatCurrency(dataNonNull.bedroom4)}
                       </td>
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
