@@ -5,6 +5,8 @@ import { getLatestFMRYear } from '@/lib/queries';
 
 export const dynamic = 'force-dynamic';
 
+const DASHBOARD_INSIGHTS_CACHE_VERSION = 3;
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -32,12 +34,14 @@ export async function GET(request: NextRequest) {
         `SELECT payload FROM dashboard_insights_cache WHERE year = $1 AND type = $2`,
         [year, type]
       );
-      if (cached.rows[0]?.payload) {
-        return NextResponse.json(cached.rows[0].payload);
+      const payload = cached.rows[0]?.payload as any;
+      if (payload && payload.cacheVersion === DASHBOARD_INSIGHTS_CACHE_VERSION) {
+        return NextResponse.json(payload);
       }
     }
 
     const payload = await computeDashboardInsights({ year, type });
+    (payload as any).cacheVersion = DASHBOARD_INSIGHTS_CACHE_VERSION;
 
     await sql.query(
       `

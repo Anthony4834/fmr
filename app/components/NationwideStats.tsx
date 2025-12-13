@@ -274,10 +274,18 @@ export default function NationwideStats() {
       return '';
     }
     if (item.cityName) {
-      return `${item.cityName}, ${item.stateCode}`;
+      // For city rows, show county + state (city itself is the primary label).
+      if (item.countyName && item.stateCode) {
+        const county = item.countyName.includes('County')
+          ? item.countyName
+          : `${item.countyName} County`;
+        return `${county}, ${item.stateCode}`;
+      }
+      return item.stateCode ? `${item.stateCode}` : '';
     }
     if (item.areaName) {
-      return `${item.areaName}, ${item.stateCode}`;
+      // For county rows, show just the state (county itself is the primary label).
+      return item.stateCode ? `${item.stateCode}` : '';
     }
     return '';
   };
@@ -780,6 +788,15 @@ export default function NationwideStats() {
                         const county = left.toLowerCase().endsWith(' county') ? left : `${left} County`;
                         line1 = county;
                         line2 = right.toUpperCase();
+                      } else if (activeType === 'city') {
+                        // For city popular rows, show county + state as the hint (city itself is line1).
+                        line1 = left;
+                        if (item.countyName && item.stateCode) {
+                          const county = item.countyName.includes('County') ? item.countyName : `${item.countyName} County`;
+                          line2 = `${county}, ${item.stateCode}`;
+                        } else {
+                          line2 = right.toUpperCase();
+                        }
                       } else {
                         line1 = left;
                         line2 = right.toUpperCase();
@@ -797,7 +814,7 @@ export default function NationwideStats() {
                         <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
                           <span className="text-xs text-[#a3a3a3] font-medium shrink-0 tabular-nums">#{index + 1}</span>
                           <div className="min-w-0">
-                            <div className="text-[#0a0a0a] text-xs sm:text-sm truncate">{line1}</div>
+                            <div className="font-medium text-[#0a0a0a] text-xs sm:text-sm truncate">{line1}</div>
                             {line2 && <div className="text-xs text-[#737373] truncate mt-0.5">{line2}</div>}
                             {!!item.zipCount && activeType !== 'zip' && (
                               <div className="text-xs text-[#a3a3a3] mt-0.5">{item.zipCount} ZIPs</div>

@@ -134,6 +134,27 @@ export async function GET(request: NextRequest) {
            AND c.state_code = pr.state_code
           WHERE c.zip_codes IS NOT NULL AND array_length(c.zip_codes, 1) > 0
         ),
+        county_mode AS (
+          SELECT
+            z.query,
+            z.state_code,
+            (
+              SELECT t.county_name
+              FROM (
+                SELECT zcm.county_name, COUNT(*)::int AS c
+                FROM zips z2
+                JOIN zip_county_mapping zcm
+                  ON zcm.zip_code = z2.zip_code
+                 AND zcm.state_code = z2.state_code
+                WHERE z2.query = z.query
+                GROUP BY zcm.county_name
+                ORDER BY c DESC, zcm.county_name
+                LIMIT 1
+              ) t
+            ) AS county_name
+          FROM zips z
+          GROUP BY z.query, z.state_code
+        ),
         agg AS (
           SELECT
             z.query,
@@ -151,7 +172,13 @@ export async function GET(request: NextRequest) {
            AND sd.year = $4
           GROUP BY z.query, z.count, z.last_seen, z.city_name, z.state_code
         )
-        SELECT * FROM agg
+        SELECT
+          a.*,
+          cm.county_name
+        FROM agg a
+        LEFT JOIN county_mode cm
+          ON cm.query = a.query
+         AND cm.state_code = a.state_code
         ORDER BY count DESC, last_seen DESC
         `,
         [type, days, limit, year]

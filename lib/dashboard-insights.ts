@@ -710,8 +710,7 @@ export async function computeDashboardInsights(opts: {
       'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
       'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
       'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
-      'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY', 'DC',
-      'VI', 'GU', 'MP', 'AS'
+      'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY', 'DC'
     ];
 
     const validUSStatesPlaceholders = validUSStates.map((_, i) => `$${i + 1}`).join(', ');
@@ -780,6 +779,7 @@ export async function computeDashboardInsights(opts: {
         c.city_name,
         c.state_code,
         c.state_name,
+        cc.county_name,
         c.zip_codes,
         AVG(zfd.bedroom_0) as avg_bedroom_0,
         AVG(zfd.bedroom_1) as avg_bedroom_1,
@@ -788,6 +788,15 @@ export async function computeDashboardInsights(opts: {
         AVG(zfd.bedroom_4) as avg_bedroom_4,
         COUNT(DISTINCT zfd.zip_code) as zip_count
       FROM cities c
+      LEFT JOIN LATERAL (
+        SELECT zcm.county_name
+        FROM zip_county_mapping zcm
+        WHERE zcm.state_code = c.state_code
+          AND zcm.zip_code = ANY(c.zip_codes)
+        GROUP BY zcm.county_name
+        ORDER BY COUNT(*) DESC, zcm.county_name
+        LIMIT 1
+      ) cc ON true
       CROSS JOIN LATERAL unnest(c.zip_codes) AS zip(zip_code)
       JOIN zip_fmr_data zfd ON zfd.zip_code = zip.zip_code
       WHERE c.zip_codes IS NOT NULL 
@@ -798,7 +807,7 @@ export async function computeDashboardInsights(opts: {
         AND c.state_code IN (${validUSStatesPlaceholders})
         AND (zfd.bedroom_0 IS NOT NULL OR zfd.bedroom_1 IS NOT NULL OR zfd.bedroom_2 IS NOT NULL OR 
              zfd.bedroom_3 IS NOT NULL OR zfd.bedroom_4 IS NOT NULL)
-      GROUP BY c.city_name, c.state_code, c.state_name, c.zip_codes
+      GROUP BY c.city_name, c.state_code, c.state_name, cc.county_name, c.zip_codes
       HAVING COUNT(DISTINCT zfd.zip_code) > 0`,
       validUSStates
     );
@@ -818,6 +827,7 @@ export async function computeDashboardInsights(opts: {
         cityName: city.city_name,
         stateCode: city.state_code,
         stateName: city.state_name,
+        countyName: city.county_name || null,
         zipCodes: city.zip_codes,
         zipCount: parseInt(city.zip_count) || 0,
         avgFMR,
@@ -858,6 +868,7 @@ export async function computeDashboardInsights(opts: {
         return {
           cityName: city.cityName,
           stateCode: city.stateCode,
+          countyName: city.countyName,
           bedroom0: city.bedroom0,
           bedroom1: city.bedroom1,
           bedroom2: city.bedroom2,
@@ -997,6 +1008,7 @@ export async function computeDashboardInsights(opts: {
           cityName: city.cityName,
           stateCode: city.stateCode,
           stateName: city.stateName,
+          countyName: city.countyName,
           bedroom0: city.bedroom0,
           bedroom1: city.bedroom1,
           bedroom2: city.bedroom2,
@@ -1018,6 +1030,7 @@ export async function computeDashboardInsights(opts: {
         cityName: c.cityName,
         stateCode: c.stateCode,
         stateName: c.stateName,
+        countyName: c.countyName ?? null,
         bedroom0: c.bedroom0,
         bedroom1: c.bedroom1,
         bedroom2: c.bedroom2,
@@ -1035,6 +1048,7 @@ export async function computeDashboardInsights(opts: {
         cityName: c.cityName,
         stateCode: c.stateCode,
         stateName: c.stateName,
+        countyName: c.countyName ?? null,
         bedroom0: c.bedroom0,
         bedroom1: c.bedroom1,
         bedroom2: c.bedroom2,
@@ -1051,6 +1065,7 @@ export async function computeDashboardInsights(opts: {
         cityName: c.cityName,
         stateCode: c.stateCode,
         stateName: c.stateName,
+        countyName: (c as any).countyName ?? null,
         avgFMR: c.avgFMR,
         bedroom0: c.bedroom0,
         bedroom1: c.bedroom1,
@@ -1067,6 +1082,7 @@ export async function computeDashboardInsights(opts: {
         cityName: c.cityName,
         stateCode: c.stateCode,
         stateName: c.stateName,
+        countyName: (c as any).countyName ?? null,
         avgFMR: c.avgFMR,
         bedroom0: c.bedroom0,
         bedroom1: c.bedroom1,
@@ -1082,6 +1098,7 @@ export async function computeDashboardInsights(opts: {
       anomalies: cityAnomalies.map((a: any) => ({
         cityName: a.cityName,
         stateCode: a.stateCode,
+        countyName: a.countyName || null,
         bedroom0: a.bedroom0,
         bedroom1: a.bedroom1,
         bedroom2: a.bedroom2,
@@ -1115,7 +1132,7 @@ export async function computeDashboardInsights(opts: {
               CASE WHEN bedroom_4 IS NOT NULL THEN 1 ELSE 0 END), 0) as avg_fmr
     FROM fmr_data
     WHERE year = ${year}
-      AND state_code != 'PR'
+      AND state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS')
       AND (bedroom_0 IS NOT NULL OR bedroom_1 IS NOT NULL OR bedroom_2 IS NOT NULL OR 
            bedroom_3 IS NOT NULL OR bedroom_4 IS NOT NULL)
     ORDER BY avg_fmr DESC
@@ -1136,7 +1153,7 @@ export async function computeDashboardInsights(opts: {
               CASE WHEN bedroom_4 IS NOT NULL THEN 1 ELSE 0 END), 0) as avg_fmr
     FROM fmr_data
     WHERE year = ${year}
-      AND state_code != 'PR'
+      AND state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS')
       AND (bedroom_0 IS NOT NULL OR bedroom_1 IS NOT NULL OR bedroom_2 IS NOT NULL OR 
            bedroom_3 IS NOT NULL OR bedroom_4 IS NOT NULL)
     ORDER BY avg_fmr ASC
@@ -1166,7 +1183,7 @@ export async function computeDashboardInsights(opts: {
         THEN bedroom_4 - bedroom_3 ELSE NULL END as jump_3_to_4
     FROM fmr_data
     WHERE year = ${year}
-      AND state_code != 'PR'
+      AND state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS')
       AND (bedroom_0 IS NOT NULL OR bedroom_1 IS NOT NULL OR bedroom_2 IS NOT NULL OR 
            bedroom_3 IS NOT NULL OR bedroom_4 IS NOT NULL)
   `;
@@ -1219,7 +1236,7 @@ export async function computeDashboardInsights(opts: {
       AND curr.state_code = prev.state_code 
       AND prev.year = ${prevYear}
     WHERE curr.year = ${year}
-      AND curr.state_code != 'PR'
+      AND curr.state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS')
       AND (curr.bedroom_0 IS NOT NULL OR curr.bedroom_1 IS NOT NULL OR curr.bedroom_2 IS NOT NULL OR 
            curr.bedroom_3 IS NOT NULL OR curr.bedroom_4 IS NOT NULL)
       AND (prev.bedroom_0 IS NOT NULL OR prev.bedroom_1 IS NOT NULL OR prev.bedroom_2 IS NOT NULL OR 
