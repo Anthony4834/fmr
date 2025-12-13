@@ -283,6 +283,18 @@ export async function getFMRByZip(zipCode: string, year?: number): Promise<FMRRe
   if (countyInfo.rows.length === 0) {
     return null;
   }
+
+  // Best-effort city lookup for breadcrumbs (ZIP -> city).
+  // Some ZIPs map to multiple cities; pick a stable representative (alphabetical).
+  const cityLookup = await sql`
+    SELECT city_name
+    FROM cities
+    WHERE state_code = ${countyInfo.rows[0]?.state_code || ''}
+      AND ${zipCode} = ANY(zip_codes)
+    ORDER BY city_name
+    LIMIT 1
+  `;
+  const cityName = cityLookup.rows?.[0]?.city_name || undefined;
   
   // Check if this ZIP is in a required SAFMR area (simple lookup)
   const requiredSAFMRCheck = await sql`
@@ -310,6 +322,7 @@ export async function getFMRByZip(zipCode: string, year?: number): Promise<FMRRe
         areaName: countyInfo.rows[0]?.county_name || zipCode,
         stateCode: countyInfo.rows[0]?.state_code || '',
         countyName: countyInfo.rows[0]?.county_name,
+        cityName,
         year: row.year,
         bedroom0: row.bedroom_0 ? parseFloat(row.bedroom_0) : undefined,
         bedroom1: row.bedroom_1 ? parseFloat(row.bedroom_1) : undefined,
@@ -377,6 +390,7 @@ export async function getFMRByZip(zipCode: string, year?: number): Promise<FMRRe
       areaName: row.area_name,
       stateCode: row.state_code,
       countyName: county.county_name,
+      cityName,
       year: row.year,
       bedroom0: row.bedroom_0 ? parseFloat(row.bedroom_0) : undefined,
       bedroom1: row.bedroom_1 ? parseFloat(row.bedroom_1) : undefined,
@@ -609,6 +623,7 @@ export async function getFMRByCity(cityName: string, stateCode: string, year?: n
         areaName: countyInfo.rows[0]?.county_name || cityInfo.rows[0].city_name,
         stateCode: stateCode.toUpperCase(),
         countyName: countyInfo.rows[0]?.county_name,
+        cityName: cityInfo.rows[0]?.city_name || cityName,
         year: targetYear,
         effectiveDate: safmrResults.rows[0]?.effective_date
       };
@@ -619,6 +634,8 @@ export async function getFMRByCity(cityName: string, stateCode: string, year?: n
   const result = await getFMRByZip(zipCodes[0], targetYear);
   if (result) {
     result.zipCodes = zipCodes;
+    // Preserve the searched city for breadcrumbs, even if the ZIP->city lookup differs.
+    result.cityName = cityInfo.rows[0]?.city_name || cityName;
     return result;
   }
   return null;

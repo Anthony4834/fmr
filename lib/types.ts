@@ -26,6 +26,7 @@ export interface FMRResult {
   areaName: string;
   stateCode: string;
   countyName?: string;
+  cityName?: string;
   year: number;
   bedroom0?: number;
   bedroom1?: number;

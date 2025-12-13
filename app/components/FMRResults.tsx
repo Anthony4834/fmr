@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import type { FMRResult } from '@/lib/types';
 import HistoricalFMRChart from '@/app/components/HistoricalFMRChart';
+import { buildCitySlug, buildCountySlug } from '@/lib/location-slugs';
 
 interface FMRResultsProps {
   data: FMRResult | null;
@@ -54,7 +55,7 @@ export default function FMRResults({
 
         {/* Table Skeleton */}
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
+          <table className="w-full border-collapse max-h-[280px] overflow-y-auto">
             <thead>
               <tr className="border-b border-[#e5e5e5]">
                 <th className="text-left py-2 px-3 font-medium text-[#737373] text-xs uppercase tracking-wider">Bedroom</th>
@@ -166,6 +167,92 @@ export default function FMRResults({
     }
     // For other types, show queriedLocation or areaName
     return dataNonNull.queriedLocation || dataNonNull.areaName;
+  };
+
+  const BreadcrumbRow = () => {
+    const isDrilldown = !!onBreadcrumbBack;
+    const state = dataNonNull.stateCode;
+    const county = dataNonNull.countyName;
+    const city = dataNonNull.cityName;
+    const zip =
+      (dataNonNull.queriedType === 'zip' && zipCodesToShow.length > 0 ? zipCodesToShow[0] : null) ||
+      (dataNonNull.zipCode ? dataNonNull.zipCode : null);
+
+    const crumbs: { label: string; href?: string; onClick?: () => void }[] = [];
+
+    // Prepend Home only on county-level pages (as requested)
+    if (dataNonNull.queriedType === 'county') {
+      crumbs.push({ label: 'Home', href: '/' });
+    }
+
+    if (county && state) {
+      crumbs.push({ label: county.includes('County') ? county : `${county} County`, href: `/county/${buildCountySlug(county, state)}` });
+    }
+    if (city && state) {
+      crumbs.push({ label: `${city}, ${state}`, href: `/city/${buildCitySlug(city, state)}` });
+    }
+
+    // Only show ZIP crumb when the user is actually viewing a ZIP/address result.
+    // City/county views may carry a representative ZIP internally; don't show it.
+    const showZipCrumb = dataNonNull.queriedType === 'zip' || dataNonNull.queriedType === 'address';
+    if (showZipCrumb && zip && /^\d{5}$/.test(String(zip))) {
+      crumbs.push({ label: String(zip), href: `/zip/${zip}` });
+    }
+
+    if (crumbs.length === 0) return null;
+
+    const backHref = !isDrilldown && crumbs.length >= 2 ? crumbs[crumbs.length - 2]?.href : undefined;
+    const lastIndex = crumbs.length - 1;
+
+    return (
+      <div className="mb-3 sm:mb-4 flex items-center justify-between gap-2 sm:gap-3 flex-wrap">
+        <div className="flex items-center gap-1.5 sm:gap-2 text-xs font-semibold text-[#525252] min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-1 min-w-0">
+            {crumbs.map((c, idx) => {
+              const isLast = idx === lastIndex;
+              return (
+                <span key={`${c.label}-${idx}`} className="flex items-center gap-1 min-w-0">
+                  {idx > 0 && <span className="text-[#a3a3a3] shrink-0">/</span>}
+                  {isLast ? (
+                    <span className="text-[#0a0a0a] font-semibold truncate">{c.label}</span>
+                  ) : c.onClick ? (
+                    <button
+                      type="button"
+                      onClick={c.onClick}
+                      className="hover:text-[#0a0a0a] transition-colors truncate"
+                    >
+                      {c.label}
+                    </button>
+                  ) : c.href ? (
+                    <a className="hover:text-[#0a0a0a] transition-colors truncate" href={c.href}>
+                      {c.label}
+                    </a>
+                  ) : (
+                    <span className="truncate">{c.label}</span>
+                  )}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+        {isDrilldown && onBreadcrumbBack ? (
+          <button
+            type="button"
+            onClick={onBreadcrumbBack}
+            className="text-xs font-semibold px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg border border-[#e5e5e5] bg-white hover:bg-[#fafafa] transition-colors shrink-0"
+          >
+            Back
+          </button>
+        ) : backHref ? (
+          <a
+            className="text-xs font-semibold px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg border border-[#e5e5e5] bg-white hover:bg-[#fafafa] transition-colors shrink-0"
+            href={backHref}
+          >
+            Back
+          </a>
+        ) : null}
+      </div>
+    );
   };
 
   // Get ZIP codes to display
@@ -300,29 +387,8 @@ export default function FMRResults({
 
   return (
     <div className="mt-4 sm:mt-6">
-      {/* Breadcrumbs (drilldown) */}
-      {breadcrumbs && onBreadcrumbBack && (
-        <div className="mb-3 sm:mb-4 flex items-center justify-between gap-2 sm:gap-3 flex-wrap">
-          <div className="flex items-center gap-1.5 sm:gap-2 text-xs text-[#737373] min-w-0 flex-1">
-            <button
-              type="button"
-              onClick={onBreadcrumbBack}
-              className="hover:text-[#0a0a0a] font-medium transition-colors truncate"
-            >
-              {breadcrumbs.parentLabel}
-            </button>
-            <span className="text-[#a3a3a3] shrink-0">/</span>
-            <span className="text-[#0a0a0a] font-semibold truncate">{breadcrumbs.zipCode}</span>
-          </div>
-          <button
-            type="button"
-            onClick={onBreadcrumbBack}
-            className="text-xs font-semibold px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg border border-[#e5e5e5] bg-white hover:bg-[#fafafa] transition-colors shrink-0"
-          >
-            Back
-          </button>
-        </div>
-      )}
+      {/* Breadcrumbs (county -> city -> zip) + Back */}
+      <BreadcrumbRow />
 
       {/* Compact Header */}
       <div className="mb-4 sm:mb-5">
@@ -451,7 +517,8 @@ export default function FMRResults({
 
       {/* Compact Table */}
       <div className="overflow-x-auto -mx-1 sm:mx-0">
-        <table className="w-full border-collapse">
+        <div className="max-h-[240px] overflow-y-auto custom-scrollbar">
+          <table className="w-full border-collapse">
           <thead>
             <tr className="border-b border-[#e5e5e5]">
               <th className="text-left py-2 px-2 sm:px-3 font-medium text-[#737373] text-xs uppercase tracking-wider">Bedroom</th>
@@ -531,7 +598,7 @@ export default function FMRResults({
                         <YoYBadge bedroomKey="bedroom3" />
                       </td>
                     </tr>
-                    <tr className="hover:bg-[#fafafa] transition-colors">
+                    <tr className="border-b border-[#e5e5e5] hover:bg-[#fafafa] transition-colors">
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm text-[#0a0a0a]">4 BR</td>
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#525252] font-semibold tabular-nums">
                         {formatRange(bedroom4Values)}
@@ -540,6 +607,54 @@ export default function FMRResults({
                         <YoYBadge bedroomKey="bedroom4" />
                       </td>
                     </tr>
+                    {(() => {
+                      const bedroom4Median = median(bedroom4Values);
+                      if (!bedroom4Median) return null;
+                      const currentYear = dataNonNull.year;
+                      const prevYear = currentYear - 1;
+                      const prevYear4BR = historyByYear?.get(prevYear)?.bedroom4 as number | undefined;
+                      
+                      return [5, 6, 7, 8].map((bedrooms) => {
+                        const multiplier = Math.pow(1.15, bedrooms - 4);
+                        const rate = Math.round(bedroom4Median * multiplier);
+                        
+                        // Calculate YoY if we have previous year data
+                        let yoyBadge = <span className="text-xs text-[#a3a3a3]">—</span>;
+                        if (prevYear4BR && prevYear4BR > 0) {
+                          const prevRate = Math.round(prevYear4BR * multiplier);
+                          const delta = rate - prevRate;
+                          const pct = (delta / prevRate) * 100;
+                          const isPositive = pct > 0.0001;
+                          const isNegative = pct < -0.0001;
+                          const cls = isPositive
+                            ? 'bg-[#f0fdf4] text-[#16a34a]'
+                            : isNegative
+                              ? 'bg-[#fef2f2] text-[#dc2626]'
+                              : 'bg-[#fafafa] text-[#525252]';
+                          yoyBadge = (
+                            <span
+                              className={`inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-semibold tabular-nums ${cls}`}
+                              title={`YoY change vs FY ${prevYear}`}
+                            >
+                              {pct > 0 ? '+' : ''}
+                              {pct.toFixed(1)}%
+                            </span>
+                          );
+                        }
+                        
+                        return (
+                          <tr key={bedrooms} className="border-b border-[#e5e5e5] hover:bg-[#fafafa] transition-colors">
+                            <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm text-[#0a0a0a]">{bedrooms} BR</td>
+                            <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#525252] font-semibold tabular-nums">
+                              {formatCurrency(rate)}
+                            </td>
+                            <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
+                              {yoyBadge}
+                            </td>
+                          </tr>
+                        );
+                      });
+                    })()}
                   </>
                 );
                   } else {
@@ -582,7 +697,7 @@ export default function FMRResults({
                         <YoYBadge bedroomKey="bedroom3" />
                       </td>
                     </tr>
-                    <tr className="hover:bg-[#fafafa] transition-colors">
+                    <tr className="border-b border-[#e5e5e5] hover:bg-[#fafafa] transition-colors">
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm text-[#0a0a0a]">4 BR</td>
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#525252] font-semibold tabular-nums">
                         {formatCurrency(dataNonNull.bedroom4)}
@@ -591,12 +706,61 @@ export default function FMRResults({
                         <YoYBadge bedroomKey="bedroom4" />
                       </td>
                     </tr>
+                    {(() => {
+                      const base4 = dataNonNull.bedroom4;
+                      if (!base4) return null;
+                      const currentYear = dataNonNull.year;
+                      const prevYear = currentYear - 1;
+                      const prevYear4BR = historyByYear?.get(prevYear)?.bedroom4 as number | undefined;
+                      
+                      return [5, 6, 7, 8].map((bedrooms) => {
+                        const multiplier = Math.pow(1.15, bedrooms - 4);
+                        const rate = Math.round(base4 * multiplier);
+                        
+                        // Calculate YoY if we have previous year data
+                        let yoyBadge = <span className="text-xs text-[#a3a3a3]">—</span>;
+                        if (prevYear4BR && prevYear4BR > 0) {
+                          const prevRate = Math.round(prevYear4BR * multiplier);
+                          const delta = rate - prevRate;
+                          const pct = (delta / prevRate) * 100;
+                          const isPositive = pct > 0.0001;
+                          const isNegative = pct < -0.0001;
+                          const cls = isPositive
+                            ? 'bg-[#f0fdf4] text-[#16a34a]'
+                            : isNegative
+                              ? 'bg-[#fef2f2] text-[#dc2626]'
+                              : 'bg-[#fafafa] text-[#525252]';
+                          yoyBadge = (
+                            <span
+                              className={`inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-semibold tabular-nums ${cls}`}
+                              title={`YoY change vs FY ${prevYear}`}
+                            >
+                              {pct > 0 ? '+' : ''}
+                              {pct.toFixed(1)}%
+                            </span>
+                          );
+                        }
+                        
+                        return (
+                          <tr key={bedrooms} className="border-b border-[#e5e5e5] hover:bg-[#fafafa] transition-colors">
+                            <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm text-[#0a0a0a]">{bedrooms} BR</td>
+                            <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#525252] font-semibold tabular-nums">
+                              {formatCurrency(rate)}
+                            </td>
+                            <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
+                              {yoyBadge}
+                            </td>
+                          </tr>
+                        );
+                      });
+                    })()}
                   </>
                 );
               }
             })()}
           </tbody>
         </table>
+        </div>
       </div>
 
       <div className="mt-3 sm:mt-4 pt-2 sm:pt-3 border-t border-[#e5e5e5]">
@@ -604,6 +768,11 @@ export default function FMRResults({
           {dataNonNull.source === 'safmr' 
             ? 'Small Area Fair Market Rent (SAFMR) - ZIP code level rates for designated metropolitan areas'
             : 'Fair Market Rent (FMR) - County/metropolitan area level rates'}
+          {representative.bedroom4 && (
+            <span className="block mt-1.5 text-[#737373]">
+              5+ BR rates calculated using HUD formula: +15% per additional bedroom from 4BR rate.
+            </span>
+          )}
         </p>
       </div>
 

@@ -9,6 +9,7 @@ A Vercel-hosted Next.js application for searching Fair Market Rent (FMR) data by
 - **Environment Variables**: Create a `.env` file with:
    ```
    POSTGRES_URL=your_postgres_connection_string
+   API_NINJAS_API_KEY=your_api_ninjas_key
    ```
 
 ## Data Indexing

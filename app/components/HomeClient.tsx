@@ -8,6 +8,7 @@ import NationwideStats from './NationwideStats';
 import type { FMRResult, ZIPFMRData } from '@/lib/types';
 import ResultAbout from './ResultAbout';
 import { buildCitySlug, buildCountySlug } from '@/lib/location-slugs';
+import IdealPurchasePriceCard from './IdealPurchasePriceCard';
 
 type SearchStatus = 'idle' | 'loading' | 'success' | 'error';
 
@@ -378,6 +379,7 @@ export default function HomeClient(props: {
       areaName: rootFmrData.areaName,
       stateCode: rootFmrData.stateCode,
       countyName: rootFmrData.countyName,
+      cityName: rootFmrData.cityName,
       year: rootFmrData.year,
       effectiveDate: rootFmrData.effectiveDate,
       bedroom0: zipRow.bedroom0,
@@ -484,8 +486,11 @@ export default function HomeClient(props: {
             </div>
           </div>
 
-          {/* ZIP Code Ranking Card - To the right */}
-          {zipRankings && zipRankings.length > 0 && (
+          {/* Ideal Purchase Price Card - To the right */}
+          <IdealPurchasePriceCard data={viewFmrData} />
+
+          {/* ZIP Code Ranking Card - To the right (hide when drilled into a ZIP) */}
+          {!drilldownZip && zipRankings && zipRankings.length > 0 && (
             <div
               className="w-full lg:w-80 flex-shrink-0 bg-white rounded-lg border border-[#e5e5e5] p-4 sm:p-6 md:p-8 flex flex-col"
               style={zipCardHeight ? { height: `${zipCardHeight}px` } : undefined}
