@@ -2,6 +2,11 @@ import { sql } from '@vercel/postgres';
 
 export type DashboardInsightsType = 'zip' | 'city' | 'county';
 
+export interface DashboardInsightsFilters {
+  stateCode?: string | null; // Filter by state (e.g., 'WA')
+  bedroomSize?: number | null; // Filter by bedroom size (0-8), null means all sizes
+}
+
 /**
  * Compute the dashboard insights payload (the exact JSON shape consumed by the home dashboard).
  *
@@ -10,60 +15,120 @@ export type DashboardInsightsType = 'zip' | 'city' | 'county';
 export async function computeDashboardInsights(opts: {
   year: number;
   type: DashboardInsightsType;
+  filters?: DashboardInsightsFilters;
 }) {
-  const { year, type } = opts;
+  const { year, type, filters = {} } = opts;
+  const { stateCode = null, bedroomSize = null } = filters;
 
-  // Calculate national averages for bedroom transitions (excluding PR)
-  // Only use SAFMR data if ZIP is in required_safmr_zips, otherwise use county FMR
-  const nationalAverages = await sql`
-    WITH zip_fmr_data AS (
-      SELECT DISTINCT ON (zcm.zip_code)
-        zcm.zip_code,
-        COALESCE(
-          CASE WHEN rsz.zip_code IS NOT NULL THEN sd.bedroom_0 END,
-          fd.bedroom_0
-        ) as bedroom_0,
-        COALESCE(
-          CASE WHEN rsz.zip_code IS NOT NULL THEN sd.bedroom_1 END,
-          fd.bedroom_1
-        ) as bedroom_1,
-        COALESCE(
-          CASE WHEN rsz.zip_code IS NOT NULL THEN sd.bedroom_2 END,
-          fd.bedroom_2
-        ) as bedroom_2,
-        COALESCE(
-          CASE WHEN rsz.zip_code IS NOT NULL THEN sd.bedroom_3 END,
-          fd.bedroom_3
-        ) as bedroom_3,
-        COALESCE(
-          CASE WHEN rsz.zip_code IS NOT NULL THEN sd.bedroom_4 END,
-          fd.bedroom_4
-        ) as bedroom_4
-      FROM zip_county_mapping zcm
-      LEFT JOIN required_safmr_zips rsz 
-        ON zcm.zip_code = rsz.zip_code AND rsz.year = ${year}
-      LEFT JOIN safmr_data sd 
-        ON zcm.zip_code = sd.zip_code AND sd.year = ${year}
-      LEFT JOIN fmr_data fd 
-        ON zcm.county_fips = fd.county_code 
-        AND zcm.state_code = fd.state_code 
-        AND fd.year = ${year}
-      WHERE zcm.state_code != 'PR'
-      ORDER BY zcm.zip_code
-    )
-    SELECT 
-      AVG(CASE WHEN bedroom_0 IS NOT NULL AND bedroom_1 IS NOT NULL AND bedroom_0 > 0 
-        THEN (bedroom_1 - bedroom_0) / bedroom_0 * 100 ELSE NULL END) as avg_jump_0_to_1,
-      AVG(CASE WHEN bedroom_1 IS NOT NULL AND bedroom_2 IS NOT NULL AND bedroom_1 > 0 
-        THEN (bedroom_2 - bedroom_1) / bedroom_1 * 100 ELSE NULL END) as avg_jump_1_to_2,
-      AVG(CASE WHEN bedroom_2 IS NOT NULL AND bedroom_3 IS NOT NULL AND bedroom_2 > 0 
-        THEN (bedroom_3 - bedroom_2) / bedroom_2 * 100 ELSE NULL END) as avg_jump_2_to_3,
-      AVG(CASE WHEN bedroom_3 IS NOT NULL AND bedroom_4 IS NOT NULL AND bedroom_3 > 0 
-        THEN (bedroom_4 - bedroom_3) / bedroom_3 * 100 ELSE NULL END) as avg_jump_3_to_4
-    FROM zip_fmr_data
-    WHERE (bedroom_0 IS NOT NULL OR bedroom_1 IS NOT NULL OR bedroom_2 IS NOT NULL OR 
-           bedroom_3 IS NOT NULL OR bedroom_4 IS NOT NULL)
-  `;
+  // Filters (note: dashboard only supports 0-4 BR columns directly)
+  const br: number | null =
+    bedroomSize !== null && Number.isFinite(bedroomSize) && bedroomSize >= 0 && bedroomSize <= 4
+      ? Math.floor(bedroomSize)
+      : null;
+
+  // Calculate national averages for bedroom transitions
+  // - If `stateCode` provided: compute within that state.
+  // - Else: nationwide, excluding territories.
+  // Only use SAFMR data if ZIP is in required_safmr_zips, otherwise use county FMR.
+  const nationalAverages = stateCode
+    ? await sql`
+        WITH zip_fmr_data AS (
+          SELECT DISTINCT ON (zcm.zip_code)
+            zcm.zip_code,
+            COALESCE(
+              CASE WHEN rsz.zip_code IS NOT NULL THEN sd.bedroom_0 END,
+              fd.bedroom_0
+            ) as bedroom_0,
+            COALESCE(
+              CASE WHEN rsz.zip_code IS NOT NULL THEN sd.bedroom_1 END,
+              fd.bedroom_1
+            ) as bedroom_1,
+            COALESCE(
+              CASE WHEN rsz.zip_code IS NOT NULL THEN sd.bedroom_2 END,
+              fd.bedroom_2
+            ) as bedroom_2,
+            COALESCE(
+              CASE WHEN rsz.zip_code IS NOT NULL THEN sd.bedroom_3 END,
+              fd.bedroom_3
+            ) as bedroom_3,
+            COALESCE(
+              CASE WHEN rsz.zip_code IS NOT NULL THEN sd.bedroom_4 END,
+              fd.bedroom_4
+            ) as bedroom_4
+          FROM zip_county_mapping zcm
+          LEFT JOIN required_safmr_zips rsz 
+            ON zcm.zip_code = rsz.zip_code AND rsz.year = ${year}
+          LEFT JOIN safmr_data sd 
+            ON zcm.zip_code = sd.zip_code AND sd.year = ${year}
+          LEFT JOIN fmr_data fd 
+            ON zcm.county_fips = fd.county_code 
+            AND zcm.state_code = fd.state_code 
+            AND fd.year = ${year}
+          WHERE zcm.state_code = ${stateCode}
+          ORDER BY zcm.zip_code
+        )
+        SELECT 
+          AVG(CASE WHEN bedroom_0 IS NOT NULL AND bedroom_1 IS NOT NULL AND bedroom_0 > 0 
+            THEN (bedroom_1 - bedroom_0) / bedroom_0 * 100 ELSE NULL END) as avg_jump_0_to_1,
+          AVG(CASE WHEN bedroom_1 IS NOT NULL AND bedroom_2 IS NOT NULL AND bedroom_1 > 0 
+            THEN (bedroom_2 - bedroom_1) / bedroom_1 * 100 ELSE NULL END) as avg_jump_1_to_2,
+          AVG(CASE WHEN bedroom_2 IS NOT NULL AND bedroom_3 IS NOT NULL AND bedroom_2 > 0 
+            THEN (bedroom_3 - bedroom_2) / bedroom_2 * 100 ELSE NULL END) as avg_jump_2_to_3,
+          AVG(CASE WHEN bedroom_3 IS NOT NULL AND bedroom_4 IS NOT NULL AND bedroom_3 > 0 
+            THEN (bedroom_4 - bedroom_3) / bedroom_3 * 100 ELSE NULL END) as avg_jump_3_to_4
+        FROM zip_fmr_data
+        WHERE (bedroom_0 IS NOT NULL OR bedroom_1 IS NOT NULL OR bedroom_2 IS NOT NULL OR 
+               bedroom_3 IS NOT NULL OR bedroom_4 IS NOT NULL)
+      `
+    : await sql`
+        WITH zip_fmr_data AS (
+          SELECT DISTINCT ON (zcm.zip_code)
+            zcm.zip_code,
+            COALESCE(
+              CASE WHEN rsz.zip_code IS NOT NULL THEN sd.bedroom_0 END,
+              fd.bedroom_0
+            ) as bedroom_0,
+            COALESCE(
+              CASE WHEN rsz.zip_code IS NOT NULL THEN sd.bedroom_1 END,
+              fd.bedroom_1
+            ) as bedroom_1,
+            COALESCE(
+              CASE WHEN rsz.zip_code IS NOT NULL THEN sd.bedroom_2 END,
+              fd.bedroom_2
+            ) as bedroom_2,
+            COALESCE(
+              CASE WHEN rsz.zip_code IS NOT NULL THEN sd.bedroom_3 END,
+              fd.bedroom_3
+            ) as bedroom_3,
+            COALESCE(
+              CASE WHEN rsz.zip_code IS NOT NULL THEN sd.bedroom_4 END,
+              fd.bedroom_4
+            ) as bedroom_4
+          FROM zip_county_mapping zcm
+          LEFT JOIN required_safmr_zips rsz 
+            ON zcm.zip_code = rsz.zip_code AND rsz.year = ${year}
+          LEFT JOIN safmr_data sd 
+            ON zcm.zip_code = sd.zip_code AND sd.year = ${year}
+          LEFT JOIN fmr_data fd 
+            ON zcm.county_fips = fd.county_code 
+            AND zcm.state_code = fd.state_code 
+            AND fd.year = ${year}
+          WHERE zcm.state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS')
+          ORDER BY zcm.zip_code
+        )
+        SELECT 
+          AVG(CASE WHEN bedroom_0 IS NOT NULL AND bedroom_1 IS NOT NULL AND bedroom_0 > 0 
+            THEN (bedroom_1 - bedroom_0) / bedroom_0 * 100 ELSE NULL END) as avg_jump_0_to_1,
+          AVG(CASE WHEN bedroom_1 IS NOT NULL AND bedroom_2 IS NOT NULL AND bedroom_1 > 0 
+            THEN (bedroom_2 - bedroom_1) / bedroom_1 * 100 ELSE NULL END) as avg_jump_1_to_2,
+          AVG(CASE WHEN bedroom_2 IS NOT NULL AND bedroom_3 IS NOT NULL AND bedroom_2 > 0 
+            THEN (bedroom_3 - bedroom_2) / bedroom_2 * 100 ELSE NULL END) as avg_jump_2_to_3,
+          AVG(CASE WHEN bedroom_3 IS NOT NULL AND bedroom_4 IS NOT NULL AND bedroom_3 > 0 
+            THEN (bedroom_4 - bedroom_3) / bedroom_3 * 100 ELSE NULL END) as avg_jump_3_to_4
+        FROM zip_fmr_data
+        WHERE (bedroom_0 IS NOT NULL OR bedroom_1 IS NOT NULL OR bedroom_2 IS NOT NULL OR 
+               bedroom_3 IS NOT NULL OR bedroom_4 IS NOT NULL)
+      `;
 
   const natAvg = nationalAverages.rows[0] as any;
   const nationalAvgJumps: Record<number, number> = {
@@ -109,7 +174,11 @@ export async function computeDashboardInsights(opts: {
           ON zcm.county_fips = fd.county_code 
           AND zcm.state_code = fd.state_code 
           AND fd.year = ${year}
-        WHERE zcm.state_code != 'PR'
+        WHERE (
+          (${stateCode}::text IS NOT NULL AND zcm.state_code = ${stateCode})
+          OR
+          (${stateCode}::text IS NULL AND zcm.state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS'))
+        )
         ORDER BY zcm.zip_code, zcm.county_name
       )
       SELECT 
@@ -132,9 +201,10 @@ export async function computeDashboardInsights(opts: {
       ORDER BY avg_fmr DESC
     `;
 
-    // Sort by avg_fmr DESC and limit after deduplication
+    // Sort by avg_fmr (default) or bedroom_N when a BR filter is active
+    const sortKey = br !== null ? `bedroom_${br}` : 'avg_fmr';
     const topZipsSorted = topZips.rows
-      .sort((a: any, b: any) => parseFloat(b.avg_fmr) - parseFloat(a.avg_fmr))
+      .sort((a: any, b: any) => parseFloat(b[sortKey] || 0) - parseFloat(a[sortKey] || 0))
       .slice(0, 50);
 
     const bottomZips = await sql`
@@ -170,7 +240,11 @@ export async function computeDashboardInsights(opts: {
           ON zcm.county_fips = fd.county_code 
           AND zcm.state_code = fd.state_code 
           AND fd.year = ${year}
-        WHERE zcm.state_code != 'PR'
+        WHERE (
+          (${stateCode}::text IS NOT NULL AND zcm.state_code = ${stateCode})
+          OR
+          (${stateCode}::text IS NULL AND zcm.state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS'))
+        )
         ORDER BY zcm.zip_code, zcm.county_name
       )
       SELECT 
@@ -193,8 +267,10 @@ export async function computeDashboardInsights(opts: {
       ORDER BY avg_fmr ASC
     `;
 
+    // Sort by avg_fmr (default) or bedroom_N when a BR filter is active
+    const bottomSortKey = br !== null ? `bedroom_${br}` : 'avg_fmr';
     const bottomZipsSorted = bottomZips.rows
-      .sort((a: any, b: any) => parseFloat(a.avg_fmr) - parseFloat(b.avg_fmr))
+      .sort((a: any, b: any) => parseFloat(a[bottomSortKey] || 0) - parseFloat(b[bottomSortKey] || 0))
       .slice(0, 50);
 
     // Get county names and city names for ZIPs
@@ -209,7 +285,7 @@ export async function computeDashboardInsights(opts: {
         `SELECT DISTINCT ON (zip_code) zip_code, county_name, state_code
          FROM zip_county_mapping
          WHERE zip_code IN (${placeholders})
-           AND state_code != 'PR'
+           AND state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS')
          ORDER BY zip_code, county_name`,
         allZipCodes
       );
@@ -220,7 +296,11 @@ export async function computeDashboardInsights(opts: {
           c.city_name,
           c.state_code
         FROM cities c
-        WHERE c.state_code != 'PR'
+        WHERE (
+          (${stateCode}::text IS NOT NULL AND c.state_code = ${stateCode})
+          OR
+          (${stateCode}::text IS NULL AND c.state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS'))
+        )
       `;
 
       const cityMap = new Map<string, string>();
@@ -258,7 +338,7 @@ export async function computeDashboardInsights(opts: {
         FROM zip_county_mapping zcm
         LEFT JOIN cities c ON zcm.zip_code = ANY(c.zip_codes) AND zcm.state_code = c.state_code
         WHERE zcm.zip_code IN (${fallbackPlaceholders})
-          AND zcm.state_code != 'PR'
+          AND zcm.state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS')
         ORDER BY zcm.zip_code, zcm.county_name`,
         missingZipCodes
       );
@@ -307,7 +387,11 @@ export async function computeDashboardInsights(opts: {
           ON zcm.county_fips = fd.county_code 
           AND zcm.state_code = fd.state_code 
           AND fd.year = ${year}
-        WHERE zcm.state_code != 'PR'
+        WHERE (
+          (${stateCode}::text IS NOT NULL AND zcm.state_code = ${stateCode})
+          OR
+          (${stateCode}::text IS NULL AND zcm.state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS'))
+        )
         ORDER BY zcm.zip_code, zcm.county_name
       )
       SELECT 
@@ -337,6 +421,10 @@ export async function computeDashboardInsights(opts: {
 
     const processedAnomalies = (anomalies.rows as any[])
       .map((row) => {
+        if (br !== null) {
+          const key = `bedroom_${br}`;
+          if (row[key] === null || row[key] === undefined) return null;
+        }
         const jumps = [
           { from: 0, to: 1, pct: parseFloat(row.jump_0_to_1_pct) || null, amount: parseFloat(row.jump_0_to_1) || null, natAvg: nationalAvgJumps[0] },
           { from: 1, to: 2, pct: parseFloat(row.jump_1_to_2_pct) || null, amount: parseFloat(row.jump_1_to_2) || null, natAvg: nationalAvgJumps[1] },
@@ -384,7 +472,7 @@ export async function computeDashboardInsights(opts: {
           `SELECT DISTINCT ON (zip_code) zip_code, county_name, state_code
            FROM zip_county_mapping
            WHERE zip_code IN (${additionalPlaceholders})
-             AND state_code != 'PR'
+             AND state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS')
            ORDER BY zip_code, county_name`,
           additionalZipCodes
         );
@@ -395,7 +483,11 @@ export async function computeDashboardInsights(opts: {
             c.city_name,
             c.state_code
           FROM cities c
-          WHERE c.state_code != 'PR'
+          WHERE (
+            (${stateCode}::text IS NOT NULL AND c.state_code = ${stateCode})
+            OR
+            (${stateCode}::text IS NULL AND c.state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS'))
+          )
         `;
 
         const additionalCityMap = new Map<string, string>();
@@ -429,7 +521,11 @@ export async function computeDashboardInsights(opts: {
       WITH zip_with_data AS (
         SELECT DISTINCT zcm.zip_code
         FROM zip_county_mapping zcm
-        WHERE zcm.state_code != 'PR'
+        WHERE (
+          (${stateCode}::text IS NOT NULL AND zcm.state_code = ${stateCode})
+          OR
+          (${stateCode}::text IS NULL AND zcm.state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS'))
+        )
           AND (
             EXISTS (
               SELECT 1 FROM required_safmr_zips rsz 
@@ -569,13 +665,15 @@ export async function computeDashboardInsights(opts: {
 
     const zipYoYChanges = (zipYoY.rows as any[])
       .map((row) => {
-        const changes = [
+        const baseChanges = [
           { br: 0, curr: parseFloat(row.curr_0), prev: parseFloat(row.prev_0), pct: null as number | null },
           { br: 1, curr: parseFloat(row.curr_1), prev: parseFloat(row.prev_1), pct: null as number | null },
           { br: 2, curr: parseFloat(row.curr_2), prev: parseFloat(row.prev_2), pct: null as number | null },
           { br: 3, curr: parseFloat(row.curr_3), prev: parseFloat(row.prev_3), pct: null as number | null },
           { br: 4, curr: parseFloat(row.curr_4), prev: parseFloat(row.prev_4), pct: null as number | null },
-        ]
+        ];
+
+        const changes = (br !== null ? baseChanges.filter((c) => c.br === br) : baseChanges)
           .filter((c) => !isNaN(c.curr) && !isNaN(c.prev) && isFinite(c.curr) && isFinite(c.prev) && c.curr > 0 && c.prev > 0)
           .map((c) => ({ ...c, pct: ((c.curr - c.prev) / c.prev) * 100 }));
 
@@ -604,7 +702,7 @@ export async function computeDashboardInsights(opts: {
 
     const risingZips = [...zipYoYChanges]
       .sort((a, b) => b.maxYoY - a.maxYoY)
-      .slice(0, 15)
+      .slice(0, 50)
       .map((z) => ({
         zipCode: z.zipCode,
         cityName: z.cityName,
@@ -621,7 +719,7 @@ export async function computeDashboardInsights(opts: {
 
     const fallingZips = [...zipYoYChanges]
       .sort((a, b) => a.minYoY - b.minYoY)
-      .slice(0, 15)
+      .slice(0, 50)
       .map((z) => ({
         zipCode: z.zipCode,
         cityName: z.cityName,
@@ -713,14 +811,15 @@ export async function computeDashboardInsights(opts: {
       'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY', 'DC'
     ];
 
-    const validUSStatesPlaceholders = validUSStates.map((_, i) => `$${i + 1}`).join(', ');
+    const effectiveStates = stateCode ? [stateCode] : validUSStates;
+    const validUSStatesPlaceholders = effectiveStates.map((_, i) => `$${i + 1}`).join(', ');
     // City-level data: aggregate from ZIPs, using SAFMR only if ZIP is in required_safmr_zips, otherwise county FMR
     // Optimized: Pre-filter to only ZIPs with data to reduce data transfer
     const cityData = await sql.query(
       `WITH zip_with_data AS (
         SELECT DISTINCT zcm.zip_code
         FROM zip_county_mapping zcm
-        WHERE zcm.state_code != 'PR'
+        WHERE zcm.state_code IN (${validUSStatesPlaceholders})
           AND (
             EXISTS (
               SELECT 1 FROM required_safmr_zips rsz 
@@ -807,9 +906,10 @@ export async function computeDashboardInsights(opts: {
         AND c.state_code IN (${validUSStatesPlaceholders})
         AND (zfd.bedroom_0 IS NOT NULL OR zfd.bedroom_1 IS NOT NULL OR zfd.bedroom_2 IS NOT NULL OR 
              zfd.bedroom_3 IS NOT NULL OR zfd.bedroom_4 IS NOT NULL)
+        ${br !== null ? `AND zfd.bedroom_${br} IS NOT NULL` : ''}
       GROUP BY c.city_name, c.state_code, c.state_name, cc.county_name, c.zip_codes
       HAVING COUNT(DISTINCT zfd.zip_code) > 0`,
-      validUSStates
+      effectiveStates
     );
 
     const citiesWithAvg = (cityData.rows as any[]).map((city) => {
@@ -823,6 +923,20 @@ export async function computeDashboardInsights(opts: {
 
       const avgFMR = bedrooms.length > 0 ? bedrooms.reduce((sum, val) => sum + val, 0) / bedrooms.length : 0;
 
+      const bedroom0 = parseFloat(city.avg_bedroom_0) || null;
+      const bedroom1 = parseFloat(city.avg_bedroom_1) || null;
+      const bedroom2 = parseFloat(city.avg_bedroom_2) || null;
+      const bedroom3 = parseFloat(city.avg_bedroom_3) || null;
+      const bedroom4 = parseFloat(city.avg_bedroom_4) || null;
+
+      const primaryFMR =
+        br === 0 ? bedroom0 :
+        br === 1 ? bedroom1 :
+        br === 2 ? bedroom2 :
+        br === 3 ? bedroom3 :
+        br === 4 ? bedroom4 :
+        null;
+
       return {
         cityName: city.city_name,
         stateCode: city.state_code,
@@ -831,18 +945,25 @@ export async function computeDashboardInsights(opts: {
         zipCodes: city.zip_codes,
         zipCount: parseInt(city.zip_count) || 0,
         avgFMR,
-        bedroom0: parseFloat(city.avg_bedroom_0) || null,
-        bedroom1: parseFloat(city.avg_bedroom_1) || null,
-        bedroom2: parseFloat(city.avg_bedroom_2) || null,
-        bedroom3: parseFloat(city.avg_bedroom_3) || null,
-        bedroom4: parseFloat(city.avg_bedroom_4) || null,
+        primaryFMR,
+        bedroom0,
+        bedroom1,
+        bedroom2,
+        bedroom3,
+        bedroom4,
       };
     });
 
-    const topCities = [...citiesWithAvg].sort((a, b) => b.avgFMR - a.avgFMR).slice(0, 50);
-    const bottomCities = [...citiesWithAvg].sort((a, b) => a.avgFMR - b.avgFMR).slice(0, 50);
+    const filteredCities = br !== null ? citiesWithAvg.filter((c) => c.primaryFMR !== null) : citiesWithAvg;
 
-    const cityAnomalies = citiesWithAvg
+    const topCities = [...filteredCities]
+      .sort((a, b) => (br !== null ? (b.primaryFMR || 0) - (a.primaryFMR || 0) : b.avgFMR - a.avgFMR))
+      .slice(0, 50);
+    const bottomCities = [...filteredCities]
+      .sort((a, b) => (br !== null ? (a.primaryFMR || 0) - (b.primaryFMR || 0) : a.avgFMR - b.avgFMR))
+      .slice(0, 50);
+
+    const cityAnomalies = filteredCities
       .map((city) => {
         const jumps = [
           { from: 0, to: 1, pct: city.bedroom0 && city.bedroom1 && city.bedroom0 > 0
@@ -892,7 +1013,7 @@ export async function computeDashboardInsights(opts: {
       `WITH zip_with_data_prev AS (
         SELECT DISTINCT zcm.zip_code
         FROM zip_county_mapping zcm
-        WHERE zcm.state_code != 'PR'
+        WHERE zcm.state_code IN (${validUSStatesPlaceholders})
           AND (
             EXISTS (
               SELECT 1 FROM required_safmr_zips rsz 
@@ -964,8 +1085,9 @@ export async function computeDashboardInsights(opts: {
         AND c.state_code IN (${validUSStatesPlaceholders})
         AND (zfd.bedroom_0 IS NOT NULL OR zfd.bedroom_1 IS NOT NULL OR zfd.bedroom_2 IS NOT NULL OR 
              zfd.bedroom_3 IS NOT NULL OR zfd.bedroom_4 IS NOT NULL)
+        ${br !== null ? `AND zfd.bedroom_${br} IS NOT NULL` : ''}
       GROUP BY c.city_name, c.state_code`,
-      validUSStates
+      effectiveStates
     );
 
     const prevYearCityMap = new Map<string, any>();
@@ -980,19 +1102,21 @@ export async function computeDashboardInsights(opts: {
       });
     });
 
-    const cityYoYComputed = citiesWithAvg
+    const cityYoYComputed = filteredCities
       .map((city) => {
         const key = `${city.cityName}|${city.stateCode}`;
         const prev = prevYearCityMap.get(key);
         if (!prev) return null;
 
-        const changes = [
+        const baseChanges = [
           { br: 0, curr: city.bedroom0, prev: prev.bedroom0, pct: null as number | null },
           { br: 1, curr: city.bedroom1, prev: prev.bedroom1, pct: null as number | null },
           { br: 2, curr: city.bedroom2, prev: prev.bedroom2, pct: null as number | null },
           { br: 3, curr: city.bedroom3, prev: prev.bedroom3, pct: null as number | null },
           { br: 4, curr: city.bedroom4, prev: prev.bedroom4, pct: null as number | null },
-        ]
+        ];
+
+        const changes = (br !== null ? baseChanges.filter((c) => c.br === br) : baseChanges)
           .filter((c) => c.curr !== null && c.prev !== null && 
                          typeof c.curr === 'number' && typeof c.prev === 'number' &&
                          isFinite(c.curr) && isFinite(c.prev) && 
@@ -1025,7 +1149,7 @@ export async function computeDashboardInsights(opts: {
 
     const risingCities = [...cityYoYComputed]
       .sort((a, b) => b.maxYoY - a.maxYoY)
-      .slice(0, 15)
+      .slice(0, 50)
       .map((c) => ({
         cityName: c.cityName,
         stateCode: c.stateCode,
@@ -1043,7 +1167,7 @@ export async function computeDashboardInsights(opts: {
 
     const fallingCities = [...cityYoYComputed]
       .sort((a, b) => a.minYoY - b.minYoY)
-      .slice(0, 15)
+      .slice(0, 50)
       .map((c) => ({
         cityName: c.cityName,
         stateCode: c.stateCode,
@@ -1118,47 +1242,135 @@ export async function computeDashboardInsights(opts: {
 
   // county
   const prevYear = year - 1;
-  const topCounties = await sql`
-    SELECT 
-      area_name,
-      state_code,
-      bedroom_0, bedroom_1, bedroom_2, bedroom_3, bedroom_4,
-      (COALESCE(bedroom_0, 0) + COALESCE(bedroom_1, 0) + COALESCE(bedroom_2, 0) + 
-       COALESCE(bedroom_3, 0) + COALESCE(bedroom_4, 0)) / 
-      NULLIF((CASE WHEN bedroom_0 IS NOT NULL THEN 1 ELSE 0 END +
-              CASE WHEN bedroom_1 IS NOT NULL THEN 1 ELSE 0 END +
-              CASE WHEN bedroom_2 IS NOT NULL THEN 1 ELSE 0 END +
-              CASE WHEN bedroom_3 IS NOT NULL THEN 1 ELSE 0 END +
-              CASE WHEN bedroom_4 IS NOT NULL THEN 1 ELSE 0 END), 0) as avg_fmr
-    FROM fmr_data
-    WHERE year = ${year}
-      AND state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS')
-      AND (bedroom_0 IS NOT NULL OR bedroom_1 IS NOT NULL OR bedroom_2 IS NOT NULL OR 
-           bedroom_3 IS NOT NULL OR bedroom_4 IS NOT NULL)
-    ORDER BY avg_fmr DESC
-    LIMIT 50
-  `;
+  const topCounties =
+    br !== null
+      ? await sql`
+          SELECT 
+            area_name,
+            state_code,
+            bedroom_0, bedroom_1, bedroom_2, bedroom_3, bedroom_4,
+            (COALESCE(bedroom_0, 0) + COALESCE(bedroom_1, 0) + COALESCE(bedroom_2, 0) + 
+             COALESCE(bedroom_3, 0) + COALESCE(bedroom_4, 0)) / 
+            NULLIF((CASE WHEN bedroom_0 IS NOT NULL THEN 1 ELSE 0 END +
+                    CASE WHEN bedroom_1 IS NOT NULL THEN 1 ELSE 0 END +
+                    CASE WHEN bedroom_2 IS NOT NULL THEN 1 ELSE 0 END +
+                    CASE WHEN bedroom_3 IS NOT NULL THEN 1 ELSE 0 END +
+                    CASE WHEN bedroom_4 IS NOT NULL THEN 1 ELSE 0 END), 0) as avg_fmr,
+            (CASE ${br}
+              WHEN 0 THEN bedroom_0
+              WHEN 1 THEN bedroom_1
+              WHEN 2 THEN bedroom_2
+              WHEN 3 THEN bedroom_3
+              WHEN 4 THEN bedroom_4
+            END) as primary_fmr
+          FROM fmr_data
+          WHERE year = ${year}
+            AND (
+              (${stateCode}::text IS NOT NULL AND state_code = ${stateCode})
+              OR
+              (${stateCode}::text IS NULL AND state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS'))
+            )
+            AND (bedroom_0 IS NOT NULL OR bedroom_1 IS NOT NULL OR bedroom_2 IS NOT NULL OR 
+                 bedroom_3 IS NOT NULL OR bedroom_4 IS NOT NULL)
+            AND (CASE ${br}
+              WHEN 0 THEN bedroom_0
+              WHEN 1 THEN bedroom_1
+              WHEN 2 THEN bedroom_2
+              WHEN 3 THEN bedroom_3
+              WHEN 4 THEN bedroom_4
+            END) IS NOT NULL
+          ORDER BY primary_fmr DESC
+          LIMIT 50
+        `
+      : await sql`
+          SELECT 
+            area_name,
+            state_code,
+            bedroom_0, bedroom_1, bedroom_2, bedroom_3, bedroom_4,
+            (COALESCE(bedroom_0, 0) + COALESCE(bedroom_1, 0) + COALESCE(bedroom_2, 0) + 
+             COALESCE(bedroom_3, 0) + COALESCE(bedroom_4, 0)) / 
+            NULLIF((CASE WHEN bedroom_0 IS NOT NULL THEN 1 ELSE 0 END +
+                    CASE WHEN bedroom_1 IS NOT NULL THEN 1 ELSE 0 END +
+                    CASE WHEN bedroom_2 IS NOT NULL THEN 1 ELSE 0 END +
+                    CASE WHEN bedroom_3 IS NOT NULL THEN 1 ELSE 0 END +
+                    CASE WHEN bedroom_4 IS NOT NULL THEN 1 ELSE 0 END), 0) as avg_fmr
+          FROM fmr_data
+          WHERE year = ${year}
+            AND (
+              (${stateCode}::text IS NOT NULL AND state_code = ${stateCode})
+              OR
+              (${stateCode}::text IS NULL AND state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS'))
+            )
+            AND (bedroom_0 IS NOT NULL OR bedroom_1 IS NOT NULL OR bedroom_2 IS NOT NULL OR 
+                 bedroom_3 IS NOT NULL OR bedroom_4 IS NOT NULL)
+          ORDER BY avg_fmr DESC
+          LIMIT 50
+        `;
 
-  const bottomCounties = await sql`
-    SELECT 
-      area_name,
-      state_code,
-      bedroom_0, bedroom_1, bedroom_2, bedroom_3, bedroom_4,
-      (COALESCE(bedroom_0, 0) + COALESCE(bedroom_1, 0) + COALESCE(bedroom_2, 0) + 
-       COALESCE(bedroom_3, 0) + COALESCE(bedroom_4, 0)) / 
-      NULLIF((CASE WHEN bedroom_0 IS NOT NULL THEN 1 ELSE 0 END +
-              CASE WHEN bedroom_1 IS NOT NULL THEN 1 ELSE 0 END +
-              CASE WHEN bedroom_2 IS NOT NULL THEN 1 ELSE 0 END +
-              CASE WHEN bedroom_3 IS NOT NULL THEN 1 ELSE 0 END +
-              CASE WHEN bedroom_4 IS NOT NULL THEN 1 ELSE 0 END), 0) as avg_fmr
-    FROM fmr_data
-    WHERE year = ${year}
-      AND state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS')
-      AND (bedroom_0 IS NOT NULL OR bedroom_1 IS NOT NULL OR bedroom_2 IS NOT NULL OR 
-           bedroom_3 IS NOT NULL OR bedroom_4 IS NOT NULL)
-    ORDER BY avg_fmr ASC
-    LIMIT 50
-  `;
+  const bottomCounties =
+    br !== null
+      ? await sql`
+          SELECT 
+            area_name,
+            state_code,
+            bedroom_0, bedroom_1, bedroom_2, bedroom_3, bedroom_4,
+            (COALESCE(bedroom_0, 0) + COALESCE(bedroom_1, 0) + COALESCE(bedroom_2, 0) + 
+             COALESCE(bedroom_3, 0) + COALESCE(bedroom_4, 0)) / 
+            NULLIF((CASE WHEN bedroom_0 IS NOT NULL THEN 1 ELSE 0 END +
+                    CASE WHEN bedroom_1 IS NOT NULL THEN 1 ELSE 0 END +
+                    CASE WHEN bedroom_2 IS NOT NULL THEN 1 ELSE 0 END +
+                    CASE WHEN bedroom_3 IS NOT NULL THEN 1 ELSE 0 END +
+                    CASE WHEN bedroom_4 IS NOT NULL THEN 1 ELSE 0 END), 0) as avg_fmr,
+            (CASE ${br}
+              WHEN 0 THEN bedroom_0
+              WHEN 1 THEN bedroom_1
+              WHEN 2 THEN bedroom_2
+              WHEN 3 THEN bedroom_3
+              WHEN 4 THEN bedroom_4
+            END) as primary_fmr
+          FROM fmr_data
+          WHERE year = ${year}
+            AND (
+              (${stateCode}::text IS NOT NULL AND state_code = ${stateCode})
+              OR
+              (${stateCode}::text IS NULL AND state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS'))
+            )
+            AND (bedroom_0 IS NOT NULL OR bedroom_1 IS NOT NULL OR bedroom_2 IS NOT NULL OR 
+                 bedroom_3 IS NOT NULL OR bedroom_4 IS NOT NULL)
+            AND (CASE ${br}
+              WHEN 0 THEN bedroom_0
+              WHEN 1 THEN bedroom_1
+              WHEN 2 THEN bedroom_2
+              WHEN 3 THEN bedroom_3
+              WHEN 4 THEN bedroom_4
+            END) IS NOT NULL
+          ORDER BY primary_fmr ASC
+          LIMIT 50
+        `
+      : await sql`
+          SELECT 
+            area_name,
+            state_code,
+            bedroom_0, bedroom_1, bedroom_2, bedroom_3, bedroom_4,
+            (COALESCE(bedroom_0, 0) + COALESCE(bedroom_1, 0) + COALESCE(bedroom_2, 0) + 
+             COALESCE(bedroom_3, 0) + COALESCE(bedroom_4, 0)) / 
+            NULLIF((CASE WHEN bedroom_0 IS NOT NULL THEN 1 ELSE 0 END +
+                    CASE WHEN bedroom_1 IS NOT NULL THEN 1 ELSE 0 END +
+                    CASE WHEN bedroom_2 IS NOT NULL THEN 1 ELSE 0 END +
+                    CASE WHEN bedroom_3 IS NOT NULL THEN 1 ELSE 0 END +
+                    CASE WHEN bedroom_4 IS NOT NULL THEN 1 ELSE 0 END), 0) as avg_fmr
+          FROM fmr_data
+          WHERE year = ${year}
+            AND (
+              (${stateCode}::text IS NOT NULL AND state_code = ${stateCode})
+              OR
+              (${stateCode}::text IS NULL AND state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS'))
+            )
+            AND (bedroom_0 IS NOT NULL OR bedroom_1 IS NOT NULL OR bedroom_2 IS NOT NULL OR 
+                 bedroom_3 IS NOT NULL OR bedroom_4 IS NOT NULL)
+          ORDER BY avg_fmr ASC
+          LIMIT 50
+        `;
 
   const countyAnomalies = await sql`
     SELECT 
@@ -1183,9 +1395,23 @@ export async function computeDashboardInsights(opts: {
         THEN bedroom_4 - bedroom_3 ELSE NULL END as jump_3_to_4
     FROM fmr_data
     WHERE year = ${year}
-      AND state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS')
+      AND (
+        (${stateCode}::text IS NOT NULL AND state_code = ${stateCode})
+        OR
+        (${stateCode}::text IS NULL AND state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS'))
+      )
       AND (bedroom_0 IS NOT NULL OR bedroom_1 IS NOT NULL OR bedroom_2 IS NOT NULL OR 
            bedroom_3 IS NOT NULL OR bedroom_4 IS NOT NULL)
+      AND (
+        ${br}::int IS NULL
+        OR (CASE ${br}
+          WHEN 0 THEN bedroom_0
+          WHEN 1 THEN bedroom_1
+          WHEN 2 THEN bedroom_2
+          WHEN 3 THEN bedroom_3
+          WHEN 4 THEN bedroom_4
+        END) IS NOT NULL
+      )
   `;
 
   const processedCountyAnomalies = (countyAnomalies.rows as any[])
@@ -1236,22 +1462,48 @@ export async function computeDashboardInsights(opts: {
       AND curr.state_code = prev.state_code 
       AND prev.year = ${prevYear}
     WHERE curr.year = ${year}
-      AND curr.state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS')
+      AND (
+        (${stateCode}::text IS NOT NULL AND curr.state_code = ${stateCode})
+        OR
+        (${stateCode}::text IS NULL AND curr.state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS'))
+      )
       AND (curr.bedroom_0 IS NOT NULL OR curr.bedroom_1 IS NOT NULL OR curr.bedroom_2 IS NOT NULL OR 
            curr.bedroom_3 IS NOT NULL OR curr.bedroom_4 IS NOT NULL)
       AND (prev.bedroom_0 IS NOT NULL OR prev.bedroom_1 IS NOT NULL OR prev.bedroom_2 IS NOT NULL OR 
            prev.bedroom_3 IS NOT NULL OR prev.bedroom_4 IS NOT NULL)
+      AND (
+        ${br}::int IS NULL
+        OR (CASE ${br}
+          WHEN 0 THEN curr.bedroom_0
+          WHEN 1 THEN curr.bedroom_1
+          WHEN 2 THEN curr.bedroom_2
+          WHEN 3 THEN curr.bedroom_3
+          WHEN 4 THEN curr.bedroom_4
+        END) IS NOT NULL
+      )
+      AND (
+        ${br}::int IS NULL
+        OR (CASE ${br}
+          WHEN 0 THEN prev.bedroom_0
+          WHEN 1 THEN prev.bedroom_1
+          WHEN 2 THEN prev.bedroom_2
+          WHEN 3 THEN prev.bedroom_3
+          WHEN 4 THEN prev.bedroom_4
+        END) IS NOT NULL
+      )
   `;
 
   const countyYoYChanges = (countyYoY.rows as any[])
     .map((row) => {
-      const changes = [
+      const baseChanges = [
         { br: 0, curr: parseFloat(row.curr_0), prev: parseFloat(row.prev_0), pct: null as number | null },
         { br: 1, curr: parseFloat(row.curr_1), prev: parseFloat(row.prev_1), pct: null as number | null },
         { br: 2, curr: parseFloat(row.curr_2), prev: parseFloat(row.prev_2), pct: null as number | null },
         { br: 3, curr: parseFloat(row.curr_3), prev: parseFloat(row.prev_3), pct: null as number | null },
         { br: 4, curr: parseFloat(row.curr_4), prev: parseFloat(row.prev_4), pct: null as number | null },
-      ]
+      ];
+
+      const changes = (br !== null ? baseChanges.filter((c) => c.br === br) : baseChanges)
         .filter((c) => !isNaN(c.curr) && !isNaN(c.prev) && isFinite(c.curr) && isFinite(c.prev) && c.curr > 0 && c.prev > 0)
         .map((c) => ({ ...c, pct: ((c.curr - c.prev) / c.prev) * 100 }));
 
@@ -1278,7 +1530,7 @@ export async function computeDashboardInsights(opts: {
 
   const risingCounties = [...countyYoYChanges]
     .sort((a, b) => b.maxYoY - a.maxYoY)
-    .slice(0, 15)
+    .slice(0, 50)
     .map((c) => ({
       areaName: c.areaName,
       stateCode: c.stateCode,
@@ -1293,7 +1545,7 @@ export async function computeDashboardInsights(opts: {
 
   const fallingCounties = [...countyYoYChanges]
     .sort((a, b) => a.minYoY - b.minYoY)
-    .slice(0, 15)
+    .slice(0, 50)
     .map((c) => ({
       areaName: c.areaName,
       stateCode: c.stateCode,

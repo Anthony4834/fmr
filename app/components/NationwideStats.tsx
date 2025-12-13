@@ -85,9 +85,31 @@ export default function NationwideStats() {
     return input === 'city' || input === 'county' || input === 'zip' ? input : 'zip';
   };
 
+  const STATE_OPTIONS = [
+    'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA',
+    'HI','ID','IL','IN','IA','KS','KY','LA','ME','MD',
+    'MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ',
+    'NM','NY','NC','ND','OH','OK','OR','PA','RI','SC',
+    'SD','TN','TX','UT','VT','VA','WA','WV','WI','WY','DC',
+  ];
+
+  const normalizeStateCode = (input: string | null): string => {
+    const v = (input || '').toUpperCase().trim();
+    if (!v) return '';
+    return STATE_OPTIONS.includes(v) ? v : '';
+  };
+
+  const normalizeBedroom = (input: string | null): number | null => {
+    if (!input) return null;
+    const n = parseInt(input, 10);
+    return Number.isFinite(n) && n >= 0 && n <= 4 ? n : null;
+  };
+
   // Persist selected tab in URL (?dash=zip|city|county) so refresh/back/forward doesn't reset.
   const [activeType, setActiveType] = useState<DashboardType>(() => normalizeDashboardType(searchParams.get('dash')));
   const year = searchParams.get('year') ? parseInt(searchParams.get('year')!, 10) : 2026;
+  const [stateFilter, setStateFilter] = useState<string>(() => normalizeStateCode(searchParams.get('state')));
+  const [bedroomFilter, setBedroomFilter] = useState<number | null>(() => normalizeBedroom(searchParams.get('bedroom')));
   const [data, setData] = useState<Insights | null>(null);
   const [status, setStatus] = useState<FetchStatus>('idle');
   const [error, setError] = useState<string | null>(null);
@@ -99,11 +121,7 @@ export default function NationwideStats() {
   const abortRef = useRef<AbortController | null>(null);
   const requestSeqRef = useRef(0);
   const forceRefreshTypeRef = useRef<DashboardType | null>(null);
-  const cacheRef = useRef<Record<DashboardType, Insights | null>>({
-    zip: null,
-    city: null,
-    county: null,
-  });
+  const cacheRef = useRef<Record<string, Insights | null>>({});
 
   const popularAbortRef = useRef<AbortController | null>(null);
   const popularSeqRef = useRef(0);
@@ -117,6 +135,10 @@ export default function NationwideStats() {
   useEffect(() => {
     const next = normalizeDashboardType(searchParams.get('dash'));
     if (next !== activeType) setActiveType(next);
+    const nextState = normalizeStateCode(searchParams.get('state'));
+    if (nextState !== stateFilter) setStateFilter(nextState);
+    const nextBedroom = normalizeBedroom(searchParams.get('bedroom'));
+    if (nextBedroom !== bedroomFilter) setBedroomFilter(nextBedroom);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
@@ -130,9 +152,34 @@ export default function NationwideStats() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeType, pathname, router]);
 
+  // Update URL when user changes filters (use replace to avoid spamming history).
   useEffect(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    const currentState = normalizeStateCode(params.get('state'));
+    const currentBedroom = normalizeBedroom(params.get('bedroom'));
+
+    let changed = false;
+    if (currentState !== stateFilter) {
+      if (stateFilter) params.set('state', stateFilter);
+      else params.delete('state');
+      changed = true;
+    }
+    if (currentBedroom !== bedroomFilter) {
+      if (bedroomFilter !== null) params.set('bedroom', String(bedroomFilter));
+      else params.delete('bedroom');
+      changed = true;
+    }
+
+    if (changed) {
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stateFilter, bedroomFilter, pathname, router]);
+
+  useEffect(() => {
+    const cacheKey = `${activeType}:${year}:${stateFilter || 'all'}:${bedroomFilter !== null ? bedroomFilter : 'all'}`;
     // Immediate UI: show cached data for this tab if we have it; otherwise show skeleton.
-    const cached = cacheRef.current[activeType];
+    const cached = cacheRef.current[cacheKey];
     setData(cached);
     setError(null);
 
@@ -155,7 +202,13 @@ export default function NationwideStats() {
 
     (async () => {
       try {
-        const response = await fetch(`/api/stats/insights?type=${activeType}&year=${year}`, {
+        const sp = new URLSearchParams();
+        sp.set('type', activeType);
+        sp.set('year', String(year));
+        if (stateFilter) sp.set('state', stateFilter);
+        if (bedroomFilter !== null) sp.set('bedroom', String(bedroomFilter));
+
+        const response = await fetch(`/api/stats/insights?${sp.toString()}`, {
           signal: abortController.signal,
         });
         const json = await response.json();
@@ -166,7 +219,7 @@ export default function NationwideStats() {
           throw new Error(json?.error || 'Failed to load dashboard data');
         }
 
-        cacheRef.current[activeType] = json;
+        cacheRef.current[cacheKey] = json;
         setData(json);
         setStatus('success');
         if (forceRefreshTypeRef.current === activeType) {
@@ -189,7 +242,7 @@ export default function NationwideStats() {
         abortController.abort();
       }
     };
-  }, [activeType, year, refreshNonce]);
+  }, [activeType, year, stateFilter, bedroomFilter, refreshNonce]);
 
   useEffect(() => {
     // Show cached popular searches immediately if present.
@@ -409,6 +462,39 @@ export default function NationwideStats() {
     <div className="h-full flex flex-col lg:overflow-hidden">
       {/* Type Tabs - Always visible */}
       {tabsContent}
+
+      {/* Filters */}
+      <div className="mb-2 sm:mb-3 flex flex-wrap items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-2">
+          <div className="text-xs font-semibold text-[#525252]">State</div>
+          <select
+            value={stateFilter}
+            onChange={(e) => setStateFilter(e.target.value)}
+            className="h-8 px-2.5 rounded-md border border-[#e5e5e5] bg-white text-xs text-[#0a0a0a]"
+          >
+            <option value="">All</option>
+            {STATE_OPTIONS.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <div className="text-xs font-semibold text-[#525252]">BR</div>
+          <select
+            value={bedroomFilter === null ? '' : String(bedroomFilter)}
+            onChange={(e) => setBedroomFilter(e.target.value === '' ? null : parseInt(e.target.value, 10))}
+            className="h-8 px-2.5 rounded-md border border-[#e5e5e5] bg-white text-xs text-[#0a0a0a]"
+          >
+            <option value="">All</option>
+            <option value="0">0</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+          </select>
+        </div>
+      </div>
 
       {/* Non-blocking error banner (keep cards visible if we have data) */}
       {error && !showHardError && (
