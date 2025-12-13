@@ -43,7 +43,7 @@ function computeZipRankings(data: FMRResult | null): { rankings: ZipRanking[]; m
 
 export default function HomeClient(props: {
   initialQuery?: string | null;
-  initialType?: 'zip' | 'city' | 'county' | 'address' | null;
+  initialType?: 'zip' | 'city' | 'county' | 'address' | 'state' | null;
   initialData?: FMRResult | null;
   initialError?: string | null;
 }) {
@@ -299,10 +299,18 @@ export default function HomeClient(props: {
 
   const isSearching = searchStatus === 'loading';
 
-  const handleSearch = (value: string, type: 'zip' | 'city' | 'county' | 'address') => {
+  const handleSearch = (value: string, type: 'zip' | 'city' | 'county' | 'address' | 'state') => {
     setSearchStatus('loading');
     setError(null);
     setDrilldownZip(null);
+
+    if (type === 'state') {
+      const state = (value || '').trim().toUpperCase();
+      if (state && state.length === 2) {
+        router.push(`/state/${state}`, { scroll: false });
+        return;
+      }
+    }
 
     // Clean canonical URLs (slugs) for SERP + sharing.
     if (type === 'zip') {

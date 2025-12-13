@@ -174,46 +174,55 @@ export default function FMRResults({
   const BreadcrumbRow = () => {
     const isDrilldown = !!onBreadcrumbBack;
     const state = dataNonNull.stateCode;
-    const county = dataNonNull.countyName;
-    const city = dataNonNull.cityName;
-    const zip =
-      (dataNonNull.queriedType === 'zip' && zipCodesToShow.length > 0 ? zipCodesToShow[0] : null) ||
-      (dataNonNull.zipCode ? dataNonNull.zipCode : null);
+    const county = dataNonNull.countyName || null;
+    const city = dataNonNull.cityName || null;
+    const zip = (dataNonNull.zipCode ? String(dataNonNull.zipCode) : null) || (zipCodesToShow.length > 0 ? String(zipCodesToShow[0]) : null);
 
     const crumbs: { label: string; href?: string; onClick?: () => void }[] = [];
 
-    // Prepend Home only on county-level pages (as requested)
-    if (dataNonNull.queriedType === 'county') {
-      crumbs.push({ 
-        label: 'Home', 
-        onClick: () => router.replace('/')
-      });
+    // Always show: Home -> State -> {Leaf}, max 3 crumbs.
+    crumbs.push({ label: 'Home', href: '/' });
+    if (state) crumbs.push({ label: state, href: `/state/${state}` });
+
+    const leafType = dataNonNull.queriedType || 'address';
+    if (leafType === 'county') {
+      const countyLabel =
+        county
+          ? (county.includes('County') ? county : `${county} County`)
+          : (dataNonNull.queriedLocation || dataNonNull.areaName || 'County');
+      if (county && state) {
+        crumbs.push({ label: countyLabel, href: `/county/${buildCountySlug(county, state)}` });
+      } else {
+        crumbs.push({ label: countyLabel });
+      }
+    } else if (leafType === 'city') {
+      const cityLabel = city ? `${city}, ${state}` : (dataNonNull.queriedLocation || dataNonNull.areaName || 'City');
+      if (city && state) {
+        crumbs.push({ label: cityLabel, href: `/city/${buildCitySlug(city, state)}` });
+      } else {
+        crumbs.push({ label: cityLabel });
+      }
+    } else if (leafType === 'zip') {
+      const z = zip && /^\d{5}$/.test(zip) ? zip : (dataNonNull.queriedLocation || '');
+      if (z && /^\d{5}$/.test(z)) crumbs.push({ label: z, href: `/zip/${z}` });
+      else crumbs.push({ label: 'ZIP' });
+    } else {
+      // Address: keep it simple, still capped at 3.
+      const label = dataNonNull.queriedLocation ? dataNonNull.queriedLocation : 'Address';
+      crumbs.push({ label });
     }
 
-    if (county && state) {
-      crumbs.push({ label: county.includes('County') ? county : `${county} County`, href: `/county/${buildCountySlug(county, state)}` });
-    }
-    if (city && state) {
-      crumbs.push({ label: `${city}, ${state}`, href: `/city/${buildCitySlug(city, state)}` });
-    }
+    // Enforce max 3 crumbs: Home -> State -> Leaf
+    const trimmedCrumbs = crumbs.slice(0, 3);
 
-    // Only show ZIP crumb when the user is actually viewing a ZIP/address result.
-    // City/county views may carry a representative ZIP internally; don't show it.
-    const showZipCrumb = dataNonNull.queriedType === 'zip' || dataNonNull.queriedType === 'address';
-    if (showZipCrumb && zip && /^\d{5}$/.test(String(zip))) {
-      crumbs.push({ label: String(zip), href: `/zip/${zip}` });
-    }
-
-    if (crumbs.length === 0) return null;
-
-    const backHref = !isDrilldown && crumbs.length >= 2 ? crumbs[crumbs.length - 2]?.href : undefined;
-    const lastIndex = crumbs.length - 1;
+    const backHref = !isDrilldown && trimmedCrumbs.length >= 2 ? trimmedCrumbs[trimmedCrumbs.length - 2]?.href : undefined;
+    const lastIndex = trimmedCrumbs.length - 1;
 
     return (
       <div className="mb-3 sm:mb-4 flex items-center justify-between gap-2 sm:gap-3 flex-wrap">
         <div className="flex items-center gap-1.5 sm:gap-2 text-xs font-semibold text-[#525252] min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1 min-w-0">
-            {crumbs.map((c, idx) => {
+            {trimmedCrumbs.map((c, idx) => {
               const isLast = idx === lastIndex;
               return (
                 <span key={`${c.label}-${idx}`} className="flex items-center gap-1 min-w-0">
