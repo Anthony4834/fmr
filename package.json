@@ -23,6 +23,7 @@
     "reindex:county-jumps": "bun scripts/reindex-county-jumps.ts --types county",
     "ingest:zhvi": "bun scripts/ingest-zhvi.ts",
     "reindex:zhvi-rollups": "bun scripts/reindex-zhvi-rollups.ts",
+    "index:zip-latest": "bun scripts/index-zip-latest.ts",
     "create-test-views": "bun scripts/create-test-views.ts",
     "populate:safmr-zips": "bun scripts/populate-required-safmr-zips.ts",
     "count:safmr-zips": "bun scripts/count-zips-in-required-areas.ts",
