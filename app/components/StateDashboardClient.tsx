@@ -1,12 +1,15 @@
 'use client';
 
-import { useMemo, useState, useEffect, useRef } from 'react';
+import { useMemo, useState, useEffect, useRef, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import type { StateCode } from '@/lib/states';
 import { STATES } from '@/lib/states';
 import { buildCitySlug, buildCountySlug } from '@/lib/location-slugs';
 import SearchInput from './SearchInput';
+import StateBedroomCurveChart from './StateBedroomCurveChart';
+import PercentageBadge from './PercentageBadge';
+import Tooltip from './Tooltip';
 
 // Dynamically import ChoroplethMap to avoid SSR issues with Leaflet
 const ChoroplethMap = dynamic(() => import('./ChoroplethMap'), {
@@ -28,8 +31,8 @@ function formatCurrency(value: number) {
 }
 
 function formatPct(value: number) {
-  const sign = value > 0 ? '+' : '';
-  return `${sign}${value.toFixed(1)}%`;
+  const icon = value > 0 ? '▲' : value < 0 ? '▼' : '';
+  return `${icon} ${Math.abs(value).toFixed(1)}%`;
 }
 
 type CountyRanking = {
@@ -78,6 +81,33 @@ type MoversData = {
   }>;
 };
 
+type StateMetrics = {
+  year: number;
+  prevYear: number;
+  prev3Year: number;
+  byBedroom: Array<{
+    br: number;
+    medianFMR: number | null;
+    medianYoY: number | null;
+    medianCAGR3: number | null;
+    pctPositiveYoY: number | null;
+  }>;
+  rentCurve: {
+    inc1to2: number | null;
+    inc2to3: number | null;
+    inc3to4: number | null;
+    compression4Over1: number | null;
+  };
+  dispersion2BR: {
+    p25YoY: number | null;
+    p75YoY: number | null;
+    spread: number | null;
+    n: number | null;
+    nGe5: number | null;
+    nGe10: number | null;
+  };
+};
+
 export default function StateDashboardClient(props: { stateCode: StateCode }) {
   const router = useRouter();
   const [displayYear, setDisplayYear] = useState<number | null>(null);
@@ -88,13 +118,17 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
   const [hoverSource, setHoverSource] = useState<'map' | 'list' | null>(null);
   const [moversData, setMoversData] = useState<MoversData | null>(null);
   const [moversLoading, setMoversLoading] = useState(true);
+  const [stateMetrics, setStateMetrics] = useState<StateMetrics | null>(null);
+  const [stateMetricsLoading, setStateMetricsLoading] = useState(true);
   const countyAbortRef = useRef<AbortController | null>(null);
   const moversAbortRef = useRef<AbortController | null>(null);
+  const metricsAbortRef = useRef<AbortController | null>(null);
   const countyRowRefs = useRef<Map<string, HTMLAnchorElement>>(new Map());
   const lastScrolledFipsRef = useRef<string | null>(null);
   const countyListScrollRef = useRef<HTMLDivElement | null>(null);
 
   const stateName = STATES.find((s) => s.code === props.stateCode)?.name || props.stateCode;
+  const effectiveText = displayYear ? `FY ${displayYear} | Effective Oct 1, ${displayYear}` : 'Loading…';
 
   // Fetch county rankings
   useEffect(() => {
@@ -124,6 +158,36 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
       if (countyAbortRef.current === abortController) abortController.abort();
     };
   }, [props.stateCode]);
+
+  // Fetch statewide ZIP-based metrics (growth, curve, dispersion)
+  useEffect(() => {
+    if (metricsAbortRef.current) metricsAbortRef.current.abort();
+    const abortController = new AbortController();
+    metricsAbortRef.current = abortController;
+
+    setStateMetricsLoading(true);
+    fetch(`/api/stats/state-metrics?state=${props.stateCode}`, { signal: abortController.signal })
+      .then((res) => res.json())
+      .then((data) => {
+        if (abortController.signal.aborted) return;
+        if (typeof data?.year === 'number') {
+          setStateMetrics(data as StateMetrics);
+          if (displayYear === null) setDisplayYear(data.year);
+        } else {
+          setStateMetrics(null);
+        }
+        setStateMetricsLoading(false);
+      })
+      .catch((e) => {
+        if (e.name === 'AbortError') return;
+        console.error('Failed to fetch state metrics:', e);
+        setStateMetricsLoading(false);
+      });
+
+    return () => {
+      if (metricsAbortRef.current === abortController) abortController.abort();
+    };
+  }, [props.stateCode, displayYear]);
 
   // Map-hover should scroll the list to the hovered county
   useEffect(() => {
@@ -258,54 +322,150 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
               <SearchInput onSelect={handleSearch} />
             </div>
 
-            {/* Breadcrumbs */}
-            <div className="mb-3 sm:mb-4 flex items-center justify-between gap-2 sm:gap-3 flex-wrap">
-              <div className="flex items-center gap-1.5 sm:gap-2 text-xs font-semibold text-[#525252] min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-1 min-w-0">
-                  <span className="flex items-center gap-1 min-w-0">
-                    <button
-                      type="button"
-                      onClick={handleReset}
-                      className="hover:text-[#0a0a0a] transition-colors truncate"
-                    >
-                      Home
-                    </button>
-                  </span>
-                  <span className="text-[#a3a3a3] shrink-0">/</span>
-                  <span className="text-[#0a0a0a] font-semibold truncate">{stateName}</span>
-                </div>
-              </div>
-              <a
-                href="/"
-                className="text-xs font-semibold px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg border border-[#e5e5e5] bg-white hover:bg-[#fafafa] transition-colors shrink-0"
-              >
-                Back
-              </a>
+            {/* Breadcrumbs (Home / State) */}
+            <div className="mb-3 flex items-center gap-1.5 text-xs text-[#737373]">
+              <a href="/" className="hover:text-[#0a0a0a] transition-colors">Home</a>
+              <span className="text-[#a3a3a3]">/</span>
+              <span className="text-[#0a0a0a] font-medium">{props.stateCode}</span>
             </div>
 
-            {/* Compact Header */}
-            <div className="mb-4 sm:mb-5">
-              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-3 mb-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 min-w-0">
-                    <h2 className="text-base sm:text-xl font-semibold text-[#0a0a0a] tracking-tight leading-tight min-w-0 truncate sm:overflow-visible sm:whitespace-normal sm:text-clip">
-                      {stateName}
-                    </h2>
-                  </div>
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 flex-wrap">
-                    <span className="text-xs sm:text-sm text-[#737373]">{props.stateCode}</span>
+            {/* Compact one-line header bar */}
+            <div className="mb-4 sm:mb-5 flex items-center justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 min-w-0">
+                  <button
+                    type="button"
+                    onClick={handleReset}
+                    aria-label="Back"
+                    title="Back"
+                    className="h-8 w-8 inline-flex items-center justify-center rounded-lg border border-[#e5e5e5] bg-white hover:bg-[#fafafa] transition-colors shrink-0"
+                  >
+                    ←
+                  </button>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="text-sm sm:text-base font-semibold text-[#0a0a0a] truncate">
+                        {stateName} ({props.stateCode})
+                      </div>
+                      <span className="px-1.5 sm:px-2 py-0.5 rounded text-xs font-medium shrink-0 bg-[#eef2ff] text-[#4f46e5]">
+                        STATE
+                      </span>
+                      <span className={`px-1.5 sm:px-2 py-0.5 rounded text-xs font-semibold shrink-0 ${
+                        'safmr' === 'safmr' 
+                          ? 'bg-[#f0fdf4] text-[#16a34a]' 
+                          : 'bg-[#eff6ff] text-[#2563eb]'
+                      }`}>
+                        SAFMR
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <div className="text-xs text-[#737373] truncate">State dashboard • ZIP-level medians (SAFMR where required)</div>
+                      <span className="text-xs text-[#a3a3a3] shrink-0">•</span>
+                      <span className="text-xs text-[#a3a3a3] shrink-0">{effectiveText}</span>
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap shrink-0">
-                  <span className="px-1.5 sm:px-2 py-0.5 rounded text-xs font-medium shrink-0 bg-[#eef2ff] text-[#4f46e5]">
-                    STATE
-                  </span>
+              </div>
+            </div>
+
+            {/* Statewide ZIP-based metrics */}
+            <div className="mb-4 sm:mb-6">
+              {stateMetricsLoading ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                  {[...Array(4)].map((_, i) => (
+                    <div key={i} className="rounded-lg border border-[#e5e5e5] p-4 sm:p-5">
+                      <div className="h-3 bg-[#e5e5e5] rounded w-24 animate-pulse" />
+                      <div className="mt-2 h-6 bg-[#e5e5e5] rounded w-28 animate-pulse" />
+                      <div className="mt-2 h-3 bg-[#e5e5e5] rounded w-32 animate-pulse" />
+                    </div>
+                  ))}
                 </div>
-              </div>
-              
-              <div className="text-xs text-[#a3a3a3]">
-                {displayYear ? `FY ${displayYear} • Effective October 1, ${displayYear}` : 'Loading...'}
-              </div>
+              ) : !stateMetrics ? (
+                <div className="text-xs text-[#737373] py-2">No statewide metrics available.</div>
+              ) : (
+                <>
+                  <div className="border border-[#e5e5e5] rounded-lg bg-white overflow-visible">
+                    <div className="overflow-x-auto overflow-y-visible">
+                      <table className="w-full text-xs sm:text-sm">
+                        <thead className="bg-[#fafafa] border-b border-[#e5e5e5]">
+                          <tr className="text-left">
+                            <th className="px-3 sm:px-4 py-2 text-xs font-semibold text-[#525252]">BR</th>
+                            <th className="px-3 sm:px-4 py-2 text-xs font-semibold text-[#525252]">Median rent</th>
+                            <th className="px-3 sm:px-4 py-2 text-xs font-semibold text-[#525252]">YoY</th>
+                            <th className="px-3 sm:px-4 py-2 text-xs font-semibold text-[#525252] overflow-visible">
+                              <div className="flex items-center gap-1">
+                                3Y CAGR
+                                <Tooltip
+                                  content={
+                                    <span>
+                                      Compound Annual Growth Rate over 3 years ({stateMetrics.prev3Year}→{stateMetrics.year})
+                                    </span>
+                                  }
+                                  side="bottom"
+                                  align="end"
+                                >
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    viewBox="0 0 20 20"
+                                    fill="currentColor"
+                                    className="w-3.5 h-3.5 text-[#737373] cursor-help"
+                                  >
+                                    <path
+                                      fillRule="evenodd"
+                                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                                      clipRule="evenodd"
+                                    />
+                                  </svg>
+                                </Tooltip>
+                              </div>
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#e5e5e5]">
+                          {stateMetrics.byBedroom.map((b) => {
+                            const yoy = b.medianYoY;
+                            const yoyIcon = yoy === null ? '' : yoy >= 0 ? '▲' : '▼';
+                            const yoyClass = yoy === null ? 'text-[#0a0a0a]' : yoy >= 0 ? 'text-[#16a34a]' : 'text-[#dc2626]';
+                            return (
+                              <tr key={b.br}>
+                                <td className="px-3 sm:px-4 py-2 font-medium text-[#0a0a0a]">{b.br}</td>
+                                <td className="px-3 sm:px-4 py-2 tabular-nums text-[#0a0a0a]">
+                                  {b.medianFMR !== null ? formatCurrency(b.medianFMR) : '—'}
+                                </td>
+                                <td className="px-3 sm:px-4 py-2 tabular-nums">
+                                  {yoy !== null ? (
+                                    <span className={`${yoyClass} font-semibold`}>
+                                      {yoyIcon} {Math.abs(yoy).toFixed(1)}%
+                                    </span>
+                                  ) : (
+                                    '—'
+                                  )}
+                                </td>
+                                <td className="px-3 sm:px-4 py-2 tabular-nums text-[#0a0a0a]">
+                                  {b.medianCAGR3 !== null ? `${b.medianCAGR3.toFixed(1)}%` : '—'}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Bedroom curve chart below table */}
+                  <div className="mt-3 sm:mt-4">
+                    <div className="flex items-center justify-between gap-3 mb-2">
+                      <h3 className="text-sm font-semibold text-[#0a0a0a]">Bedroom curve</h3>
+                      <div className="text-xs text-[#a3a3a3] shrink-0">
+                        YoY: {stateMetrics.prevYear}→{stateMetrics.year} • 3Y: {stateMetrics.prev3Year}→{stateMetrics.year}
+                      </div>
+                    </div>
+                    <div className="rounded-lg border border-[#e5e5e5] bg-white p-3 sm:p-4">
+                      <StateBedroomCurveChart rows={stateMetrics.byBedroom.map((b) => ({ br: b.br, medianFMR: b.medianFMR, medianYoY: b.medianYoY }))} />
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* County Rankings */}
@@ -370,18 +530,7 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
                               <span className="font-semibold text-[#0a0a0a] text-xs sm:text-sm tabular-nums">
                                 {formatCurrency(county.avgFMR)}
                               </span>
-                              <span
-                                className={`text-xs sm:text-sm font-medium tabular-nums shrink-0 ${
-                                  isPositive
-                                    ? 'text-[#16a34a]'
-                                    : isNegative
-                                      ? 'text-[#dc2626]'
-                                      : 'text-[#525252]'
-                                }`}
-                              >
-                                {isPositive ? '+' : ''}
-                                {county.percentDiff.toFixed(1)}%
-                              </span>
+                                    <PercentageBadge value={county.percentDiff} className="text-xs sm:text-sm shrink-0" />
                             </div>
                           </div>
                         </a>
@@ -395,7 +544,8 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
           </div>
 
           {/* Secondary cards */}
-          <div className="w-full lg:w-96 flex-shrink-0 flex flex-col gap-3 sm:gap-4">
+          <div className="w-full lg:w-96 flex-shrink-0 lg:sticky lg:top-8 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pr-1 custom-scrollbar">
+            <div className="flex flex-col gap-3 sm:gap-4">
             {/* Choropleth Map */}
             <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden">
               <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex items-center justify-between gap-2">
@@ -482,7 +632,7 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
                   const bedroomLabels = ['0 BR', '1 BR', '2 BR', '3 BR', '4 BR'];
                   let items: any[] = [];
                   let colorClass = '';
-                  let primaryText: (item: any) => string = () => '';
+                  let primaryText: (item: any) => ReactNode = () => '';
                   let secondaryText: (item: any) => string | null = () => null;
                   let tertiaryText: (item: any) => string | null = () => null;
                   let tertiaryValue: (item: any) => number | null = () => null;
@@ -490,19 +640,19 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
                   if (sideTab === 'rising') {
                     items = (moversData?.rising || []).slice(0, 15);
                     colorClass = 'text-[#16a34a]';
-                    primaryText = (item) => `+${item.yoyPercent.toFixed(1)}%`;
+                    primaryText = (item) => <PercentageBadge value={item.yoyPercent} />;
                     secondaryText = (item) => bedroomLabels[item.yoyBedroom] || `${item.yoyBedroom} BR`;
                     tertiaryValue = (item) => item.bedroom2 ?? null;
                   } else if (sideTab === 'falling') {
                     items = (moversData?.falling || []).slice(0, 15);
                     colorClass = 'text-[#dc2626]';
-                    primaryText = (item) => `${item.yoyPercent.toFixed(1)}%`;
+                    primaryText = (item) => <PercentageBadge value={item.yoyPercent} />;
                     secondaryText = (item) => bedroomLabels[item.yoyBedroom] || `${item.yoyBedroom} BR`;
                     tertiaryValue = (item) => item.bedroom2 ?? null;
                   } else {
                     items = (moversData?.anomalies || []).slice(0, 15);
                     colorClass = 'text-[#7c3aed]';
-                    primaryText = (item) => `+${item.jumpPercent.toFixed(1)}%`;
+                    primaryText = (item) => <PercentageBadge value={item.jumpPercent} />;
                     secondaryText = (item) => `${item.jumpFrom}→${item.jumpTo} BR`;
                     tertiaryText = (item) =>
                       typeof item.nationalAvg === 'number' ? `Nat avg ${item.nationalAvg.toFixed(1)}%` : null;
@@ -557,6 +707,7 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
                   });
                 })()}
               </div>
+            </div>
             </div>
           </div>
         </div>

@@ -45,7 +45,7 @@ export async function generateMetadata({ params, searchParams }: { params: { zip
   };
 }
 
-export default async function ZipSlugPage({ params, searchParams }: { params: { zip: string }; searchParams: { year?: string } }) {
+export default async function ZipSlugPage({ params, searchParams }: { params: { zip: string }; searchParams: { year?: string; state?: string } }) {
   const z = normalizeZip(params.zip);
   if (!z) notFound();
 
@@ -54,7 +54,7 @@ export default async function ZipSlugPage({ params, searchParams }: { params: { 
   if (!result) notFound();
   const history = await getFMRHistoryByZip(z);
   const initialData = serializeResult({ ...result, history, queriedLocation: z, queriedType: 'zip' as const });
-  return <HomeClient initialQuery={z} initialType="zip" initialData={initialData} initialError={null} />;
+  return <HomeClient initialQuery={z} initialType="zip" initialData={initialData} initialError={null} initialState={searchParams.state || undefined} />;
 }
 
 

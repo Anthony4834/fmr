@@ -150,6 +150,72 @@ export async function createSchema() {
     );
   `);
 
+  // Zillow Home Value Index (ZHVI) by ZIP + bedroom count (monthly time series; normalized/long form)
+  await execute(`
+    CREATE TABLE IF NOT EXISTS zhvi_zip_bedroom_monthly (
+      id SERIAL PRIMARY KEY,
+      zip_code VARCHAR(10) NOT NULL,
+      bedroom_count INTEGER NOT NULL CHECK (bedroom_count >= 1 AND bedroom_count <= 5),
+      month DATE NOT NULL,
+      zhvi NUMERIC(14, 2),
+      state_code VARCHAR(2),
+      city_name TEXT,
+      county_name TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(zip_code, bedroom_count, month)
+    );
+  `);
+
+  // Derived helper mapping for city rollups: (zip_code, city_name, state_code)
+  // Populated from `cities.zip_codes` via unnest().
+  await execute(`
+    CREATE TABLE IF NOT EXISTS zip_city_mapping (
+      id SERIAL PRIMARY KEY,
+      zip_code VARCHAR(10) NOT NULL,
+      city_name TEXT NOT NULL,
+      state_code VARCHAR(2) NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(zip_code, city_name, state_code)
+    );
+  `);
+
+  // Precomputed ZHVI rollups for city/county/state (monthly)
+  await execute(`
+    CREATE TABLE IF NOT EXISTS zhvi_rollup_monthly (
+      id SERIAL PRIMARY KEY,
+      geo_type VARCHAR(10) NOT NULL CHECK (geo_type IN ('city', 'county', 'state')),
+      geo_key TEXT NOT NULL,
+      state_code VARCHAR(2),
+      city_name TEXT,
+      county_name TEXT,
+      county_fips VARCHAR(5),
+      bedroom_count INTEGER NOT NULL CHECK (bedroom_count >= 1 AND bedroom_count <= 5),
+      month DATE NOT NULL,
+      zhvi_median NUMERIC(14, 2),
+      zhvi_p25 NUMERIC(14, 2),
+      zhvi_p75 NUMERIC(14, 2),
+      zip_count INTEGER NOT NULL DEFAULT 0,
+      computed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(geo_type, geo_key, bedroom_count, month)
+    );
+  `);
+
+  // ACS-derived ZIP/ZCTA effective property tax rate (latest available ACS 5-year vintage)
+  // Note: this is not truly "monthly"; the cron can attempt monthly and will no-op when already indexed.
+  await execute(`
+    CREATE TABLE IF NOT EXISTS acs_tax_zcta_latest (
+      id SERIAL PRIMARY KEY,
+      acs_vintage INTEGER NOT NULL,
+      zcta VARCHAR(5) NOT NULL,
+      median_home_value NUMERIC(14, 2),
+      median_real_estate_taxes_paid NUMERIC(14, 2),
+      effective_tax_rate NUMERIC(10, 6),
+      computed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(acs_vintage, zcta)
+    );
+  `);
+
   // Create indexes
   console.log('Creating indexes...');
 
@@ -186,6 +252,24 @@ export async function createSchema() {
   await execute('CREATE INDEX IF NOT EXISTS idx_required_safmr_zip_year ON required_safmr_zips(zip_code, year);');
 
   await execute('CREATE INDEX IF NOT EXISTS idx_dashboard_insights_year ON dashboard_insights_cache(year);');
+
+  // ZHVI indexes
+  await execute('CREATE INDEX IF NOT EXISTS idx_zhvi_zip_bedroom_month ON zhvi_zip_bedroom_monthly(zip_code, bedroom_count, month DESC);');
+  await execute('CREATE INDEX IF NOT EXISTS idx_zhvi_month_bedroom ON zhvi_zip_bedroom_monthly(month, bedroom_count);');
+  await execute('CREATE INDEX IF NOT EXISTS idx_zhvi_state_month ON zhvi_zip_bedroom_monthly(state_code, month DESC);');
+
+  await execute('CREATE INDEX IF NOT EXISTS idx_zip_city_zip ON zip_city_mapping(zip_code);');
+  await execute('CREATE INDEX IF NOT EXISTS idx_zip_city_state ON zip_city_mapping(state_code);');
+  await execute('CREATE INDEX IF NOT EXISTS idx_zip_city_city_state ON zip_city_mapping(city_name, state_code);');
+
+  await execute('CREATE INDEX IF NOT EXISTS idx_zhvi_rollup_geo_month ON zhvi_rollup_monthly(geo_type, geo_key, bedroom_count, month DESC);');
+  await execute('CREATE INDEX IF NOT EXISTS idx_zhvi_rollup_month ON zhvi_rollup_monthly(month, geo_type);');
+  await execute('CREATE INDEX IF NOT EXISTS idx_zhvi_rollup_state_month ON zhvi_rollup_monthly(state_code, month DESC);');
+
+  // ACS tax-rate indexes
+  await execute('CREATE INDEX IF NOT EXISTS idx_acs_tax_zcta ON acs_tax_zcta_latest(zcta);');
+  await execute('CREATE INDEX IF NOT EXISTS idx_acs_tax_vintage ON acs_tax_zcta_latest(acs_vintage);');
+  await execute('CREATE INDEX IF NOT EXISTS idx_acs_tax_rate ON acs_tax_zcta_latest(effective_tax_rate);');
 
   console.log('Schema created successfully!');
 }

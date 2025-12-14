@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import PercentageBadge from './PercentageBadge';
 import { buildCitySlug, buildCountySlug } from '@/lib/location-slugs';
 
 interface Insight {
@@ -954,7 +955,7 @@ export default function NationwideStats() {
                     const href = hrefForInsight(anomaly);
                     const stepLabel = `${bedroomLabels[anomaly.jumpFrom || 0]}→${bedroomLabels[anomaly.jumpTo || 0]}`;
                     const jump = anomaly.jumpPercent;
-                    const jumpText = jump === null || jump === undefined ? '—' : `+${jump.toFixed(1)}%`;
+                    const jumpText = jump === null || jump === undefined ? '—' : <PercentageBadge value={jump} />;
                     const natAvg = anomaly.nationalAvg;
                     const natAvgText = natAvg === null || natAvg === undefined ? '—' : `Avg: ${natAvg.toFixed(1)}%`;
                     const fmrText = fromValue && toValue ? `${formatCurrency(fromValue)}→${formatCurrency(toValue)}` : '—';
@@ -1040,8 +1041,8 @@ export default function NationwideStats() {
                           </div>
                         </div>
                         <div className="text-right shrink-0">
-                          <div className="font-semibold text-[#16a34a] text-xs sm:text-sm tabular-nums">
-                            +{item.yoyPercent.toFixed(1)}%
+                          <div className="text-xs sm:text-sm">
+                            <PercentageBadge value={item.yoyPercent} />
                           </div>
                           <div className="text-xs text-[#737373] mt-0.5">{bedroomLabel}</div>
                           {item.bedroom0 && item.bedroom4 && (

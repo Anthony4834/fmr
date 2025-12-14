@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import SearchInput from './SearchInput';
 import FMRResults from './FMRResults';
 import NationwideStats from './NationwideStats';
+import PercentageBadge from './PercentageBadge';
 import type { FMRResult, ZIPFMRData } from '@/lib/types';
 import ResultAbout from './ResultAbout';
 import { buildCitySlug, buildCountySlug } from '@/lib/location-slugs';
@@ -46,6 +47,7 @@ export default function HomeClient(props: {
   initialType?: 'zip' | 'city' | 'county' | 'address' | 'state' | null;
   initialData?: FMRResult | null;
   initialError?: string | null;
+  initialState?: string | null;
 }) {
   const router = useRouter();
   const mainCardRef = useRef<HTMLDivElement | null>(null);
@@ -148,11 +150,15 @@ export default function HomeClient(props: {
     }
 
     if (props.initialData) {
+      // If initialState is provided and initialData doesn't have stateCode, merge it in
+      const dataWithState = props.initialState && !props.initialData.stateCode
+        ? { ...props.initialData, stateCode: props.initialState }
+        : props.initialData;
       setSearchStatus('success');
       setError(null);
-      setRootFmrData(props.initialData);
-      setViewFmrData(props.initialData);
-      const computed = computeZipRankings(props.initialData);
+      setRootFmrData(dataWithState);
+      setViewFmrData(dataWithState);
+      const computed = computeZipRankings(dataWithState);
       setZipRankings(computed?.rankings || null);
       setZipMedianAvgFMR(computed?.medianAvgFMR ?? null);
       setDrilldownZip(null);
@@ -322,7 +328,8 @@ export default function HomeClient(props: {
           body: JSON.stringify({ type, query: zip, canonicalPath: `/zip/${zip}` }),
           keepalive: true,
         }).catch(() => {});
-        router.push(`/zip/${zip}`, { scroll: false });
+        const stateFromData = viewFmrData?.stateCode || rootFmrData?.stateCode || props.initialState;
+        router.push(`/zip/${zip}${stateFromData ? `?state=${stateFromData}` : ''}`, { scroll: false });
         return;
       }
     }
@@ -380,47 +387,10 @@ export default function HomeClient(props: {
     const zipRow = rootFmrData.zipFMRData.find((z) => z.zipCode === zipCode);
     if (!zipRow) return;
 
-    setDrilldownZip(zipCode);
-    setViewFmrData({
-      source: 'safmr',
-      zipCode,
-      areaName: rootFmrData.areaName,
-      stateCode: rootFmrData.stateCode,
-      countyName: rootFmrData.countyName,
-      cityName: rootFmrData.cityName,
-      year: rootFmrData.year,
-      effectiveDate: rootFmrData.effectiveDate,
-      bedroom0: zipRow.bedroom0,
-      bedroom1: zipRow.bedroom1,
-      bedroom2: zipRow.bedroom2,
-      bedroom3: zipRow.bedroom3,
-      bedroom4: zipRow.bedroom4,
-      queriedLocation: zipCode,
-      queriedType: 'zip',
-    });
-
-    // Fetch ZIP-specific historical series so the chart renders on drilldown.
-    // Cache per ZIP to avoid repeat requests while browsing the ZIP list.
-    const cached = drilldownHistoryCacheRef.current.get(zipCode);
-    if (cached) {
-      setViewFmrData((prev) => (prev?.zipCode === zipCode ? { ...prev, history: cached } : prev));
-      return;
-    }
-
-    (async () => {
-      try {
-        const url = `/api/search/fmr?zip=${encodeURIComponent(zipCode)}&year=${encodeURIComponent(String(rootFmrData.year))}&_t=${Date.now()}`;
-        const res = await fetch(url);
-        const json = await res.json();
-        if (!res.ok) return;
-        const hist = json?.data?.history;
-        if (!Array.isArray(hist) || hist.length < 2) return;
-        drilldownHistoryCacheRef.current.set(zipCode, hist);
-        setViewFmrData((prev) => (prev?.zipCode === zipCode ? { ...prev, history: hist } : prev));
-      } catch {
-        // ignore
-      }
-    })();
+    // Navigate to the ZIP URL instead of just updating local state
+    const stateCode = rootFmrData.stateCode;
+    const zipUrl = `/zip/${zipCode}${stateCode ? `?state=${stateCode}` : ''}`;
+    router.push(zipUrl, { scroll: false });
   };
 
   const handleBackToRoot = () => {
@@ -530,18 +500,7 @@ export default function HomeClient(props: {
                         </span>
                         <span className="font-medium text-[#0a0a0a] text-sm">{zip.zipCode}</span>
                       </div>
-                      <span
-                        className={`text-xs sm:text-sm font-medium tabular-nums shrink-0 ${
-                          isPositive
-                            ? 'text-[#16a34a]'
-                            : isNegative
-                              ? 'text-[#dc2626]'
-                              : 'text-[#525252]'
-                        }`}
-                      >
-                        {isPositive ? '+' : ''}
-                        {zip.percentDiff.toFixed(1)}%
-                      </span>
+                      <PercentageBadge value={zip.percentDiff} className="text-xs sm:text-sm shrink-0" />
                     </button>
                   );
                 })}
