@@ -5,7 +5,7 @@ import { getLatestFMRYear } from '@/lib/queries';
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 export const revalidate = 0;
-export const maxDuration = 600; // 10 minutes for combined job
+export const maxDuration = 300; // 5 minutes (Vercel hobby plan limit)
 
 function isAuthorized(req: NextRequest) {
   const vercelCron = req.headers.get('x-vercel-cron');
