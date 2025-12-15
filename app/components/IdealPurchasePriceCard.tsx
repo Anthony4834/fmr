@@ -346,7 +346,7 @@ export default function IdealPurchasePriceCard({ data }: { data: FMRResult | nul
   if (!data || !canRenderForData(data)) return null;
 
   return (
-    <div className="w-full lg:w-[420px] flex-shrink-0 bg-white rounded-lg border border-[#e5e5e5] p-4 sm:p-6 md:p-8">
+    <div className="w-full bg-white rounded-lg border border-[#e5e5e5] p-4 sm:p-6 md:p-8">
       <div className="mb-4">
         <h3 className="text-base sm:text-lg font-semibold text-[#0a0a0a] mb-1">Purchase Price Calculator</h3>
         <p className="text-xs text-[#737373]">Based on HUD rent + your assumptions</p>

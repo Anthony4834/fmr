@@ -952,13 +952,13 @@ export default function FMRResults({
       {/* Bedroom curve chart below table */}
       {dataNonNull.history && dataNonNull.history.length >= 2 && (
         <div className="mt-3 sm:mt-4">
-          <div className="flex items-center justify-between gap-3 mb-2">
-            <h3 className="text-sm font-semibold text-[#0a0a0a]">Bedroom curve</h3>
-            <div className="text-xs text-[#a3a3a3] shrink-0">
-              YoY: {dataNonNull.year - 1}→{dataNonNull.year} • 3Y: {dataNonNull.year - 3}→{dataNonNull.year}
-            </div>
-          </div>
           <div className="rounded-lg border border-[#e5e5e5] bg-white p-3 sm:p-4">
+            <div className="mb-3">
+              <h3 className="text-sm font-semibold text-[#0a0a0a]">Bedroom curve</h3>
+              <div className="text-xs text-[#737373]">
+                YoY: {dataNonNull.year - 1}→{dataNonNull.year} • 3Y: {dataNonNull.year - 3}→{dataNonNull.year}
+              </div>
+            </div>
             <StateBedroomCurveChart
               rows={[
                 { br: 0, medianFMR: representative.bedroom0 || null, medianYoY: yoyChange('bedroom0')?.pct || null },

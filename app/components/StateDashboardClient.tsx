@@ -525,13 +525,13 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
 
                   {/* Bedroom curve chart below table */}
                   <div className="mt-3 sm:mt-4">
-                    <div className="flex items-center justify-between gap-3 mb-2">
-                      <h3 className="text-sm font-semibold text-[#0a0a0a]">Bedroom curve</h3>
-                      <div className="text-xs text-[#a3a3a3] shrink-0">
-                        YoY: {stateMetrics.prevYear}→{stateMetrics.year} • 3Y: {stateMetrics.prev3Year}→{stateMetrics.year}
-                      </div>
-                    </div>
                     <div className="rounded-lg border border-[#e5e5e5] bg-white p-3 sm:p-4">
+                      <div className="mb-3">
+                        <h3 className="text-sm font-semibold text-[#0a0a0a]">Bedroom curve</h3>
+                        <div className="text-xs text-[#737373]">
+                          YoY: {stateMetrics.prevYear}→{stateMetrics.year} • 3Y: {stateMetrics.prev3Year}→{stateMetrics.year}
+                        </div>
+                      </div>
                       <StateBedroomCurveChart rows={chartRows} />
                     </div>
                   </div>
@@ -539,8 +539,8 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
               )}
             </div>
 
-            {/* Tabbed movers */}
-            <div className="mb-4 sm:mb-6">
+            {/* Tabbed movers - hidden on mobile, shown in secondary cards */}
+            <div className="mb-4 sm:mb-6 hidden lg:block">
               <h3 className="text-sm sm:text-base font-semibold text-[#0a0a0a] mb-2 sm:mb-3">Movers</h3>
               <p className="text-xs text-[#737373] mb-3 sm:mb-4">
                 Counties with largest YoY changes and price jumps
@@ -679,43 +679,8 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
           {/* Secondary cards */}
           <div className="w-full lg:w-96 flex-shrink-0 lg:sticky lg:top-8 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pr-1 custom-scrollbar">
             <div className="flex flex-col gap-3 sm:gap-4">
-            {/* Choropleth Map */}
-            <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden">
-              <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex items-center justify-between gap-2">
-                <div>
-                  <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a] mb-0.5">County Map</h3>
-                  <p className="text-xs text-[#737373]">Click a county to view details</p>
-                </div>
-                <div className="text-xs font-medium text-[#737373]">
-                  Layer: Investment Score
-                </div>
-              </div>
-              <div className="p-4">
-                <div className="h-40 rounded-lg overflow-hidden">
-                  <ChoroplethMap
-                    stateCode={props.stateCode}
-                    year={displayYear || undefined}
-                    highlightFips={hoveredCountyFips || undefined}
-                    onCountyHover={(fips) => {
-                      setHoverSource('map');
-                      setHoveredCountyFips(fips);
-                    }}
-                    onCountyHoverEnd={(fips) => {
-                      if (hoverSource === 'map' && hoveredCountyFips === fips) {
-                        setHoverSource(null);
-                        setHoveredCountyFips(null);
-                      }
-                    }}
-                    onCountyClick={(countyName, stateCode) => {
-                      router.push(`/county/${buildCountySlug(countyName, stateCode)}`);
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* County Rankings */}
-            <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[calc(100vh-24rem)]">
+            {/* County Rankings - shown first on mobile, after map on desktop */}
+            <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[calc(100vh-24rem)] order-1 lg:order-3">
               <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
                 <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a] mb-0.5">Counties</h3>
                 <p className="text-xs text-[#737373]">
@@ -795,6 +760,173 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
                     })}
                   </div>
                 )}
+              </div>
+            </div>
+
+            {/* Choropleth Map */}
+            <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden order-2 lg:order-2">
+              <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a] mb-0.5">County Map</h3>
+                  <p className="text-xs text-[#737373]">Click a county to view details</p>
+                </div>
+                <div className="text-xs font-medium text-[#737373]">
+                  Layer: Investment Score
+                </div>
+              </div>
+              <div className="p-4">
+                <div className="h-40 rounded-lg overflow-hidden">
+                  <ChoroplethMap
+                    stateCode={props.stateCode}
+                    year={displayYear || undefined}
+                    highlightFips={hoveredCountyFips || undefined}
+                    onCountyHover={(fips) => {
+                      setHoverSource('map');
+                      setHoveredCountyFips(fips);
+                    }}
+                    onCountyHoverEnd={(fips) => {
+                      if (hoverSource === 'map' && hoveredCountyFips === fips) {
+                        setHoverSource(null);
+                        setHoveredCountyFips(null);
+                      }
+                    }}
+                    onCountyClick={(countyName, stateCode) => {
+                      router.push(`/county/${buildCountySlug(countyName, stateCode)}`);
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Tabbed movers - shown in secondary cards on mobile, after counties */}
+            <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[60vh] order-3 lg:hidden">
+              <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
+                <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a] mb-0.5">Movers</h3>
+                <p className="text-xs text-[#737373]">
+                  Counties with largest YoY changes and price jumps
+                </p>
+                <div className="flex items-center justify-between gap-2 mt-2">
+                  <span className="text-xs text-[#737373]">View:</span>
+                  <div className="flex gap-1">
+                    {[
+                      { id: 'rising' as const, label: 'Rising' },
+                      { id: 'falling' as const, label: 'Falling' },
+                      { id: 'jumps' as const, label: 'Jumps' },
+                    ].map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setSideTab(t.id)}
+                        className={`px-2 py-1 rounded-md text-xs font-semibold border transition-colors ${
+                          sideTab === t.id
+                            ? 'bg-white border-[#d4d4d4] text-[#0a0a0a]'
+                            : 'bg-[#fafafa] border-[#e5e5e5] text-[#737373] hover:text-[#0a0a0a]'
+                        }`}
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="divide-y divide-[#e5e5e5] overflow-y-auto flex-1 min-h-0 custom-scrollbar pb-2">
+                {moversLoading ? (
+                  <>
+                    {[...Array(8)].map((_, i) => (
+                      <div key={i} className="px-3 sm:px-4 py-2 sm:py-2.5">
+                        <div className="flex items-start justify-between gap-2 sm:gap-3">
+                          <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
+                            <div className="h-3 bg-[#e5e5e5] rounded w-4 shrink-0 animate-pulse" />
+                            <div className="min-w-0 flex-1">
+                              <div className="h-4 bg-[#e5e5e5] rounded w-32 mb-1.5 animate-pulse" />
+                              <div className="h-3 bg-[#e5e5e5] rounded w-16 animate-pulse" />
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <div className="h-4 bg-[#e5e5e5] rounded w-12 ml-auto mb-1 animate-pulse" />
+                            <div className="h-3 bg-[#e5e5e5] rounded w-16 ml-auto animate-pulse" />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                ) : (() => {
+                  const bedroomLabels = ['0 BR', '1 BR', '2 BR', '3 BR', '4 BR'];
+                  let items: any[] = [];
+                  let colorClass = '';
+                  let primaryText: (item: any) => ReactNode = () => '';
+                  let secondaryText: (item: any) => string | null = () => null;
+                  let tertiaryText: (item: any) => string | null = () => null;
+                  let tertiaryValue: (item: any) => number | null = () => null;
+
+                  if (sideTab === 'rising') {
+                    items = (moversData?.rising || []).slice(0, 15);
+                    colorClass = 'text-[#16a34a]';
+                    primaryText = (item) => <PercentageBadge value={item.yoyPercent} />;
+                    secondaryText = (item) => bedroomLabels[item.yoyBedroom] || `${item.yoyBedroom} BR`;
+                    tertiaryValue = (item) => item.bedroom2 ?? null;
+                  } else if (sideTab === 'falling') {
+                    items = (moversData?.falling || []).slice(0, 15);
+                    colorClass = 'text-[#dc2626]';
+                    primaryText = (item) => <PercentageBadge value={item.yoyPercent} />;
+                    secondaryText = (item) => bedroomLabels[item.yoyBedroom] || `${item.yoyBedroom} BR`;
+                    tertiaryValue = (item) => item.bedroom2 ?? null;
+                  } else {
+                    items = (moversData?.anomalies || []).slice(0, 15);
+                    colorClass = 'text-[#7c3aed]';
+                    primaryText = (item) => <PercentageBadge value={item.jumpPercent} />;
+                    secondaryText = (item) => `${item.jumpFrom}→${item.jumpTo} BR`;
+                    tertiaryText = (item) =>
+                      typeof item.nationalAvg === 'number' ? `Nat avg ${item.nationalAvg.toFixed(1)}%` : null;
+                    tertiaryValue = (item) => {
+                      const key = `bedroom${item.jumpTo}` as const;
+                      return typeof item[key] === 'number' ? item[key] : null;
+                    };
+                  }
+
+                  if (items.length === 0) {
+                    return (
+                      <div className="px-3 sm:px-4 py-6 text-center">
+                        <p className="text-xs text-[#737373]">No data available</p>
+                      </div>
+                    );
+                  }
+
+                  return items.map((item, index) => {
+                    const countyLabel = item.areaName.includes('County')
+                      ? item.areaName
+                      : `${item.areaName} County`;
+                    const href = `/county/${buildCountySlug(item.areaName, item.stateCode)}`;
+
+                    return (
+                      <a
+                        key={`${sideTab}-${item.areaName}-${item.stateCode}-${index}`}
+                        href={href}
+                        className="block px-3 sm:px-4 py-2 sm:py-2.5 hover:bg-[#fafafa] transition-colors"
+                      >
+                        <div className="flex items-start justify-between gap-2 sm:gap-3">
+                          <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
+                            <span className="text-xs text-[#a3a3a3] font-medium shrink-0 tabular-nums">#{index + 1}</span>
+                            <div className="min-w-0">
+                              <div className="font-medium text-[#0a0a0a] text-xs sm:text-sm truncate">{countyLabel}</div>
+                              <div className="text-xs text-[#737373] truncate mt-0.5">{item.stateCode}</div>
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <div className={`font-semibold text-xs sm:text-sm tabular-nums ${colorClass}`}>
+                              {primaryText(item)}
+                            </div>
+                            {secondaryText(item) && <div className="text-xs text-[#737373] mt-0.5">{secondaryText(item)}</div>}
+                            {tertiaryText(item) && <div className="text-xs text-[#a3a3a3] mt-0.5 tabular-nums">{tertiaryText(item)}</div>}
+                            {tertiaryValue(item) !== null && (
+                              <div className="text-xs text-[#a3a3a3] mt-0.5 tabular-nums">{formatCurrency(tertiaryValue(item) as number)}</div>
+                            )}
+                          </div>
+                        </div>
+                      </a>
+                    );
+                  });
+                })()}
               </div>
             </div>
             </div>

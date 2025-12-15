@@ -1,3 +1,5 @@
+import { STATES } from '@/lib/states';
+
 export const revalidate = 86400;
 
 function xmlEscape(s: string) {
@@ -13,26 +15,16 @@ export async function GET() {
   const base = 'https://fmr.fyi';
   const now = new Date().toISOString();
 
-  const urls = [
-    `${base}/`,
-    `${base}/cities`,
-    `${base}/counties`,
-    `${base}/zips`,
-    `${base}/what-is-fmr`,
-    `${base}/data-sources`,
-    `${base}/faq`,
-    `${base}/best-states-section-8`,
-    `${base}/highest-fmr-states`,
-    `${base}/fmr-vs-property-value`,
-    `${base}/zip-property-data`,
-  ];
-
   const parts: string[] = [];
   parts.push(`<?xml version="1.0" encoding="UTF-8"?>`);
   parts.push(`<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`);
-  for (const u of urls) {
-    parts.push(`<url><loc>${xmlEscape(u)}</loc><lastmod>${now}</lastmod></url>`);
+  
+  // Add all 50 states + DC
+  for (const state of STATES) {
+    const url = `${base}/state/${state.code}`;
+    parts.push(`<url><loc>${xmlEscape(url)}</loc><lastmod>${now}</lastmod></url>`);
   }
+  
   parts.push(`</urlset>`);
 
   return new Response(parts.join(''), {
@@ -42,6 +34,3 @@ export async function GET() {
     },
   });
 }
-
-
-

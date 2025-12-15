@@ -109,7 +109,7 @@ export default function InvestorScoreModal({ isOpen, onClose }: InvestorScoreMod
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={descId}
-        className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+        className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] sm:max-h-[90vh] overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -139,7 +139,7 @@ export default function InvestorScoreModal({ isOpen, onClose }: InvestorScoreMod
         </div>
 
         {/* Content */}
-        <div className="px-6 py-4 overflow-y-auto flex-1">
+        <div className="px-4 sm:px-6 py-4 overflow-y-auto flex-1">
           {/* One-sentence explanation */}
           <p id={descId} className="text-sm text-[#525252] mb-6">
             The Investor Score estimates how much rent you can earn <strong>after property taxes</strong>,

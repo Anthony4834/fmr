@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import StateDashboardClient from '@/app/components/StateDashboardClient';
 import type { StateCode } from '@/lib/states';
+import { STATES } from '@/lib/states';
+import { getLatestFMRYear } from '@/lib/queries';
 
 const ALLOWED_STATE_CODES = new Set([
   'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA',
@@ -13,21 +15,49 @@ const ALLOWED_STATE_CODES = new Set([
 
 export const revalidate = 86400;
 
-export async function generateMetadata({ params }: { params: { state: string } }): Promise<Metadata> {
+export async function generateMetadata({ 
+  params
+}: { 
+  params: { state: string };
+}): Promise<Metadata> {
   const raw = params.state || '';
   const state = raw.toUpperCase();
   if (!ALLOWED_STATE_CODES.has(state)) return { title: 'State FMR | fmr.fyi' };
+  
+  const stateInfo = STATES.find(s => s.code === state);
+  const stateName = stateInfo?.name || state;
+  const year = await getLatestFMRYear();
+  const yearText = `FY ${year}`;
+  
   const canonical = `https://fmr.fyi/state/${state}`;
+  
+  const title = `${stateName} FMR Map & Dashboard – ${yearText} | fmr.fyi`;
+  const description = `Interactive FMR map and dashboard for ${stateName}. View county-level Fair Market Rent data, investment scores, and rent trends for ${yearText}. Compare FMR across all counties in ${stateName}.`;
+  
   return {
-    title: `${state} FMR Dashboard (Mock) – fmr.fyi`,
-    description: `Investor-style HUD Fair Market Rent (FMR/SAFMR) dashboard for ${state}. (Mock data in Phase 1.)`,
+    title,
+    description,
     alternates: { canonical },
-    openGraph: { title: `${state} FMR Dashboard (Mock) – fmr.fyi`, description: `Investor-style HUD Fair Market Rent dashboard for ${state}.`, url: canonical, siteName: 'fmr.fyi', type: 'website' },
-    twitter: { card: 'summary', title: `${state} FMR Dashboard (Mock) – fmr.fyi`, description: `Investor-style HUD Fair Market Rent dashboard for ${state}.` },
+    openGraph: { 
+      title, 
+      description, 
+      url: canonical, 
+      siteName: 'fmr.fyi', 
+      type: 'website' 
+    },
+    twitter: { 
+      card: 'summary_large_image', 
+      title, 
+      description 
+    },
   };
 }
 
-export default function StatePage({ params }: { params: { state: string } }) {
+export default function StatePage({ 
+  params
+}: { 
+  params: { state: string };
+}) {
   const raw = params.state || '';
   const state = raw.toUpperCase();
   if (!ALLOWED_STATE_CODES.has(state)) notFound();

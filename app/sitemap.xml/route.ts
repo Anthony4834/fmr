@@ -46,6 +46,9 @@ export async function GET() {
   // Static sitemap
   parts.push(`<sitemap><loc>${xmlEscape(`${base}/sitemaps/static.xml`)}</loc><lastmod>${now}</lastmod></sitemap>`);
 
+  // States sitemap
+  parts.push(`<sitemap><loc>${xmlEscape(`${base}/sitemaps/states.xml`)}</loc><lastmod>${now}</lastmod></sitemap>`);
+
   // City sitemaps (direct references to actual sitemap files, not index)
   for (const r of cityStates.rows as any[]) {
     const stateCode = r.state_code.toUpperCase();

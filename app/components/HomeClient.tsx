@@ -216,9 +216,17 @@ export default function HomeClient(props: {
       setError(null);
       setRootFmrData(dataWithState);
       setViewFmrData(dataWithState);
-      const computed = computeZipRankings(dataWithState);
-      setZipRankings(computed?.rankings || null);
-      setZipMedianAvgFMR(computed?.medianAvgFMR ?? null);
+      // For SAFMR county/city views, don't compute from FMR data - let the effect fetch investment scores
+      if (dataWithState.source === 'safmr' && (dataWithState.queriedType === 'county' || dataWithState.queriedType === 'city')) {
+        setZipRankings(null);
+        setZipMedianAvgFMR(null);
+        setZipScoresLoading(true); // Set loading state so the component shows while fetching
+      } else {
+        const computed = computeZipRankings(dataWithState);
+        setZipRankings(computed?.rankings || null);
+        setZipMedianAvgFMR(computed?.medianAvgFMR ?? null);
+        setZipScoresLoading(false);
+      }
       setDrilldownZip(null);
       return;
     }
@@ -272,18 +280,34 @@ export default function HomeClient(props: {
   }, [zipRankings]);
 
   // Fetch ZIP investment scores for SAFMR-based county/city views
+  // For SAFMR views, always use investment scores (not FMR averages) to match city view behavior
   useEffect(() => {
     if (!viewFmrData || viewFmrData.source !== 'safmr' || 
         (viewFmrData.queriedType !== 'county' && viewFmrData.queriedType !== 'city') ||
         !viewFmrData.stateCode) {
+      // Only clear loading if we were previously loading for SAFMR
+      if (viewFmrData?.source === 'safmr') {
+        setZipScoresLoading(false);
+      }
       return;
     }
 
+    // Always fetch investment scores for SAFMR county/city views (same as city view)
     setZipScoresLoading(true);
     const params = new URLSearchParams();
-    if (viewFmrData.queriedType === 'county' && viewFmrData.countyName) {
-      params.set('county', viewFmrData.countyName);
-      params.set('state', viewFmrData.stateCode);
+    
+    // Normalize county name - remove "County" suffix if present for API query
+    // Use countyName if available, otherwise fall back to areaName
+    if (viewFmrData.queriedType === 'county') {
+      const countyName = viewFmrData.countyName || viewFmrData.areaName;
+      if (countyName && viewFmrData.stateCode) {
+        const normalizedCounty = countyName.replace(/\s+County\s*$/i, '').trim();
+        params.set('county', normalizedCounty);
+        params.set('state', viewFmrData.stateCode);
+      } else {
+        setZipScoresLoading(false);
+        return;
+      }
     } else if (viewFmrData.queriedType === 'city' && viewFmrData.cityName) {
       params.set('city', viewFmrData.cityName);
       params.set('state', viewFmrData.stateCode);
@@ -296,7 +320,7 @@ export default function HomeClient(props: {
     fetch(`/api/investment/zip-scores?${params.toString()}`)
       .then(res => res.json())
       .then(result => {
-        if (result.found && result.zipScores) {
+        if (result.found && result.zipScores && result.zipScores.length > 0) {
           const computed = computeZipScoreRankings(result.zipScores);
           setZipRankings(computed?.rankings || null);
           setZipMedianAvgFMR(null); // Not used for score-based rankings
@@ -305,7 +329,8 @@ export default function HomeClient(props: {
         }
         setZipScoresLoading(false);
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error('Failed to fetch ZIP scores:', err);
         setZipRankings(null);
         setZipScoresLoading(false);
       });
@@ -563,84 +588,79 @@ export default function HomeClient(props: {
                 />
               </div>
 
-              {/* Ideal Purchase Price Card - To the right */}
-              <IdealPurchasePriceCard data={viewFmrData} />
+              {/* Right Panel - Sticky Container */}
+              <div className="w-full lg:w-[420px] flex-shrink-0 lg:sticky lg:top-8 lg:self-start">
+                <div className="flex flex-col gap-4 sm:gap-6">
+                  {/* Ideal Purchase Price Card */}
+                  <IdealPurchasePriceCard data={viewFmrData} />
 
-              {/* ZIP Code Ranking Card - To the right (hide when drilled into a ZIP) */}
-              {!drilldownZip && (zipRankings && zipRankings.length > 0 || zipScoresLoading) && (
-            <div
-              className="w-full lg:w-80 flex-shrink-0 bg-white rounded-lg border border-[#e5e5e5] p-4 sm:p-6 md:p-8 flex flex-col"
-              style={zipCardHeight ? { height: `${zipCardHeight}px` } : undefined}
-            >
-              <div className="mb-4 sm:mb-6 flex-shrink-0">
-                <h3 className="text-base sm:text-lg font-semibold text-[#0a0a0a] mb-1">ZIP Codes</h3>
-                <p className="text-xs text-[#737373]">
-                  {viewFmrData?.source === 'safmr' 
-                    ? 'Ranked by Investment Score (vs area median)'
-                    : 'Ranked by average FMR (vs county median)'}
-                </p>
-              </div>
-              {zipScoresLoading ? (
-                <div className="space-y-1 flex-1">
-                  {[...Array(5)].map((_, i) => (
-                    <div key={i} className="h-12 bg-[#e5e5e5] rounded animate-pulse" />
-                  ))}
-                </div>
-              ) : zipRankings && zipRankings.length > 0 ? (
-                <>
-                  <div className="space-y-1 overflow-y-auto flex-1 min-h-0 pr-2 -mr-2 custom-scrollbar">
-                    {zipRankings.map((zip, index) => {
-                      const isSelected = drilldownZip === zip.zipCode;
-                      const isScoreBased = viewFmrData?.source === 'safmr' && zip.score !== undefined;
-                      const scoreTextColor = isScoreBased && zip.score !== null && zip.score !== undefined
-                        ? getTextColorForScore(zip.score)
-                        : undefined;
+                  {/* ZIP Code Ranking Card (hide when drilled into a ZIP) */}
+                  {!drilldownZip && (zipRankings && zipRankings.length > 0 || zipScoresLoading) && (
+                    <div className="w-full flex-shrink-0 bg-white rounded-lg border border-[#e5e5e5] p-4 sm:p-6 md:p-8 flex flex-col max-h-[calc(100vh-14rem)]">
+                      <div className="mb-4 sm:mb-6 flex-shrink-0">
+                        <h3 className="text-base sm:text-lg font-semibold text-[#0a0a0a] mb-1">ZIP Codes</h3>
+                        <p className="text-xs text-[#737373]">
+                          {viewFmrData?.source === 'safmr' 
+                            ? 'Ranked by Investment Score (vs area median)'
+                            : 'Ranked by average FMR (vs county median)'}
+                        </p>
+                      </div>
+                      {zipScoresLoading ? (
+                        <div className="space-y-1 flex-1 overflow-y-auto custom-scrollbar">
+                          {[...Array(5)].map((_, i) => (
+                            <div key={i} className="h-12 bg-[#e5e5e5] rounded animate-pulse" />
+                          ))}
+                        </div>
+                      ) : zipRankings && zipRankings.length > 0 ? (
+                        <>
+                          <div className="space-y-1 overflow-y-auto flex-1 min-h-0 pr-2 -mr-2 custom-scrollbar">
+                            {zipRankings.map((zip, index) => {
+                              const isSelected = drilldownZip === zip.zipCode;
+                              const isScoreBased = viewFmrData?.source === 'safmr' && zip.score !== undefined;
+                              const scoreTextColor = isScoreBased && zip.score !== null && zip.score !== undefined
+                                ? getTextColorForScore(zip.score)
+                                : undefined;
 
-                      return (
-                        <button
-                          key={zip.zipCode}
-                          type="button"
-                          onClick={() => handleZipDrilldown(zip.zipCode)}
-                          className={`w-full flex items-center justify-between py-2 sm:py-2.5 px-2.5 sm:px-3 rounded-md border transition-colors group text-left ${
-                            isSelected
-                              ? 'bg-[#fafafa] border-[#d4d4d4]'
-                              : 'border-transparent hover:bg-[#fafafa] hover:border-[#e5e5e5]'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2 sm:gap-3">
-                            <span className="text-xs font-medium text-[#737373] w-4 sm:w-5 tabular-nums shrink-0">
-                              {index + 1}
-                            </span>
-                            <span className="font-medium text-[#0a0a0a] text-sm">{zip.zipCode}</span>
+                              return (
+                                <button
+                                  key={zip.zipCode}
+                                  type="button"
+                                  onClick={() => handleZipDrilldown(zip.zipCode)}
+                                  className={`w-full flex items-center justify-between py-2 sm:py-2.5 px-2.5 sm:px-3 rounded-md border transition-colors group text-left ${
+                                    isSelected
+                                      ? 'bg-[#fafafa] border-[#d4d4d4]'
+                                      : 'border-transparent hover:bg-[#fafafa] hover:border-[#e5e5e5]'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2 sm:gap-3">
+                                    <span className="text-xs font-medium text-[#737373] w-4 sm:w-5 tabular-nums shrink-0">
+                                      {index + 1}
+                                    </span>
+                                    <span className="font-medium text-[#0a0a0a] text-sm">{zip.zipCode}</span>
+                                  </div>
+                                  {isScoreBased && zip.score !== null && zip.score !== undefined ? (
+                                    <div className="flex items-center gap-2 shrink-0">
+                                      <span 
+                                        className="font-semibold text-xs tabular-nums"
+                                        style={{ color: scoreTextColor }}
+                                      >
+                                        {Math.round(zip.score ?? 0)}
+                                      </span>
+                                      <PercentageBadge value={zip.percentDiff} className="text-xs shrink-0" />
+                                    </div>
+                                  ) : (
+                                    <PercentageBadge value={zip.percentDiff} className="text-xs sm:text-sm shrink-0" />
+                                  )}
+                                </button>
+                              );
+                            })}
                           </div>
-                          {isScoreBased && zip.score !== null && zip.score !== undefined ? (
-                            <div className="flex items-center gap-2 shrink-0">
-                              <span 
-                                className="font-semibold text-xs tabular-nums"
-                                style={{ color: scoreTextColor }}
-                              >
-                                {Math.round(zip.score ?? 0)}
-                              </span>
-                              <PercentageBadge value={zip.percentDiff} className="text-xs shrink-0" />
-                            </div>
-                          ) : (
-                            <PercentageBadge value={zip.percentDiff} className="text-xs sm:text-sm shrink-0" />
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <div className="mt-4 sm:mt-6 text-xs text-[#737373] pt-3 sm:pt-4 border-t border-[#e5e5e5] flex-shrink-0 leading-relaxed">
-                    <p>
-                      {viewFmrData?.source === 'safmr'
-                        ? 'Percent compares each ZIP\'s Investment Score to the area median score.'
-                        : 'Percent compares each ZIP\'s average FMR to the county median average FMR.'}
-                    </p>
-                  </div>
-                </>
-              ) : null}
+                        </>
+                      ) : null}
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
           ) : (
             <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 items-start">
