@@ -88,14 +88,22 @@ export default function USStateMap({ year }: USStateMapProps) {
   }, [year, mapLevel]);
 
   // ✅ Build county score map: ALWAYS pad; don't drop non-5-length inputs
+  // Use FIPS as key (FIPS codes are unique across the entire US)
+  // If duplicates exist, keep the one with more ZIPs or higher score
   const countyScoreMap = useMemo(() => {
     const m = new Map<string, CountyScore>();
     for (const c of countyScores) {
       if (!c?.countyFips) continue;
       const fips = String(c.countyFips).replace(/\D/g, '').padStart(5, '0');
       if (fips.length !== 5) continue;
-      // keep first occurrence
-      if (!m.has(fips)) m.set(fips, c);
+      
+      // If we already have this FIPS, keep the one with more ZIPs or higher score
+      const existing = m.get(fips);
+      if (!existing || 
+          (c.zipCount > existing.zipCount) ||
+          (c.zipCount === existing.zipCount && (c.medianScore ?? 0) > (existing.medianScore ?? 0))) {
+        m.set(fips, c);
+      }
     }
     return m;
   }, [countyScores]);

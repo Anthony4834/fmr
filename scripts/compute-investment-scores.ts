@@ -229,12 +229,32 @@ async function computeZipScores(
         AND cfmr.state_code = z.state_code
       GROUP BY z.zip_code, z.state_code, safmr.fmr_2br, safmr.fmr_3br, safmr.fmr_4br
     ),
+    canonical_county_lookup AS (
+      -- Get canonical county name for each FIPS+state combination
+      -- Use the most common county_name for each FIPS+state to ensure consistency
+      SELECT DISTINCT ON (county_fips, state_code)
+        county_fips,
+        state_code,
+        county_name
+      FROM (
+        SELECT 
+          county_fips,
+          state_code,
+          county_name,
+          COUNT(*) as name_count
+        FROM zip_county_mapping
+        WHERE county_fips IS NOT NULL
+          AND LENGTH(TRIM(county_fips)) = 5
+          AND state_code IS NOT NULL
+        GROUP BY county_fips, state_code, county_name
+      ) ranked
+      ORDER BY county_fips, state_code, name_count DESC, county_name
+    ),
     zip_data AS (
       SELECT 
         z.zip_code,
         z.state_code,
         z.city_name,
-        z.county_name,
         -- Get FIPS from zip_county_mapping, normalizing county names for matching
         -- ZHVI has "County" suffix, zip_county_mapping may not (or vice versa)
         COALESCE(
@@ -249,6 +269,9 @@ async function computeZipScores(
           -- Fallback: any FIPS for this ZIP+state (ZIP might span counties, pick one)
           MAX(zcm.county_fips)
         ) as county_fips,
+        -- Use canonical county name from FIPS lookup, fallback to original ZHVI name
+        -- We'll resolve this in the final SELECT after grouping
+        z.county_name,
         -- Priority: 3BR → 2BR → 4BR
         COALESCE(
           MAX(CASE WHEN z.bedroom_count = 3 AND z.zhvi IS NOT NULL THEN z.zhvi END),
@@ -264,7 +287,9 @@ async function computeZipScores(
           MAX(CASE WHEN z.bedroom_count = 3 THEN fmr.fmr_3br END),
           MAX(CASE WHEN z.bedroom_count = 2 THEN fmr.fmr_2br END),
           MAX(CASE WHEN z.bedroom_count = 4 THEN fmr.fmr_4br END)
-        ) as fmr_value
+        ) as fmr_value,
+        MAX(tax.effective_tax_rate) as tax_rate,
+        MAX(tax.acs_vintage) as acs_vintage
       FROM latest_zhvi z
       LEFT JOIN zip_fmr_combined fmr ON 
         fmr.zip_code = z.zip_code
@@ -272,10 +297,22 @@ async function computeZipScores(
       LEFT JOIN zip_county_mapping zcm ON 
         zcm.zip_code = z.zip_code
         AND zcm.state_code = z.state_code
+      LEFT JOIN canonical_county_lookup ccl ON 
+        ccl.county_fips = COALESCE(
+          CASE WHEN zcm.county_name = z.county_name THEN zcm.county_fips END,
+          CASE 
+            WHEN LOWER(REGEXP_REPLACE(zcm.county_name, '\\s+(County|Parish|Borough|Municipality|Census Area|City and Borough)\\s*$', '', 'i')) = 
+                 LOWER(REGEXP_REPLACE(z.county_name, '\\s+(County|Parish|Borough|Municipality|Census Area|City and Borough)\\s*$', '', 'i'))
+            THEN zcm.county_fips 
+          END,
+          zcm.county_fips
+        )
+        AND ccl.state_code = z.state_code
       LEFT JOIN zip_tax tax ON tax.zcta = z.zip_code
       WHERE tax.effective_tax_rate IS NOT NULL
         AND z.zhvi IS NOT NULL
-        AND z.zhvi > 0`;
+        AND z.zhvi > 0
+      GROUP BY z.zip_code, z.state_code, z.city_name, z.county_name`;
 
   if (stateFilter) {
     queryText += ` AND z.state_code = $${params.length + 1}`;
@@ -283,7 +320,6 @@ async function computeZipScores(
   }
 
   queryText += `
-      GROUP BY z.zip_code, z.state_code, z.city_name, z.county_name
       HAVING 
         COALESCE(
           MAX(CASE WHEN z.bedroom_count = 3 AND z.zhvi IS NOT NULL THEN z.zhvi END),
@@ -295,43 +331,58 @@ async function computeZipScores(
           MAX(CASE WHEN z.bedroom_count = 2 THEN fmr.fmr_2br END),
           MAX(CASE WHEN z.bedroom_count = 4 THEN fmr.fmr_4br END)
         ) IS NOT NULL
-    )
-    SELECT 
-      zd.zip_code,
-      zd.state_code,
-      zd.city_name,
-      zd.county_name,
-      zd.county_fips,
-      zd.selected_bedroom as bedroom_count,
-      zd.zip_zhvi,
-      county_zhvi.zhvi_median as county_zhvi_median,
-      tax.effective_tax_rate as tax_rate,
-      tax.acs_vintage,
-      zd.fmr_value,
-      (zd.fmr_value * 12) as annual_rent
-    FROM zip_data zd
-    LEFT JOIN zip_county_mapping zcm ON 
-      zcm.zip_code = zd.zip_code
-      AND zcm.county_name = zd.county_name
-      AND zcm.state_code = zd.state_code
-    LEFT JOIN zhvi_rollup_monthly county_zhvi ON (
-      county_zhvi.geo_type = 'county'
-      AND county_zhvi.month = $1
-      AND county_zhvi.bedroom_count = zd.selected_bedroom
-      AND county_zhvi.state_code = zd.state_code
-      AND (
-        -- Primary: match by FIPS (most reliable)
-        (county_zhvi.county_fips = zd.county_fips AND zd.county_fips IS NOT NULL)
-        -- Fallback: match by county_name only when FIPS is missing
-        OR (county_zhvi.county_name = zd.county_name AND zd.county_fips IS NULL)
+    ),
+    zip_data_with_canonical AS (
+      SELECT 
+        zd.zip_code,
+        zd.state_code,
+        zd.city_name,
+        -- Use canonical county name from FIPS lookup, fallback to original ZHVI name
+        COALESCE(ccl.county_name, zd.county_name) as county_name,
+        zd.county_fips,
+        zd.selected_bedroom as bedroom_count,
+        zd.zip_zhvi,
+        county_zhvi.zhvi_median as county_zhvi_median,
+        zd.tax_rate,
+        zd.acs_vintage,
+        zd.fmr_value,
+        (zd.fmr_value * 12) as annual_rent
+      FROM zip_data zd
+      LEFT JOIN canonical_county_lookup ccl ON 
+        ccl.county_fips = zd.county_fips
+        AND ccl.state_code = zd.state_code
+      LEFT JOIN zhvi_rollup_monthly county_zhvi ON (
+        county_zhvi.geo_type = 'county'
+        AND county_zhvi.month = $1
+        AND county_zhvi.bedroom_count = zd.selected_bedroom
+        AND county_zhvi.state_code = zd.state_code
+        AND (
+          -- Primary: match by FIPS (most reliable)
+          (county_zhvi.county_fips = zd.county_fips AND zd.county_fips IS NOT NULL)
+          -- Fallback: match by county_name only when FIPS is missing
+          OR (county_zhvi.county_name = COALESCE(ccl.county_name, zd.county_name) AND zd.county_fips IS NULL)
+        )
       )
     )
-    LEFT JOIN zip_tax tax ON tax.zcta = zd.zip_code
-    WHERE tax.effective_tax_rate IS NOT NULL
-      AND zd.zip_zhvi IS NOT NULL
-      AND zd.fmr_value IS NOT NULL
-      AND zd.zip_zhvi > 0
-      AND tax.effective_tax_rate > 0
+    SELECT 
+      zip_code,
+      state_code,
+      city_name,
+      county_name,
+      county_fips,
+      bedroom_count,
+      zip_zhvi,
+      county_zhvi_median,
+      tax_rate,
+      acs_vintage,
+      fmr_value,
+      annual_rent
+    FROM zip_data_with_canonical
+    WHERE tax_rate IS NOT NULL
+      AND zip_zhvi IS NOT NULL
+      AND fmr_value IS NOT NULL
+      AND zip_zhvi > 0
+      AND tax_rate > 0
   `;
 
   const result = await sql.query(queryText, params);
@@ -608,6 +659,10 @@ async function computeZipScores(
       VALUES ${placeholders.join(", ")}
       ON CONFLICT (geo_type, geo_key, bedroom_count, fmr_year, zhvi_month, acs_vintage)
       DO UPDATE SET
+        state_code = EXCLUDED.state_code,
+        city_name = EXCLUDED.city_name,
+        county_name = EXCLUDED.county_name,
+        county_fips = EXCLUDED.county_fips,
         property_value = EXCLUDED.property_value,
         tax_rate = EXCLUDED.tax_rate,
         annual_rent = EXCLUDED.annual_rent,

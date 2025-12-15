@@ -82,7 +82,7 @@ export async function GET(req: NextRequest) {
           AND state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS')
         ORDER BY county_fips, state_code, county_name
       )
-      SELECT 
+      SELECT DISTINCT ON (cs.county_fips, cs.state_code)
         cs.county_fips,
         COALESCE(cn.county_name, 'Unknown County') as county_name,
         cs.state_code,
@@ -92,12 +92,13 @@ export async function GET(req: NextRequest) {
         cs.avg_yield
       FROM county_scores cs
       LEFT JOIN county_names cn ON cs.county_fips = cn.county_fips AND cs.state_code = cn.state_code
-      ORDER BY cs.state_code, cn.county_name
+      ORDER BY cs.county_fips, cs.state_code, cs.zip_count DESC
       `,
       [year]
     );
 
-    // Deduplicate by FIPS in case there are still any duplicates
+    // Deduplicate by FIPS+state (composite key) in case there are still any duplicates
+    // FIPS codes should be unique across the US, but use composite key for safety
     const countyMap = new Map<string, {
       countyFips: string;
       countyName: string;
@@ -111,9 +112,11 @@ export async function GET(req: NextRequest) {
 
     (result.rows as any[]).forEach((row) => {
       const fips = row.county_fips ? String(row.county_fips).padStart(5, '0') : null;
-      if (!fips) return;
+      const stateCode = row.state_code ? String(row.state_code).toUpperCase().trim() : null;
+      if (!fips || !stateCode) return;
       
-      // If we already have this FIPS, keep the one with more ZIPs or higher score
+      // Use FIPS as key (FIPS codes are unique across the US)
+      // If duplicates exist, keep the one with more ZIPs or higher score
       const existing = countyMap.get(fips);
       if (!existing || 
           (row.zip_count > existing.zipCount) ||
@@ -121,7 +124,7 @@ export async function GET(req: NextRequest) {
         countyMap.set(fips, {
           countyFips: fips,
           countyName: row.county_name || 'Unknown County',
-          stateCode: row.state_code,
+          stateCode: stateCode,
           medianScore: row.median_score ? parseFloat(row.median_score) : null,
           avgScore: row.avg_score ? parseFloat(row.avg_score) : null,
           zipCount: parseInt(row.zip_count) || 0,
