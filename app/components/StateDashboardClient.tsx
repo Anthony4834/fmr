@@ -11,6 +11,7 @@ import StateBedroomCurveChart from './StateBedroomCurveChart';
 import PercentageBadge from './PercentageBadge';
 import Tooltip from './Tooltip';
 import ScoreGauge from './ScoreGauge';
+import InvestorScoreInfoIcon from './InvestorScoreInfoIcon';
 
 // Dynamically import ChoroplethMap to avoid SSR issues with Leaflet
 const ChoroplethMap = dynamic(() => import('./ChoroplethMap'), {
@@ -312,6 +313,12 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
     router.replace('/');
   };
 
+  // Memoize chart rows to prevent unnecessary rerenders when hovering counties
+  const chartRows = useMemo(
+    () => stateMetrics?.byBedroom.map((b) => ({ br: b.br, medianFMR: b.medianFMR, medianYoY: b.medianYoY })) ?? [],
+    [stateMetrics?.byBedroom]
+  );
+
   return (
     <main className="min-h-screen bg-[#fafafa] antialiased">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-10 sm:py-8 md:py-10 lg:py-10">
@@ -385,23 +392,61 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
 
             {/* State Median Score Gauge */}
             {stateMedianScore !== null && (
-              <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-[#fafafa] rounded-lg border border-[#e5e5e5]">
+              <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-[#fafafa] rounded-lg border border-[#e5e5e5] relative">
                 <ScoreGauge score={stateMedianScore} maxValue={140} />
+                <div className="absolute top-3 right-3">
+                  <InvestorScoreInfoIcon />
+                </div>
               </div>
             )}
 
             {/* Statewide ZIP-based metrics */}
             <div className="mb-4 sm:mb-6">
               {stateMetricsLoading ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                  {[...Array(4)].map((_, i) => (
-                    <div key={i} className="rounded-lg border border-[#e5e5e5] p-4 sm:p-5">
-                      <div className="h-3 bg-[#e5e5e5] rounded w-24 animate-pulse" />
-                      <div className="mt-2 h-6 bg-[#e5e5e5] rounded w-28 animate-pulse" />
-                      <div className="mt-2 h-3 bg-[#e5e5e5] rounded w-32 animate-pulse" />
+                <>
+                  <div className="border border-[#e5e5e5] rounded-lg bg-white overflow-visible">
+                    <div className="overflow-x-auto overflow-y-visible">
+                      <table className="w-full text-xs sm:text-sm">
+                        <thead className="bg-[#fafafa] border-b border-[#e5e5e5]">
+                          <tr className="text-left">
+                            <th className="px-3 sm:px-4 py-2 text-xs font-semibold text-[#525252]">BR</th>
+                            <th className="px-3 sm:px-4 py-2 text-xs font-semibold text-[#525252]">Median rent</th>
+                            <th className="px-3 sm:px-4 py-2 text-xs font-semibold text-[#525252]">YoY</th>
+                            <th className="px-3 sm:px-4 py-2 text-xs font-semibold text-[#525252]">3Y CAGR</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#e5e5e5]">
+                          {[...Array(5)].map((_, i) => (
+                            <tr key={i}>
+                              <td className="px-3 sm:px-4 py-2">
+                                <div className="h-4 bg-[#e5e5e5] rounded w-8 animate-pulse" />
+                              </td>
+                              <td className="px-3 sm:px-4 py-2">
+                                <div className="h-4 bg-[#e5e5e5] rounded w-20 animate-pulse" />
+                              </td>
+                              <td className="px-3 sm:px-4 py-2">
+                                <div className="h-4 bg-[#e5e5e5] rounded w-12 animate-pulse" />
+                              </td>
+                              <td className="px-3 sm:px-4 py-2">
+                                <div className="h-4 bg-[#e5e5e5] rounded w-12 animate-pulse" />
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                  {/* Bedroom curve chart skeleton */}
+                  <div className="mt-3 sm:mt-4">
+                    <div className="flex items-center justify-between gap-3 mb-2">
+                      <div className="h-4 bg-[#e5e5e5] rounded w-24 animate-pulse" />
+                      <div className="h-3 bg-[#e5e5e5] rounded w-32 animate-pulse" />
+                    </div>
+                    <div className="rounded-lg border border-[#e5e5e5] bg-white p-3 sm:p-4">
+                      <div className="h-48 bg-[#e5e5e5] rounded animate-pulse" />
+                    </div>
+                  </div>
+                </>
               ) : !stateMetrics ? (
                 <div className="text-xs text-[#737373] py-2">No statewide metrics available.</div>
               ) : (
@@ -483,7 +528,7 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
                       </div>
                     </div>
                     <div className="rounded-lg border border-[#e5e5e5] bg-white p-3 sm:p-4">
-                      <StateBedroomCurveChart rows={stateMetrics.byBedroom.map((b) => ({ br: b.br, medianFMR: b.medianFMR, medianYoY: b.medianYoY }))} />
+                      <StateBedroomCurveChart rows={chartRows} />
                     </div>
                   </div>
                 </>
@@ -637,7 +682,10 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
                   <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a] mb-0.5">County Map</h3>
                   <p className="text-xs text-[#737373]">Click a county to view details</p>
                 </div>
-                <div className="text-xs font-medium text-[#737373]">Layer: Investment Score</div>
+                <div className="text-xs font-medium text-[#737373] flex items-center gap-1.5">
+                  Layer: Investment Score
+                  <InvestorScoreInfoIcon />
+                </div>
               </div>
               <div className="p-4">
                 <div className="h-40 rounded-lg overflow-hidden">
@@ -667,7 +715,9 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
             <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[calc(100vh-24rem)]">
               <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
                 <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a] mb-0.5">Counties</h3>
-                <p className="text-xs text-[#737373]">Ranked by investment score (vs state median)</p>
+                <p className="text-xs text-[#737373]">
+                  Ranked by Investment Score (vs state median)
+                </p>
               </div>
               <div
                 ref={countyListScrollRef}

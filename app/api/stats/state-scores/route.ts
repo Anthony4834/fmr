@@ -9,7 +9,42 @@ export const revalidate = 0;
 export async function GET(req: NextRequest) {
   try {
     const yearParam = req.nextUrl.searchParams.get('year');
+    const level = req.nextUrl.searchParams.get('level') || 'county';
     const year = yearParam ? parseInt(yearParam, 10) : await getLatestFMRYear();
+
+    if (level === 'state') {
+      // Get median investment scores by state
+      const result = await sql.query(
+        `
+        SELECT 
+          state_code,
+          PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY score) as median_score,
+          AVG(score) as avg_score,
+          COUNT(*) as zip_count
+        FROM investment_score
+        WHERE fmr_year = $1
+          AND data_sufficient = true
+          AND state_code IS NOT NULL
+          AND state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS')
+        GROUP BY state_code
+        HAVING COUNT(*) > 0
+        ORDER BY state_code
+        `,
+        [year]
+      );
+
+      const stateScores = result.rows.map((row: any) => ({
+        stateCode: row.state_code,
+        medianScore: Number(row.median_score) || null,
+        avgScore: Number(row.avg_score) || null,
+        zipCount: Number(row.zip_count) || 0,
+      }));
+
+      return NextResponse.json({
+        year,
+        stateScores,
+      });
+    }
 
     // Get median investment scores by county
     // Filter to only counties with valid FIPS codes (5 digits)
@@ -60,9 +95,9 @@ export async function GET(req: NextRequest) {
       countyScores,
     });
   } catch (e: any) {
-    console.error('County scores error:', e);
+    console.error('Scores error:', e);
     return NextResponse.json(
-      { error: 'Failed to fetch county scores' },
+      { error: 'Failed to fetch scores' },
       { status: 500 }
     );
   }

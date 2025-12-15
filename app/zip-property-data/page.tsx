@@ -160,7 +160,7 @@ export default function ZipPropertyDataPage() {
           ZIP Code Property Data
         </h1>
         <p className="mt-3 text-base text-[#525252]">
-          View property values (ZHVI), tax rates, and investment scores for all ZIP codes. 
+          View property values (ZHVI), tax rates, and Investment Scores for all ZIP codes. 
           Data includes 1-4 bedroom property values, effective property tax rates from ACS, 
           and Section 8 investment viability scores with normalization tracking.
         </p>
@@ -381,7 +381,7 @@ export default function ZipPropertyDataPage() {
                               ? "text-[#0a0a0a]"
                               : "text-[#737373]"
                           }
-                          title={`Investment score: ${row.investmentScore.toFixed(1)} (100 = median yield)`}
+                          title={`Investment Score: ${row.investmentScore.toFixed(1)} (100 = median yield)`}
                         >
                           {row.investmentScore.toFixed(1)}
                         </span>

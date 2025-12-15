@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, memo } from 'react';
 import Chart from 'chart.js/auto';
 
 type Row = {
@@ -18,7 +18,7 @@ function formatCurrencyShort(value: number) {
   }).format(value);
 }
 
-export default function StateBedroomCurveChart(props: { rows: Row[] }) {
+function StateBedroomCurveChart(props: { rows: Row[] }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const chartRef = useRef<Chart | null>(null);
 
@@ -147,5 +147,19 @@ export default function StateBedroomCurveChart(props: { rows: Row[] }) {
     </div>
   );
 }
+
+// Memoize component to prevent rerenders when parent rerenders but rows haven't changed
+export default memo(StateBedroomCurveChart, (prevProps, nextProps) => {
+  // Deep comparison of rows array
+  if (prevProps.rows.length !== nextProps.rows.length) return false;
+  return prevProps.rows.every((prevRow, index) => {
+    const nextRow = nextProps.rows[index];
+    return (
+      prevRow.br === nextRow.br &&
+      prevRow.medianFMR === nextRow.medianFMR &&
+      prevRow.medianYoY === nextRow.medianYoY
+    );
+  });
+});
 
 

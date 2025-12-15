@@ -5,12 +5,12 @@ import { useRouter } from 'next/navigation';
 import SearchInput from './SearchInput';
 import FMRResults from './FMRResults';
 import NationwideStats from './NationwideStats';
-import USStateMap from './USStateMap';
 import PercentageBadge from './PercentageBadge';
 import type { FMRResult, ZIPFMRData } from '@/lib/types';
 import ResultAbout from './ResultAbout';
 import { buildCitySlug, buildCountySlug } from '@/lib/location-slugs';
 import IdealPurchasePriceCard from './IdealPurchasePriceCard';
+import InvestorScoreInfoButton from './InvestorScoreInfoButton';
 
 function getTextColorForScore(score: number | null): string {
   if (score === null || score === undefined || score < 95) {
@@ -522,22 +522,29 @@ export default function HomeClient(props: {
               <p className="text-xs text-[#737373] font-medium tracking-wide uppercase">Fair Market Rent Data</p>
             </button>
           </div>
-          <p className="text-sm sm:text-base text-[#525252] max-w-2xl">
-            Search HUD Fair Market Rent data by address, city, ZIP code, or county
-          </p>
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <p className="text-sm sm:text-base text-[#525252] max-w-2xl">
+              Search HUD Fair Market Rent data by address, city, ZIP code, or county
+            </p>
+            <InvestorScoreInfoButton />
+          </div>
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 items-start">
-          {/* Main Results Card */}
-          <div
-            ref={mainCardRef}
-            className="flex-1 bg-white rounded-lg border border-[#e5e5e5] p-4 sm:p-6 md:p-8 w-full"
-          >
-            <div className="flex-shrink-0 mb-4 sm:mb-6">
+        <div className="flex flex-col gap-4 sm:gap-6">
+          {/* Search Input - Always visible */}
+          <div className="flex-shrink-0">
+            <div className="bg-white rounded-lg border border-[#e5e5e5] p-4 sm:p-6">
               <SearchInput onSelect={handleSearch} />
             </div>
-            <div>
-              {showResults ? (
+          </div>
+
+          {showResults ? (
+            <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 items-start">
+              {/* Main Results Card */}
+              <div
+                ref={mainCardRef}
+                className="flex-1 bg-white rounded-lg border border-[#e5e5e5] p-4 sm:p-6 md:p-8 w-full"
+              >
                 <FMRResults
                   data={viewFmrData}
                   loading={isSearching}
@@ -554,20 +561,13 @@ export default function HomeClient(props: {
                   }
                   onBreadcrumbBack={drilldownZip ? handleBackToRoot : undefined}
                 />
-              ) : (
-                <div className="space-y-6">
-                  <NationwideStats />
-                  <USStateMap />
-                </div>
-              )}
-            </div>
-          </div>
+              </div>
 
-          {/* Ideal Purchase Price Card - To the right */}
-          <IdealPurchasePriceCard data={viewFmrData} />
+              {/* Ideal Purchase Price Card - To the right */}
+              <IdealPurchasePriceCard data={viewFmrData} />
 
-          {/* ZIP Code Ranking Card - To the right (hide when drilled into a ZIP) */}
-          {!drilldownZip && (zipRankings && zipRankings.length > 0 || zipScoresLoading) && (
+              {/* ZIP Code Ranking Card - To the right (hide when drilled into a ZIP) */}
+              {!drilldownZip && (zipRankings && zipRankings.length > 0 || zipScoresLoading) && (
             <div
               className="w-full lg:w-80 flex-shrink-0 bg-white rounded-lg border border-[#e5e5e5] p-4 sm:p-6 md:p-8 flex flex-col"
               style={zipCardHeight ? { height: `${zipCardHeight}px` } : undefined}
@@ -576,7 +576,7 @@ export default function HomeClient(props: {
                 <h3 className="text-base sm:text-lg font-semibold text-[#0a0a0a] mb-1">ZIP Codes</h3>
                 <p className="text-xs text-[#737373]">
                   {viewFmrData?.source === 'safmr' 
-                    ? 'Ranked by investment score (vs area median)'
+                    ? 'Ranked by Investment Score (vs area median)'
                     : 'Ranked by average FMR (vs county median)'}
                 </p>
               </div>
@@ -592,7 +592,7 @@ export default function HomeClient(props: {
                     {zipRankings.map((zip, index) => {
                       const isSelected = drilldownZip === zip.zipCode;
                       const isScoreBased = viewFmrData?.source === 'safmr' && zip.score !== undefined;
-                      const scoreTextColor = isScoreBased && zip.score !== null
+                      const scoreTextColor = isScoreBased && zip.score !== null && zip.score !== undefined
                         ? getTextColorForScore(zip.score)
                         : undefined;
 
@@ -613,13 +613,13 @@ export default function HomeClient(props: {
                             </span>
                             <span className="font-medium text-[#0a0a0a] text-sm">{zip.zipCode}</span>
                           </div>
-                          {isScoreBased && zip.score !== null ? (
+                          {isScoreBased && zip.score !== null && zip.score !== undefined ? (
                             <div className="flex items-center gap-2 shrink-0">
                               <span 
                                 className="font-semibold text-xs tabular-nums"
                                 style={{ color: scoreTextColor }}
                               >
-                                {Math.round(zip.score)}
+                                {Math.round(zip.score ?? 0)}
                               </span>
                               <PercentageBadge value={zip.percentDiff} className="text-xs shrink-0" />
                             </div>
@@ -633,12 +633,23 @@ export default function HomeClient(props: {
                   <div className="mt-4 sm:mt-6 text-xs text-[#737373] pt-3 sm:pt-4 border-t border-[#e5e5e5] flex-shrink-0 leading-relaxed">
                     <p>
                       {viewFmrData?.source === 'safmr'
-                        ? 'Percent compares each ZIP\'s investment score to the area median score.'
+                        ? 'Percent compares each ZIP\'s Investment Score to the area median score.'
                         : 'Percent compares each ZIP\'s average FMR to the county median average FMR.'}
                     </p>
                   </div>
                 </>
               ) : null}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 items-start">
+              <div
+                ref={mainCardRef}
+                className="flex-1 w-full"
+              >
+                <NationwideStats />
+              </div>
             </div>
           )}
         </div>

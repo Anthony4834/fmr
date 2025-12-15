@@ -33,6 +33,9 @@ function parseArgs(argv: string[]) {
   const args = argv.slice(2);
   let year: number | null = null;
   let stateFilter: string | null = null;
+  let zhviMonth: Date | null = null;
+  let acsVintage: number | null = null;
+  let useHistorical: boolean = false;
 
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
@@ -45,10 +48,24 @@ function parseArgs(argv: string[]) {
     } else if (a === "--state" && args[i + 1]) {
       stateFilter = args[i + 1].trim().toUpperCase();
       i++;
+    } else if (a === "--zhvi-month" && args[i + 1]) {
+      const date = new Date(args[i + 1]);
+      if (!isNaN(date.getTime())) {
+        zhviMonth = date;
+      }
+      i++;
+    } else if (a === "--acs-vintage" && args[i + 1]) {
+      const n = parseInt(args[i + 1], 10);
+      if (Number.isFinite(n) && n >= 2009 && n <= 2100) {
+        acsVintage = n;
+      }
+      i++;
+    } else if (a === "--historical" || a === "--1-year-ago") {
+      useHistorical = true;
     }
   }
 
-  return { year, stateFilter };
+  return { year, stateFilter, zhviMonth, acsVintage, useHistorical };
 }
 
 interface ZipScoreData {
@@ -64,6 +81,9 @@ interface ZipScoreData {
   annualTaxes: number;
   netYield: number;
   rentToPriceRatio: number;
+  // Historical data tracking
+  zhviMonth: Date | null;
+  acsVintage: number | null;
   // Normalization tracking
   rawZhvi: number;
   countyZhviMedian: number | null;
@@ -79,31 +99,71 @@ function computeScore(data: ZipScoreData): number {
   return data.netYield;
 }
 
-async function computeZipScores(fmrYear: number, stateFilter: string | null) {
+async function computeZipScores(
+  fmrYear: number,
+  stateFilter: string | null,
+  zhviMonthOverride: Date | null = null,
+  acsVintageOverride: number | null = null,
+  useHistorical: boolean = false
+) {
   // Ensure schema exists
   await createSchema();
 
   console.log(`\n=== Computing Investment Scores (FMR Year: ${fmrYear}) ===\n`);
 
-  // Get latest ZHVI month
-  const latestMonthRes = await sql`
-    SELECT MAX(month) as latest_month
-    FROM zhvi_zip_bedroom_monthly
-    LIMIT 1
-  `;
-  const latestMonth = latestMonthRes.rows[0]?.latest_month || null;
-
-  if (!latestMonth) {
-    console.log("❌ No ZHVI data found. Run index:zip-latest first.");
-    return;
+  // Determine which ZHVI month to use
+  let targetMonth: Date | null = null;
+  if (zhviMonthOverride) {
+    targetMonth = zhviMonthOverride;
+    console.log(`Using specified ZHVI month: ${targetMonth.toISOString().slice(0, 7)}\n`);
+  } else if (useHistorical) {
+    // Calculate 1 year ago from today
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    // Round to first of the month
+    oneYearAgo.setDate(1);
+    targetMonth = oneYearAgo;
+    console.log(`Using historical ZHVI month (1 year ago): ${targetMonth.toISOString().slice(0, 7)}\n`);
+  } else {
+    // Get latest ZHVI month
+    const latestMonthRes = await sql`
+      SELECT MAX(month) as latest_month
+      FROM zhvi_zip_bedroom_monthly
+      LIMIT 1
+    `;
+    targetMonth = latestMonthRes.rows[0]?.latest_month || null;
+    if (!targetMonth) {
+      console.log("❌ No ZHVI data found. Run index:zip-latest first.");
+      return;
+    }
+    console.log(`Using latest ZHVI month: ${targetMonth.toISOString().slice(0, 7)}\n`);
   }
 
-  console.log(`Using ZHVI month: ${latestMonth}\n`);
+  // Determine which ACS vintage to use
+  let targetVintage: number | null = null;
+  if (acsVintageOverride) {
+    targetVintage = acsVintageOverride;
+    console.log(`Using specified ACS vintage: ${targetVintage}\n`);
+  } else if (useHistorical) {
+    // Calculate vintage from 1 year ago (ACS vintages are typically year-based)
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    targetVintage = oneYearAgo.getFullYear() - 1; // ACS 5-year data is typically 1-2 years behind
+    console.log(`Using historical ACS vintage (approx 1 year ago): ${targetVintage}\n`);
+  }
 
   // Build query to get ZIPs with FMR, property value, and tax rate
   // Priority: 3BR → 2BR → 4BR
   // FMR can come from SAFMR (zip-level) or county FMR (fallback)
   // Includes county-level ZHVI medians for blending
+  const params: any[] = [targetMonth, fmrYear];
+  
+  let zipTaxWhere = 'WHERE effective_tax_rate IS NOT NULL';
+  if (targetVintage) {
+    zipTaxWhere += ` AND acs_vintage = $${params.length + 1}`;
+    params.push(targetVintage);
+  }
+  
   let queryText = `
     WITH latest_zhvi AS (
       SELECT DISTINCT ON (zip_code, bedroom_count)
@@ -114,7 +174,7 @@ async function computeZipScores(fmrYear: number, stateFilter: string | null) {
         city_name,
         county_name
       FROM zhvi_zip_bedroom_monthly
-      WHERE month = $1
+      WHERE month = $1::date
         AND bedroom_count IN (2, 3, 4)
       ORDER BY zip_code, bedroom_count, month DESC
     ),
@@ -140,9 +200,10 @@ async function computeZipScores(fmrYear: number, stateFilter: string | null) {
     zip_tax AS (
       SELECT 
         zcta,
+        acs_vintage,
         effective_tax_rate
       FROM acs_tax_zcta_latest
-      WHERE effective_tax_rate IS NOT NULL
+      ${zipTaxWhere}
     ),
     zip_fmr_combined AS (
       SELECT DISTINCT
@@ -166,7 +227,7 @@ async function computeZipScores(fmrYear: number, stateFilter: string | null) {
         AND cfmr.state_code = z.state_code
     ),
     zip_data AS (
-      SELECT DISTINCT
+      SELECT 
         z.zip_code,
         z.state_code,
         z.city_name,
@@ -194,11 +255,9 @@ async function computeZipScores(fmrYear: number, stateFilter: string | null) {
       LEFT JOIN zip_tax tax ON tax.zcta = z.zip_code
       WHERE tax.effective_tax_rate IS NOT NULL
         AND z.zhvi IS NOT NULL
-        AND z.zhvi > 0
-      GROUP BY z.zip_code, z.state_code, z.city_name, z.county_name
-  `;
+        AND z.zhvi > 0`;
 
-  const params: any[] = [latestMonth, fmrYear];
+  const params: any[] = [targetMonth, fmrYear];
 
   if (stateFilter) {
     queryText += ` AND z.state_code = $${params.length + 1}`;
@@ -206,7 +265,7 @@ async function computeZipScores(fmrYear: number, stateFilter: string | null) {
   }
 
   queryText += `
-      GROUP BY z.zip_code, z.state_code, z.city_name, z.county_name, zcm.county_fips
+      GROUP BY z.zip_code, z.state_code, z.city_name, z.county_name
       HAVING 
         COALESCE(
           MAX(CASE WHEN z.bedroom_count = 3 AND z.zhvi IS NOT NULL THEN z.zhvi END),
@@ -229,6 +288,7 @@ async function computeZipScores(fmrYear: number, stateFilter: string | null) {
       zd.zip_zhvi,
       county_zhvi.zhvi_median as county_zhvi_median,
       tax.effective_tax_rate as tax_rate,
+      tax.acs_vintage,
       zd.fmr_value,
       (zd.fmr_value * 12) as annual_rent
     FROM zip_data zd
@@ -281,6 +341,7 @@ async function computeZipScores(fmrYear: number, stateFilter: string | null) {
       : null;
     const taxRate = Number(row.tax_rate);
     const annualRent = Number(row.annual_rent);
+    const acsVintage = row.acs_vintage ? Number(row.acs_vintage) : null;
 
     // Validate basic data quality
     if (annualRent <= 0 || annualRent > 500_000) {
@@ -362,6 +423,9 @@ async function computeZipScores(fmrYear: number, stateFilter: string | null) {
       annualTaxes,
       netYield,
       rentToPriceRatio,
+      // Historical data tracking
+      zhviMonth: targetMonth ? new Date(targetMonth) : null,
+      acsVintage: acsVintage,
       // Normalization tracking
       rawZhvi: zipZhvi,
       countyZhviMedian: countyZhviMedian || null,
@@ -462,7 +526,7 @@ async function computeZipScores(fmrYear: number, stateFilter: string | null) {
 
     for (let j = 0; j < batch.length; j++) {
       const s = batch[j]!;
-      const base = j * 24;
+      const base = j * 26;
       placeholders.push(
         `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${
           base + 5
@@ -472,7 +536,9 @@ async function computeZipScores(fmrYear: number, stateFilter: string | null) {
           base + 15
         }, $${base + 16}, $${base + 17}, $${base + 18}, $${base + 19}, $${
           base + 20
-        }, $${base + 21}, $${base + 22}, $${base + 23}, $${base + 24})`
+        }, $${base + 21}, $${base + 22}, $${base + 23}, $${base + 24}, $${
+          base + 25
+        }, $${base + 26})`
       );
       values.push(
         "zip",
@@ -484,6 +550,9 @@ async function computeZipScores(fmrYear: number, stateFilter: string | null) {
         s.countyFips,
         s.bedroomCount,
         fmrYear,
+        // Historical data tracking
+        s.zhviMonth,
+        s.acsVintage,
         s.propertyValue,
         s.taxRate,
         s.annualRent,
@@ -507,13 +576,13 @@ async function computeZipScores(fmrYear: number, stateFilter: string | null) {
       `
       INSERT INTO investment_score (
         geo_type, geo_key, zip_code, state_code, city_name, county_name, county_fips,
-        bedroom_count, fmr_year, property_value, tax_rate, annual_rent, annual_taxes,
+        bedroom_count, fmr_year, zhvi_month, acs_vintage, property_value, tax_rate, annual_rent, annual_taxes,
         net_yield, rent_to_price_ratio, score, data_sufficient,
         raw_zhvi, county_zhvi_median, blended_zhvi, price_floor_applied,
         rent_cap_applied, county_blending_applied, raw_rent_to_price_ratio
       )
       VALUES ${placeholders.join(", ")}
-      ON CONFLICT (geo_type, geo_key, bedroom_count, fmr_year)
+      ON CONFLICT (geo_type, geo_key, bedroom_count, fmr_year, zhvi_month, acs_vintage)
       DO UPDATE SET
         property_value = EXCLUDED.property_value,
         tax_rate = EXCLUDED.tax_rate,
@@ -654,11 +723,14 @@ async function computeZipScores(fmrYear: number, stateFilter: string | null) {
   }
 }
 
+// Export for use in API routes
+export { computeZipScores };
+
 if (import.meta.main) {
-  const { year, stateFilter } = parseArgs(process.argv);
+  const { year, stateFilter, zhviMonth, acsVintage, useHistorical } = parseArgs(process.argv);
   const fmrYear = year || (await getLatestFMRYear());
 
-  computeZipScores(fmrYear, stateFilter)
+  computeZipScores(fmrYear, stateFilter, zhviMonth, acsVintage, useHistorical)
     .then(() => process.exit(0))
     .catch((e) => {
       console.error("❌ Error:", e);

@@ -8,6 +8,7 @@ import StateBedroomCurveChart from '@/app/components/StateBedroomCurveChart';
 import PercentageBadge from '@/app/components/PercentageBadge';
 import Tooltip from '@/app/components/Tooltip';
 import ScoreGauge from '@/app/components/ScoreGauge';
+import InvestorScoreInfoIcon from '@/app/components/InvestorScoreInfoIcon';
 import { buildCitySlug, buildCountySlug } from '@/lib/location-slugs';
 
 interface FMRResultsProps {
@@ -37,9 +38,9 @@ export default function FMRResults({
     setShowAllZips(false);
   }, [data]);
 
-  // Fetch investment score for county/city/zip views
+  // Fetch investment score for county/city/zip/address views
   useEffect(() => {
-    if (!data || data.queriedType === 'address') {
+    if (!data) {
       setAreaScore(null);
       return;
     }
@@ -47,7 +48,7 @@ export default function FMRResults({
     setAreaScoreLoading(true);
     const params = new URLSearchParams();
     
-    if (data.queriedType === 'zip' && data.zipCode) {
+    if ((data.queriedType === 'zip' || data.queriedType === 'address') && data.zipCode) {
       params.set('zip', data.zipCode);
     } else if (data.queriedType === 'county' && data.countyName && data.stateCode) {
       params.set('county', data.countyName);
@@ -65,8 +66,8 @@ export default function FMRResults({
       .then(res => res.json())
       .then(result => {
         if (result.found) {
-          // For ZIP views, use score directly; for county/city, use medianScore
-          const score = data.queriedType === 'zip' 
+          // For ZIP and address views, use score directly; for county/city, use medianScore
+          const score = (data.queriedType === 'zip' || data.queriedType === 'address')
             ? (result.score ?? null)
             : (result.medianScore ?? null);
           setAreaScore(score);
@@ -83,55 +84,82 @@ export default function FMRResults({
 
   if (loading) {
     return (
-      <div className="mt-6">
-        {/* Compact Header Skeleton */}
-        <div className="mb-5">
-          <div className="flex items-start justify-between gap-3 mb-3 flex-wrap">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                <div className="h-6 bg-[#e5e5e5] rounded w-48 animate-pulse"></div>
-                <div className="h-5 bg-[#e5e5e5] rounded w-16 animate-pulse"></div>
+      <div className="mt-4 sm:mt-6">
+        {/* Breadcrumbs Skeleton */}
+        <div className="mb-3">
+          <div className="h-4 bg-[#e5e5e5] rounded w-48 animate-pulse"></div>
+        </div>
+
+        {/* Header Skeleton */}
+        <div className="mb-4 sm:mb-5 flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start gap-2">
+              {/* Back button skeleton */}
+              <div className="h-8 w-8 bg-[#e5e5e5] rounded-lg animate-pulse shrink-0"></div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  {/* Title skeleton */}
+                  <div className="h-5 sm:h-6 bg-[#e5e5e5] rounded w-48 sm:w-64 animate-pulse"></div>
+                  {/* Badge skeletons */}
+                  <div className="h-5 bg-[#e5e5e5] rounded w-12 animate-pulse"></div>
+                  <div className="h-5 bg-[#e5e5e5] rounded w-12 animate-pulse"></div>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* Location skeleton */}
+                  <div className="h-3 bg-[#e5e5e5] rounded w-40 animate-pulse"></div>
+                  <div className="h-3 bg-[#e5e5e5] rounded w-1 animate-pulse"></div>
+                  <div className="h-3 bg-[#e5e5e5] rounded w-32 animate-pulse"></div>
+                </div>
               </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <div className="h-4 bg-[#e5e5e5] rounded w-32 animate-pulse"></div>
-                <div className="h-4 bg-[#e5e5e5] rounded w-24 animate-pulse"></div>
-              </div>
-            </div>
-            <div className="flex items-center gap-1.5 flex-shrink-0">
-              <div className="h-6 bg-[#e5e5e5] rounded w-16 animate-pulse"></div>
-              <div className="h-6 bg-[#e5e5e5] rounded w-12 animate-pulse"></div>
             </div>
           </div>
-          <div className="h-3 bg-[#e5e5e5] rounded w-40 animate-pulse"></div>
+          {/* Zillow button skeleton */}
+          <div className="h-8 bg-[#e5e5e5] rounded-lg w-20 sm:w-28 animate-pulse shrink-0"></div>
+        </div>
+
+        {/* Investment Score Gauge Skeleton */}
+        <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-[#fafafa] rounded-lg border border-[#e5e5e5]">
+          <div className="flex items-center gap-4">
+            <div className="w-[120px] h-[60px] bg-[#e5e5e5] rounded animate-pulse" />
+            <div className="flex-1">
+              <div className="h-3 bg-[#e5e5e5] rounded w-32 mb-2 animate-pulse" />
+              <div className="h-3 bg-[#e5e5e5] rounded w-48 animate-pulse" />
+            </div>
+          </div>
         </div>
 
         {/* Table Skeleton */}
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse max-h-[280px] overflow-y-auto">
-            <thead>
-              <tr className="border-b border-[#e5e5e5]">
-                <th className="text-left py-2 px-3 font-medium text-[#737373] text-xs uppercase tracking-wider">Bedroom</th>
-                <th className="text-right py-2 px-3 font-medium text-[#737373] text-xs uppercase tracking-wider">Rent</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[...Array(5)].map((_, i) => (
-                <tr key={i} className="border-b border-[#e5e5e5]">
-                  <td className="py-2 px-3">
-                    <div className="h-4 bg-[#e5e5e5] rounded w-20 animate-pulse"></div>
-                  </td>
-                  <td className="py-2 px-3 text-right">
-                    <div className="h-4 bg-[#e5e5e5] rounded w-24 ml-auto animate-pulse"></div>
-                  </td>
+        <div className="overflow-x-auto overflow-y-visible -mx-1 sm:mx-0">
+          <div className="max-h-[240px] overflow-y-auto overflow-x-visible">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="border-b border-[#e5e5e5]">
+                  <th className="text-left py-2 px-2 sm:px-3 font-medium text-[#737373] text-xs uppercase tracking-wider">BR</th>
+                  <th className="text-right py-2 px-2 sm:px-3 font-medium text-[#737373] text-xs uppercase tracking-wider">Rent</th>
+                  <th className="text-right py-2 px-2 sm:px-3 font-medium text-[#737373] text-xs uppercase tracking-wider">YoY</th>
+                  <th className="text-right py-2 px-2 sm:px-3 font-medium text-[#737373] text-xs uppercase tracking-wider">3Y CAGR</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Footer Skeleton */}
-        <div className="mt-4 pt-3 border-t border-[#e5e5e5]">
-          <div className="h-3 bg-[#e5e5e5] rounded w-64 animate-pulse"></div>
+              </thead>
+              <tbody>
+                {[...Array(5)].map((_, i) => (
+                  <tr key={i} className="border-b border-[#e5e5e5]">
+                    <td className="py-2.5 sm:py-2 px-2 sm:px-3">
+                      <div className="h-4 bg-[#e5e5e5] rounded w-12 animate-pulse"></div>
+                    </td>
+                    <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
+                      <div className="h-4 bg-[#e5e5e5] rounded w-20 ml-auto animate-pulse"></div>
+                    </td>
+                    <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
+                      <div className="h-4 bg-[#e5e5e5] rounded w-12 ml-auto animate-pulse"></div>
+                    </td>
+                    <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
+                      <div className="h-4 bg-[#e5e5e5] rounded w-12 ml-auto animate-pulse"></div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     );
@@ -510,9 +538,9 @@ export default function FMRResults({
         </div>
       </div>
 
-      {/* Investment Score Gauge for County/City/ZIP views */}
-      {(dataNonNull.queriedType === 'county' || dataNonNull.queriedType === 'city' || dataNonNull.queriedType === 'zip') && (
-        <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-[#fafafa] rounded-lg border border-[#e5e5e5]">
+      {/* Investment Score Gauge for County/City/ZIP/Address views */}
+      {(dataNonNull.queriedType === 'county' || dataNonNull.queriedType === 'city' || dataNonNull.queriedType === 'zip' || dataNonNull.queriedType === 'address') && (
+        <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-[#fafafa] rounded-lg border border-[#e5e5e5] relative">
           {areaScoreLoading ? (
             <div className="flex items-center gap-4">
               <div className="w-[120px] h-[60px] bg-[#e5e5e5] rounded animate-pulse" />
@@ -522,32 +550,37 @@ export default function FMRResults({
               </div>
             </div>
           ) : areaScore !== null ? (
-            <ScoreGauge 
-              score={areaScore} 
-              maxValue={140}
-              label={
-                dataNonNull.queriedType === 'zip'
-                  ? 'ZIP Investment Score'
-                  : dataNonNull.queriedType === 'county'
-                    ? dataNonNull.source === 'safmr'
-                      ? 'County Median Investment Score'
-                      : 'County Investment Score'
-                    : dataNonNull.source === 'safmr'
-                      ? 'City Median Investment Score'
-                      : 'City Investment Score'
-              }
-              description={
-                dataNonNull.queriedType === 'zip'
-                  ? 'Investment score for this ZIP code'
-                  : dataNonNull.source === 'safmr'
-                    ? dataNonNull.queriedType === 'county'
-                      ? 'Based on median scores across all ZIPs in the county'
-                      : 'Based on median scores across all ZIPs in the city'
+            <>
+              <ScoreGauge 
+                score={areaScore} 
+                maxValue={140}
+                label={
+                  (dataNonNull.queriedType === 'zip' || dataNonNull.queriedType === 'address')
+                    ? 'ZIP Investment Score'
                     : dataNonNull.queriedType === 'county'
-                      ? 'Based on county-level FMR data'
-                      : 'Based on city-level FMR data'
-              }
-            />
+                      ? dataNonNull.source === 'safmr'
+                        ? 'County Median Investment Score'
+                        : 'County Investment Score'
+                      : dataNonNull.source === 'safmr'
+                        ? 'City Median Investment Score'
+                        : 'City Investment Score'
+                }
+                description={
+                  (dataNonNull.queriedType === 'zip' || dataNonNull.queriedType === 'address')
+                    ? 'Investment Score for this ZIP code'
+                    : dataNonNull.source === 'safmr'
+                      ? dataNonNull.queriedType === 'county'
+                        ? 'Based on median scores across all ZIPs in the county'
+                        : 'Based on median scores across all ZIPs in the city'
+                      : dataNonNull.queriedType === 'county'
+                        ? 'Based on county-level FMR data'
+                        : 'Based on city-level FMR data'
+                }
+              />
+              <div className="absolute top-3 right-3">
+                <InvestorScoreInfoIcon />
+              </div>
+            </>
           ) : null}
         </div>
       )}

@@ -21,6 +21,7 @@ export type MaxPriceInputs = {
   propertyTaxRateAnnualPct: number; // e.g. 1.2 (effective tax rate)
   insuranceMonthly: number;
   hoaMonthly: number;
+  propertyManagementMonthly?: number; // Property management fee
   desiredCashFlowMonthly: number; // Desired monthly cash flow in dollars
   downPayment: DownPaymentInput;
   termMonths?: number; // default 360
@@ -42,6 +43,7 @@ export type CashFlowInputs = {
   propertyTaxRateAnnualPct: number; // e.g. 1.2 (effective tax rate)
   insuranceMonthly: number;
   hoaMonthly: number;
+  propertyManagementMonthly?: number; // Property management fee
   downPayment: DownPaymentInput;
   termMonths?: number; // default 360
 };
@@ -51,7 +53,7 @@ export type CashFlowResult = {
   loanAmount: number;
   monthlyMortgagePayment: number;
   monthlyTaxes: number;
-  monthlyExpenses: number; // insurance + HOA + taxes
+  monthlyExpenses: number; // insurance + HOA + taxes + property management
   netBeforeDebt: number; // rent - expenses (before mortgage)
   notes: string[];
 };
@@ -204,6 +206,7 @@ export function computeCashFlow(input: CashFlowInputs): CashFlowResult | null {
   const R = Number(input.rentMonthly);
   const I = Number(input.insuranceMonthly);
   const H = Number(input.hoaMonthly);
+  const PM = Number(input.propertyManagementMonthly ?? 0);
   const taxAnnualPct = Number(input.propertyTaxRateAnnualPct);
   const rateAnnualPct = Number(input.interestRateAnnualPct);
   const bedrooms = clamp(Math.round(input.bedrooms), 0, 8);
@@ -212,6 +215,7 @@ export function computeCashFlow(input: CashFlowInputs): CashFlowResult | null {
   if (!Number.isFinite(R) || R <= 0) return null;
   if (!Number.isFinite(I) || I < 0) return null;
   if (!Number.isFinite(H) || H < 0) return null;
+  if (!Number.isFinite(PM) || PM < 0) return null;
   if (!Number.isFinite(taxAnnualPct) || taxAnnualPct < 0) return null;
   if (!Number.isFinite(rateAnnualPct) || rateAnnualPct < 0) return null;
   
@@ -238,7 +242,7 @@ export function computeCashFlow(input: CashFlowInputs): CashFlowResult | null {
   // Calculate monthly payments
   const monthlyMortgagePayment = factor * L;
   const monthlyTaxes = t * P;
-  const monthlyExpenses = I + H + monthlyTaxes;
+  const monthlyExpenses = I + H + monthlyTaxes + PM;
   const netBeforeDebt = R - monthlyExpenses;
   const monthlyCashFlow = netBeforeDebt - monthlyMortgagePayment;
   
@@ -269,6 +273,7 @@ export function computeMaxPriceForCashFlow(input: MaxPriceInputs): IdealPurchase
   const R = Number(input.rentMonthly);
   const I = Number(input.insuranceMonthly);
   const H = Number(input.hoaMonthly);
+  const PM = Number(input.propertyManagementMonthly ?? 0);
   const taxAnnualPct = Number(input.propertyTaxRateAnnualPct);
   const rateAnnualPct = Number(input.interestRateAnnualPct);
   const desiredCashFlow = Number(input.desiredCashFlowMonthly);
@@ -277,6 +282,7 @@ export function computeMaxPriceForCashFlow(input: MaxPriceInputs): IdealPurchase
   if (!Number.isFinite(R) || R <= 0) return null;
   if (!Number.isFinite(I) || I < 0) return null;
   if (!Number.isFinite(H) || H < 0) return null;
+  if (!Number.isFinite(PM) || PM < 0) return null;
   if (!Number.isFinite(taxAnnualPct) || taxAnnualPct < 0) return null;
   if (!Number.isFinite(rateAnnualPct) || rateAnnualPct < 0) return null;
   if (!Number.isFinite(desiredCashFlow)) return null;
@@ -287,8 +293,8 @@ export function computeMaxPriceForCashFlow(input: MaxPriceInputs): IdealPurchase
   const factor = paymentFactorPerDollarLoan(rm, n);
   if (!Number.isFinite(factor) || factor <= 0) return null;
   
-  // Cash flow = R - (Mortgage + Taxes + Insurance + HOA)
-  // Cash flow = R - (factor*L + t*P + I + H)
+  // Cash flow = R - (Mortgage + Taxes + Insurance + HOA + PM)
+  // Cash flow = R - (factor*L + t*P + I + H + PM)
   
   let P: number;
   let L: number;
@@ -298,12 +304,12 @@ export function computeMaxPriceForCashFlow(input: MaxPriceInputs): IdealPurchase
     if (!Number.isFinite(d) || d <= 0 || d >= 1) return null;
     
     // L = (1-d)*P
-    // Cash flow = R - (factor*(1-d)*P + t*P + I + H)
-    // Cash flow = R - P*(factor*(1-d) + t) - I - H
-    // P*(factor*(1-d) + t) = R - I - H - Cash flow
-    // P = (R - I - H - Cash flow) / (factor*(1-d) + t)
+    // Cash flow = R - (factor*(1-d)*P + t*P + I + H + PM)
+    // Cash flow = R - P*(factor*(1-d) + t) - I - H - PM
+    // P*(factor*(1-d) + t) = R - I - H - PM - Cash flow
+    // P = (R - I - H - PM - Cash flow) / (factor*(1-d) + t)
     const denom = factor * (1 - d) + t;
-    const numer = R - I - H - desiredCashFlow;
+    const numer = R - I - H - PM - desiredCashFlow;
     
     if (denom <= 0 || numer <= 0) return null;
     
@@ -316,13 +322,13 @@ export function computeMaxPriceForCashFlow(input: MaxPriceInputs): IdealPurchase
     if (!Number.isFinite(D) || D <= 0) return null;
     
     // L = P - D
-    // Cash flow = R - (factor*(P-D) + t*P + I + H)
-    // Cash flow = R - factor*P + factor*D - t*P - I - H
-    // Cash flow = R - P*(factor + t) + factor*D - I - H
-    // P*(factor + t) = R + factor*D - I - H - Cash flow
-    // P = (R + factor*D - I - H - Cash flow) / (factor + t)
+    // Cash flow = R - (factor*(P-D) + t*P + I + H + PM)
+    // Cash flow = R - factor*P + factor*D - t*P - I - H - PM
+    // Cash flow = R - P*(factor + t) + factor*D - I - H - PM
+    // P*(factor + t) = R + factor*D - I - H - PM - Cash flow
+    // P = (R + factor*D - I - H - PM - Cash flow) / (factor + t)
     const denom = factor + t;
-    const numer = R + (factor * D) - I - H - desiredCashFlow;
+    const numer = R + (factor * D) - I - H - PM - desiredCashFlow;
     
     if (denom <= 0 || numer <= 0) return null;
     
@@ -334,7 +340,7 @@ export function computeMaxPriceForCashFlow(input: MaxPriceInputs): IdealPurchase
   }
   
   const maxM = factor * L;
-  const netBeforeDebt = (R - I - H - (t * P));
+  const netBeforeDebt = (R - I - H - PM - (t * P));
   const actualCashFlow = netBeforeDebt - maxM;
   
   if (bedrooms > 4) notes.push('Using HUD 5+ bedroom rent scaling (+15% per bedroom above 4BR).');

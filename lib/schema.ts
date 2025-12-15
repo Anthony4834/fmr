@@ -201,8 +201,10 @@ export async function createSchema() {
     );
   `);
 
-  // ACS-derived ZIP/ZCTA effective property tax rate (latest available ACS 5-year vintage)
-  // Note: this is not truly "monthly"; the cron can attempt monthly and will no-op when already indexed.
+  // ACS-derived ZIP/ZCTA effective property tax rate (multiple ACS 5-year vintages)
+  // Note: Despite the "_latest" suffix in the table name, this table stores multiple vintages
+  // per ZCTA (via UNIQUE(acs_vintage, zcta)) to preserve historical data.
+  // The cron can attempt monthly and will no-op when a vintage is already indexed.
   await execute(`
     CREATE TABLE IF NOT EXISTS acs_tax_zcta_latest (
       id SERIAL PRIMARY KEY,
@@ -352,6 +354,9 @@ export async function createSchema() {
       county_fips VARCHAR(5),
       bedroom_count INTEGER NOT NULL CHECK (bedroom_count >= 1 AND bedroom_count <= 4),
       fmr_year INTEGER NOT NULL,
+      -- Historical data tracking: track which data sources were used
+      zhvi_month DATE,
+      acs_vintage INTEGER,
       property_value NUMERIC(14, 2) NOT NULL,
       tax_rate NUMERIC(10, 6) NOT NULL,
       annual_rent NUMERIC(10, 2) NOT NULL,
@@ -369,7 +374,8 @@ export async function createSchema() {
       county_blending_applied BOOLEAN DEFAULT false,
       raw_rent_to_price_ratio NUMERIC(10, 6),
       computed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      UNIQUE(geo_type, geo_key, bedroom_count, fmr_year)
+      -- Include zhvi_month and acs_vintage in unique constraint to preserve historical versions
+      UNIQUE(geo_type, geo_key, bedroom_count, fmr_year, zhvi_month, acs_vintage)
     );
   `);
 
@@ -377,6 +383,18 @@ export async function createSchema() {
   await execute(`
     DO $$ 
     BEGIN
+      -- Add zhvi_month column if it doesn't exist (for historical data tracking)
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                     WHERE table_name='investment_score' AND column_name='zhvi_month') THEN
+        ALTER TABLE investment_score ADD COLUMN zhvi_month DATE;
+      END IF;
+      
+      -- Add acs_vintage column if it doesn't exist (for historical data tracking)
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                     WHERE table_name='investment_score' AND column_name='acs_vintage') THEN
+        ALTER TABLE investment_score ADD COLUMN acs_vintage INTEGER;
+      END IF;
+      
       -- Add raw_zhvi column if it doesn't exist
       IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
                      WHERE table_name='investment_score' AND column_name='raw_zhvi') THEN
@@ -417,6 +435,20 @@ export async function createSchema() {
       IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
                      WHERE table_name='investment_score' AND column_name='raw_rent_to_price_ratio') THEN
         ALTER TABLE investment_score ADD COLUMN raw_rent_to_price_ratio NUMERIC(10, 6);
+      END IF;
+      
+      -- Update unique constraint to include zhvi_month and acs_vintage if the old constraint exists
+      -- This allows preserving historical versions when data sources change
+      IF EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'investment_score_geo_type_geo_key_bedroom_count_fmr_year_key'
+        AND conrelid = 'investment_score'::regclass
+      ) THEN
+        -- Drop old constraint
+        ALTER TABLE investment_score DROP CONSTRAINT investment_score_geo_type_geo_key_bedroom_count_fmr_year_key;
+        -- Add new constraint with historical tracking
+        ALTER TABLE investment_score ADD CONSTRAINT investment_score_geo_type_geo_key_bedroom_count_fmr_year_zhvi_month_acs_vintage_key 
+          UNIQUE(geo_type, geo_key, bedroom_count, fmr_year, zhvi_month, acs_vintage);
       END IF;
     END $$;
   `);

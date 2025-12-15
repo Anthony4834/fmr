@@ -26,6 +26,7 @@
     "index:zip-latest": "bun scripts/index-zip-latest.ts",
     "report:incomplete-zhvi": "bun scripts/report-incomplete-zhvi-zips.ts",
     "compute:investment-scores": "bun scripts/compute-investment-scores.ts",
+    "reindex:zip-data": "bun scripts/reindex-zip-data.ts",
     "create-test-views": "bun scripts/create-test-views.ts",
     "populate:safmr-zips": "bun scripts/populate-required-safmr-zips.ts",
     "count:safmr-zips": "bun scripts/count-zips-in-required-areas.ts",

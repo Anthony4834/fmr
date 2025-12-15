@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ComposableMap, Geographies, Geography } from 'react-simple-maps';
 import { buildCountySlug } from '@/lib/location-slugs';
+import { STATES } from '@/lib/states';
 
 interface CountyScore {
   countyFips: string;
@@ -16,9 +17,18 @@ interface CountyScore {
   avgYieldPct: number | null;
 }
 
+interface StateScore {
+  stateCode: string;
+  medianScore: number | null;
+  avgScore: number | null;
+  zipCount: number;
+}
+
 interface USStateMapProps {
   year?: number;
 }
+
+type MapLevel = 'county' | 'state';
 
 function getColorForScore(score: number | null): string {
   if (score === null || score === undefined || score < 95) {
@@ -30,37 +40,55 @@ function getColorForScore(score: number | null): string {
   return '#44e37e'; // Light green: >= 95 and < 130
 }
 
-
-const geoUrl = 'https://cdn.jsdelivr.net/npm/us-atlas@3/counties-10m.json';
+const countyGeoUrl = 'https://cdn.jsdelivr.net/npm/us-atlas@3/counties-10m.json';
+const stateGeoUrl = 'https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json';
 
 export default function USStateMap({ year }: USStateMapProps) {
   const router = useRouter();
+  const [mapLevel, setMapLevel] = useState<MapLevel>('county');
   const [countyScores, setCountyScores] = useState<CountyScore[]>([]);
+  const [stateScores, setStateScores] = useState<StateScore[]>([]);
   const [loading, setLoading] = useState(true);
   const [hoveredCounty, setHoveredCounty] = useState<string | null>(null);
+  const [hoveredState, setHoveredState] = useState<string | null>(null);
+  const [mousePosition, setMousePosition] = useState<{ x: number; y: number } | null>(null);
+  const mapContainerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const fetchScores = async () => {
       setLoading(true);
       try {
-        const url = year
-          ? `/api/stats/state-scores?year=${year}`
-          : '/api/stats/state-scores';
-        const res = await fetch(url);
-        const json = await res.json();
-        setCountyScores(json.countyScores || []);
+        if (mapLevel === 'county') {
+          const url = year
+            ? `/api/stats/state-scores?year=${year}`
+            : '/api/stats/state-scores';
+          const res = await fetch(url);
+          const json = await res.json();
+          setCountyScores(json.countyScores || []);
+        } else {
+          const url = year
+            ? `/api/stats/state-scores?level=state&year=${year}`
+            : '/api/stats/state-scores?level=state';
+          const res = await fetch(url);
+          const json = await res.json();
+          setStateScores(json.stateScores || []);
+        }
       } catch (e) {
-        console.error('Failed to fetch county scores:', e);
-        setCountyScores([]);
+        console.error('Failed to fetch scores:', e);
+        if (mapLevel === 'county') {
+          setCountyScores([]);
+        } else {
+          setStateScores([]);
+        }
       } finally {
         setLoading(false);
       }
     };
     fetchScores();
-  }, [year]);
+  }, [year, mapLevel]);
 
-  // ✅ Build score map: ALWAYS pad; don't drop non-5-length inputs
-  const scoreMap = useMemo(() => {
+  // ✅ Build county score map: ALWAYS pad; don't drop non-5-length inputs
+  const countyScoreMap = useMemo(() => {
     const m = new Map<string, CountyScore>();
     for (const c of countyScores) {
       if (!c?.countyFips) continue;
@@ -72,12 +100,28 @@ export default function USStateMap({ year }: USStateMapProps) {
     return m;
   }, [countyScores]);
 
+  // Build state score map (normalize state codes to uppercase for consistent matching)
+  const stateScoreMap = useMemo(() => {
+    const m = new Map<string, StateScore>();
+    for (const s of stateScores) {
+      if (!s?.stateCode) continue;
+      // Normalize to uppercase for consistent matching
+      const normalizedCode = String(s.stateCode).toUpperCase().trim();
+      m.set(normalizedCode, s);
+    }
+    return m;
+  }, [stateScores]);
+
 
   const handleCountyClick = (countyFips: string) => {
-    const county = scoreMap.get(countyFips);
+    const county = countyScoreMap.get(countyFips);
     if (!county?.countyName || !county?.stateCode) return;
     const countySlug = buildCountySlug(county.countyName, county.stateCode);
     router.push(`/county/${countySlug}`);
+  };
+
+  const handleStateClick = (stateCode: string) => {
+    router.push(`/state/${stateCode}`);
   };
 
   if (loading) {
@@ -89,17 +133,48 @@ export default function USStateMap({ year }: USStateMapProps) {
   }
 
   return (
-    <div className="w-full bg-white rounded-lg border border-[#e5e5e5] p-6">
-      <div className="mb-4">
-        <h3 className="text-lg font-semibold text-[#0a0a0a] mb-1">
-          Investment Score Heatmap by County
-        </h3>
-        <p className="text-sm text-[#737373]">
-          Median investment score across all ZIP codes in each county (100 = national median)
-        </p>
-      </div>
-
-      <div className="relative w-full h-[600px] bg-[#fafafa] rounded border border-[#e5e5e5] overflow-hidden">
+    <div className="w-full">
+      <div 
+        ref={mapContainerRef}
+        className="relative w-full h-[500px] sm:h-[600px] bg-[#fafafa] rounded-lg border border-[#e5e5e5] overflow-hidden"
+        onMouseMove={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          setMousePosition({
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top,
+          });
+        }}
+        onMouseLeave={() => {
+          setMousePosition(null);
+          setHoveredCounty(null);
+          setHoveredState(null);
+        }}
+      >
+        {/* County/State selector - positioned inside map */}
+        <div className="absolute top-3 right-3 z-10">
+          <div className="flex gap-1 border border-[#e5e5e5] rounded-lg p-1 bg-white shadow-sm">
+            <button
+              onClick={() => setMapLevel('county')}
+              className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+                mapLevel === 'county'
+                  ? 'bg-[#fafafa] text-[#0a0a0a]'
+                  : 'text-[#737373] hover:text-[#0a0a0a]'
+              }`}
+            >
+              County
+            </button>
+            <button
+              onClick={() => setMapLevel('state')}
+              className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+                mapLevel === 'state'
+                  ? 'bg-[#fafafa] text-[#0a0a0a]'
+                  : 'text-[#737373] hover:text-[#0a0a0a]'
+              }`}
+            >
+              State
+            </button>
+          </div>
+        </div>
         <ComposableMap
           projection="geoAlbersUsa"
           projectionConfig={{ scale: 1400 }}
@@ -108,80 +183,164 @@ export default function USStateMap({ year }: USStateMapProps) {
           className="w-full h-full"
           style={{ width: '100%', height: '100%' }}
         >
-          <Geographies geography={geoUrl}>
+          <Geographies geography={mapLevel === 'county' ? countyGeoUrl : stateGeoUrl}>
             {({ geographies }: { geographies: any[] }) =>
               geographies.map((geo: any) => {
-                // ✅ For us-atlas counties, FIPS is geo.id
-                const fips =
-                  geo?.id !== undefined && geo?.id !== null
-                    ? String(geo.id).padStart(5, '0')
-                    : '';
+                if (mapLevel === 'county') {
+                  // ✅ For us-atlas counties, FIPS is geo.id
+                  const fips =
+                    geo?.id !== undefined && geo?.id !== null
+                      ? String(geo.id).padStart(5, '0')
+                      : '';
 
-                const county = fips ? scoreMap.get(fips) : undefined;
-                const scoreValue = county?.medianScore ?? county?.avgScore ?? null;
-                const fillColor = getColorForScore(scoreValue);
-                const isHovered = hoveredCounty === fips;
+                  const county = fips ? countyScoreMap.get(fips) : undefined;
+                  const scoreValue = county?.medianScore ?? county?.avgScore ?? null;
+                  const fillColor = getColorForScore(scoreValue);
+                  const isHovered = hoveredCounty === fips;
 
-                return (
-                  <Geography
-                    key={geo.rsmKey}
-                    geography={geo}
-                    fill={fillColor}
-                    stroke={isHovered ? '#0a0a0a' : '#ffffff'}
-                    strokeWidth={isHovered ? 2 : 0.5}
-                    style={{
-                      default: { outline: 'none' },
-                      hover: { outline: 'none', cursor: county ? 'pointer' : 'default' },
-                      pressed: { outline: 'none' },
-                    }}
-                    onMouseEnter={() => fips && setHoveredCounty(fips)}
-                    onMouseLeave={() => setHoveredCounty(null)}
-                    onClick={() => county && fips && handleCountyClick(fips)}
-                    opacity={1}
-                  />
-                );
+                  return (
+                    <Geography
+                      key={geo.rsmKey}
+                      geography={geo}
+                      fill={fillColor}
+                      stroke={isHovered ? '#0a0a0a' : '#ffffff'}
+                      strokeWidth={isHovered ? 2 : 0.5}
+                      style={{
+                        default: { outline: 'none' },
+                        hover: { outline: 'none', cursor: county ? 'pointer' : 'default' },
+                        pressed: { outline: 'none' },
+                      }}
+                      onMouseEnter={() => fips && setHoveredCounty(fips)}
+                      onMouseLeave={() => setHoveredCounty(null)}
+                      onClick={() => county && fips && handleCountyClick(fips)}
+                      opacity={1}
+                    />
+                  );
+                } else {
+                  // For states, use state code (2-letter abbreviation)
+                  // us-atlas states-10m.json structure varies, try multiple approaches
+                  let stateCode = '';
+                  
+                  const props = geo?.properties || {};
+                  
+                  // Try common property names for state abbreviation
+                  const abbrevCandidates = [
+                    props.abbrev,
+                    props.abbreviation,
+                    props.state,
+                    props.stateCode,
+                    props.code,
+                    props.STUSPS, // US Census property
+                    props.STUSAB, // Alternative Census property
+                  ].filter(Boolean);
+                  
+                  for (const candidate of abbrevCandidates) {
+                    const code = String(candidate).toUpperCase().trim();
+                    if (code.length === 2 && /^[A-Z]{2}$/.test(code)) {
+                      const isValidState = STATES.some(s => s.code === code);
+                      if (isValidState) {
+                        stateCode = code;
+                        break;
+                      }
+    }
+                  }
+                  
+                  // If no abbreviation found, try matching by state name
+                  if (!stateCode && props.name) {
+                    const stateName = String(props.name).trim();
+                    const stateMatch = STATES.find(s => 
+                      s.name === stateName || 
+                      s.name.toLowerCase() === stateName.toLowerCase()
+                    );
+                    if (stateMatch) {
+                      stateCode = stateMatch.code;
+                    }
+                  }
+                  
+                  // Last resort: try geo.id if it looks like a state code
+                  if (!stateCode && geo?.id) {
+                    const idStr = String(geo.id).trim().toUpperCase();
+                    if (idStr.length === 2 && /^[A-Z]{2}$/.test(idStr)) {
+                      const isValidState = STATES.some(s => s.code === idStr);
+                      if (isValidState) {
+                        stateCode = idStr;
+                      }
+                    }
+                  }
+                  
+                  const state = stateCode ? stateScoreMap.get(stateCode) : undefined;
+                  const scoreValue = state?.medianScore ?? state?.avgScore ?? null;
+                  const fillColor = getColorForScore(scoreValue);
+                  const isHovered = hoveredState === stateCode;
+
+                  return (
+                    <Geography
+                      key={geo.rsmKey}
+                      geography={geo}
+                      fill={fillColor}
+                      stroke={isHovered ? '#0a0a0a' : '#ffffff'}
+                      strokeWidth={isHovered ? 2 : 0.5}
+                      style={{
+                        default: { outline: 'none' },
+                        hover: { outline: 'none', cursor: state ? 'pointer' : 'default' },
+                        pressed: { outline: 'none' },
+                      }}
+                      onMouseEnter={() => stateCode && setHoveredState(stateCode)}
+                      onMouseLeave={() => setHoveredState(null)}
+                      onClick={() => state && stateCode && handleStateClick(stateCode)}
+                      opacity={1}
+                    />
+                  );
+                }
               })
             }
           </Geographies>
         </ComposableMap>
-      </div>
 
-        <div className="mt-4 flex items-center justify-between flex-wrap gap-4">
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-[#737373]">Score:</span>
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1">
-                <div className="w-4 h-4 rounded bg-[#fca5a5]" title="< 95 or no data" />
-                <span className="text-xs text-[#737373]">&lt; 95</span>
+        {/* Tooltip */}
+        {mousePosition && mapContainerRef.current && (
+          <>
+            {mapLevel === 'county' && hoveredCounty && countyScoreMap.get(hoveredCounty) && (
+              <div
+                className="absolute pointer-events-none z-20 bg-[#0a0a0a] text-white text-xs rounded-md px-2 py-1.5 shadow-lg whitespace-nowrap"
+                style={{
+                  left: mousePosition.x + 10 > mapContainerRef.current.offsetWidth - 200
+                    ? `${mousePosition.x - 10}px`
+                    : `${mousePosition.x + 10}px`,
+                  top: `${mousePosition.y - 10}px`,
+                  transform: mousePosition.x + 10 > mapContainerRef.current.offsetWidth - 200
+                    ? 'translateX(-100%)'
+                    : 'translateX(0)',
+                }}
+              >
+                <div className="font-semibold">{countyScoreMap.get(hoveredCounty)?.countyName}</div>
+                <div className="text-[#d4d4d4]">
+                  {countyScoreMap.get(hoveredCounty)?.stateCode}: Score {countyScoreMap.get(hoveredCounty)?.medianScore?.toFixed(1) ?? 'N/A'}
+                </div>
               </div>
-              <div className="flex items-center gap-1">
-                <div className="w-4 h-4 rounded bg-[#44e37e]" title="≥ 95 and &lt; 130" />
-                <span className="text-xs text-[#737373]">95-129</span>
+            )}
+            {mapLevel === 'state' && hoveredState && stateScoreMap.get(hoveredState) && (
+              <div
+                className="absolute pointer-events-none z-20 bg-[#0a0a0a] text-white text-xs rounded-md px-2 py-1.5 shadow-lg whitespace-nowrap"
+                style={{
+                  left: mousePosition.x + 10 > mapContainerRef.current.offsetWidth - 200
+                    ? `${mousePosition.x - 10}px`
+                    : `${mousePosition.x + 10}px`,
+                  top: `${mousePosition.y - 10}px`,
+                  transform: mousePosition.x + 10 > mapContainerRef.current.offsetWidth - 200
+                    ? 'translateX(-100%)'
+                    : 'translateX(0)',
+                }}
+              >
+                <div className="font-semibold">{hoveredState}</div>
+                <div className="text-[#d4d4d4]">
+                  Score: {stateScoreMap.get(hoveredState)?.medianScore?.toFixed(1) ?? 'N/A'}
+                </div>
               </div>
-              <div className="flex items-center gap-1">
-                <div className="w-4 h-4 rounded bg-[#16a34a]" title="≥ 130" />
-                <span className="text-xs text-[#737373]">≥ 130</span>
-              </div>
-            </div>
-          </div>
-
-        {hoveredCounty && scoreMap.get(hoveredCounty) && (
-          <div className="text-sm text-[#0a0a0a]">
-            <strong>{scoreMap.get(hoveredCounty)?.countyName}</strong>,{' '}
-            {scoreMap.get(hoveredCounty)?.stateCode}: Score{' '}
-            {scoreMap.get(hoveredCounty)?.medianScore?.toFixed(1) ?? 'N/A'} •{' '}
-            {scoreMap.get(hoveredCounty)?.zipCount ?? 0} ZIPs
-          </div>
+            )}
+          </>
         )}
       </div>
-
-      <div className="mt-4 text-xs text-[#737373]">
-        <p>Showing {scoreMap.size} counties with investment scores</p>
-      </div>
-
-      <p className="mt-4 text-xs text-[#737373]">
-        Click a county to view detailed investment scores and ZIP code data.
-      </p>
     </div>
   );
 }
