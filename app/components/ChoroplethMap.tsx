@@ -20,7 +20,8 @@ type CountyData = {
   countyName: string;
   stateCode: string;
   fips: string;
-  avgFMR: number;
+  medianScore: number | null;
+  avgScore: number | null;
 };
 
 type ChoroplethMapProps = {
@@ -55,23 +56,29 @@ export default function ChoroplethMap({ stateCode, year, highlightFips, onCounty
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Fetch GeoJSON and FMR data in parallel
-        const [geojsonRes, fmrRes] = await Promise.all([
+        // Fetch GeoJSON and investment score data in parallel
+        const [geojsonRes, scoreRes] = await Promise.all([
           fetch(`/api/maps/county-geojson?state=${stateCode}`),
-          fetch(`/api/maps/county-fmr?state=${stateCode}${year ? `&year=${year}` : ''}`),
+          fetch(`/api/maps/county-scores?state=${stateCode}${year ? `&year=${year}` : ''}`),
         ]);
 
         if (cancelled) return;
 
         const geojsonData = await geojsonRes.json();
-        const fmrData = await fmrRes.json();
+        const scoreData = await scoreRes.json();
 
         if (cancelled) return;
 
         // Create a map of FIPS -> CountyData
         const dataMap = new Map<string, CountyData>();
-        (fmrData.counties || []).forEach((county: CountyData) => {
-          dataMap.set(county.fips, county);
+        (scoreData.counties || []).forEach((county: any) => {
+          dataMap.set(county.fips, {
+            countyName: county.countyName,
+            stateCode: county.stateCode,
+            fips: county.fips,
+            medianScore: county.medianScore,
+            avgScore: county.avgScore,
+          });
         });
 
         setGeojson(geojsonData);
@@ -98,23 +105,21 @@ export default function ChoroplethMap({ stateCode, year, highlightFips, onCounty
     };
   }, [stateCode, year]);
 
+  const getColorForScore = (score: number | null): string => {
+    if (score === null || score === undefined || score < 95) {
+      return '#fca5a5'; // Light red: <95 or no data
+    }
+    if (score >= 130) {
+      return '#16a34a'; // Dark green: >= 130
+    }
+    return '#44e37e'; // Light green: >= 95 and < 130
+  };
+
   const getColor = (fips: string): string => {
     const county = countyData.get(fips);
-    if (!county || county.avgFMR === 0) return '#e5e5e5'; // Gray for no data
-
-    // Calculate color based on FMR value
-    // Use a color scale from light blue (low) to dark blue (high)
-    const maxFMR = Math.max(...Array.from(countyData.values()).map(c => c.avgFMR), 1);
-    const minFMR = Math.min(...Array.from(countyData.values()).map(c => c.avgFMR), 0);
-    const range = maxFMR - minFMR || 1;
-    const normalized = (county.avgFMR - minFMR) / range;
-
-    // Color scale: #eff6ff (light blue) -> #2563eb (dark blue)
-    const r = Math.round(239 - normalized * 37); // 239 -> 37
-    const g = Math.round(246 - normalized * 99); // 246 -> 99
-    const b = Math.round(255 - normalized * 235); // 255 -> 20
-
-    return `rgb(${r}, ${g}, ${b})`;
+    if (!county) return '#e5e5e5'; // Gray for no data
+    const score = county.medianScore ?? county.avgScore ?? null;
+    return getColorForScore(score);
   };
 
   const style = (feature: any) => {
@@ -123,10 +128,10 @@ export default function ChoroplethMap({ stateCode, year, highlightFips, onCounty
     return {
       fillColor: getColor(fipsStr),
       weight: 1,
-      opacity: 0.8,
+      opacity: 1,
       color: '#fff',
       dashArray: '',
-      fillOpacity: 0.7,
+      fillOpacity: 1,
     };
   };
 
@@ -142,8 +147,10 @@ export default function ChoroplethMap({ stateCode, year, highlightFips, onCounty
       const countyLabel = county.countyName.includes('County')
         ? county.countyName
         : `${county.countyName} County`;
+      const score = county.medianScore ?? county.avgScore ?? null;
+      const scoreText = score !== null ? `Score: ${Math.round(score)}` : 'No data';
       
-      layer.bindTooltip(`${countyLabel}: $${Math.round(county.avgFMR).toLocaleString()}`, {
+      layer.bindTooltip(`${countyLabel}: ${scoreText}`, {
         permanent: false,
         direction: 'top',
       });

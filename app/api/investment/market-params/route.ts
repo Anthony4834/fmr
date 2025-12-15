@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { sql } from '@vercel/postgres';
 
 export const dynamic = 'force-dynamic';
 
@@ -212,20 +213,66 @@ export async function GET(req: NextRequest) {
     const cached = cacheGet(key);
     if (cached) return NextResponse.json({ data: cached });
 
-    const taxUrl = zip
-      ? `https://api.api-ninjas.com/v1/propertytax?zip=${encodeURIComponent(zip)}`
-      : `https://api.api-ninjas.com/v1/propertytax?county=${encodeURIComponent(county)}&state=${encodeURIComponent(state)}`;
+    // Fetch tax rate from database
+    let propertyTaxRateAnnualPct: number | null = null;
+    let propertyTaxSource = '';
+    
+    if (zip) {
+      // Get tax rate for ZIP from acs_tax_zcta_latest
+      const taxResult = await sql.query(
+        `
+        SELECT effective_tax_rate
+        FROM acs_tax_zcta_latest
+        WHERE zcta = $1
+        ORDER BY acs_vintage DESC
+        LIMIT 1
+        `,
+        [zip]
+      );
+      const taxRow = taxResult.rows[0];
+      if (taxRow?.effective_tax_rate !== null && taxRow?.effective_tax_rate !== undefined) {
+        // effective_tax_rate is stored as decimal (e.g., 0.012), convert to percent
+        propertyTaxRateAnnualPct = Number(taxRow.effective_tax_rate) * 100;
+        propertyTaxSource = `Database (ACS tax data, ZIP ${zip})`;
+      }
+    } else if (county && state) {
+      // Get median tax rate for county by aggregating from ZIPs
+      const taxResult = await sql.query(
+        `
+        SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tax.effective_tax_rate) as median_tax_rate
+        FROM acs_tax_zcta_latest tax
+        INNER JOIN zip_county_mapping zcm ON zcm.zip_code = tax.zcta
+        WHERE zcm.county_name ILIKE $1
+          AND zcm.state_code = $2
+          AND tax.effective_tax_rate IS NOT NULL
+        `,
+        [`%${county}%`, state]
+      );
+      const taxRow = taxResult.rows[0];
+      if (taxRow?.median_tax_rate !== null && taxRow?.median_tax_rate !== undefined) {
+        propertyTaxRateAnnualPct = Number(taxRow.median_tax_rate) * 100;
+        propertyTaxSource = `Database (ACS tax data, county ${county}, ${state}, median)`;
+      }
+    }
 
+    // Fallback to API Ninjas if database doesn't have data
+    if (propertyTaxRateAnnualPct === null) {
+      const taxUrl = zip
+        ? `https://api.api-ninjas.com/v1/propertytax?zip=${encodeURIComponent(zip)}`
+        : `https://api.api-ninjas.com/v1/propertytax?county=${encodeURIComponent(county)}&state=${encodeURIComponent(state)}`;
+      const taxJson = await ninjasFetchJson(taxUrl);
+      propertyTaxRateAnnualPct = pickMedianTaxRateAnnualPct(taxJson);
+      propertyTaxSource = zip ? `API Ninjas propertytax (zip ${zip}, median)` : `API Ninjas propertytax (county ${county}, ${state}, median)`;
+    }
+
+    // Fetch mortgage rate from API Ninjas (still using external API)
     const rateUrl = `https://api.api-ninjas.com/v1/mortgagerate`;
-
-    const [taxJson, rateJson] = await Promise.all([ninjasFetchJson(taxUrl), ninjasFetchJson(rateUrl)]);
-
-    const propertyTaxRateAnnualPct = pickMedianTaxRateAnnualPct(taxJson);
+    const rateJson = await ninjasFetchJson(rateUrl);
     const mortgageRateAnnualPct = pick30YearFixedMortgageRateAnnualPct(rateJson);
 
     const out: MarketParamsResponse = {
       propertyTaxRateAnnualPct,
-      propertyTaxSource: zip ? `API Ninjas propertytax (zip ${zip}, median)` : `API Ninjas propertytax (county ${county}, ${state}, median)`,
+      propertyTaxSource,
       mortgageRateAnnualPct,
       mortgageRateSource: 'API Ninjas mortgagerate (30-year fixed)',
       fetchedAt: new Date().toISOString(),

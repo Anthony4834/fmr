@@ -20,6 +20,8 @@ import { config } from 'dotenv';
 import { sql } from '@vercel/postgres';
 import { parse } from 'csv-parse';
 import { Readable } from 'node:stream';
+import { createSchema } from '../lib/schema';
+import { configureDatabase } from '../lib/db';
 
 config();
 
@@ -506,6 +508,12 @@ async function ingestAcsTaxLatest(explicitVintage: number | null, states: string
 }
 
 async function main() {
+  // Ensure database schema exists
+  if (process.env.POSTGRES_URL) {
+    configureDatabase({ connectionString: process.env.POSTGRES_URL });
+  }
+  await createSchema();
+
   const { bedrooms, zhviUrlBase, acsVintage, acsStates } = parseArgs(process.argv);
 
   // ZHVI (latest month, all ZIPs, by bedroom)

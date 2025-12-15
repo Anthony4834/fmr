@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get all counties for the state with investment score data
+    // Get county investment score data
     // Group only by FIPS and state_code to avoid duplicates from county_name variations
     const counties = await sql.query(
       `
@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
         cs.zip_count
       FROM county_scores cs
       LEFT JOIN county_names cn ON cs.county_fips = cn.county_fips AND cs.state_code = cn.state_code
-      ORDER BY cs.median_score DESC NULLS LAST
+      ORDER BY cs.county_fips
       `,
       [stateCode, year]
     );
@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
     const countyMap = new Map<string, {
       countyName: string;
       stateCode: string;
-      countyFips: string;
+      fips: string;
       medianScore: number | null;
       avgScore: number | null;
       zipCount: number;
@@ -97,7 +97,7 @@ export async function GET(request: NextRequest) {
         countyMap.set(fips, {
           countyName: row.county_name || 'Unknown County',
           stateCode: row.state_code,
-          countyFips: fips,
+          fips: fips,
           medianScore: row.median_score ? parseFloat(row.median_score) : null,
           avgScore: row.avg_score ? parseFloat(row.avg_score) : null,
           zipCount: parseInt(row.zip_count) || 0,
@@ -105,43 +105,16 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    const countyRows = Array.from(countyMap.values());
-
-    // Calculate state median score
-    const scores = countyRows.map(c => c.medianScore).filter((s): s is number => s !== null);
-    const sorted = [...scores].sort((a, b) => a - b);
-    const medianIndex = Math.floor(sorted.length / 2);
-    const stateMedianScore =
-      sorted.length % 2 === 0 && sorted.length > 0
-        ? (sorted[medianIndex - 1] + sorted[medianIndex]) / 2
-        : sorted.length > 0
-        ? sorted[medianIndex]
-        : null;
-
-    // Add percent diff vs median and sort by highest score -> lowest score
-    const rankings = countyRows
-      .map((c) => ({
-        ...c,
-        percentDiff: stateMedianScore && c.medianScore
-          ? ((c.medianScore - stateMedianScore) / stateMedianScore) * 100
-          : 0,
-      }))
-      .sort((a, b) => {
-        const scoreA = a.medianScore ?? 0;
-        const scoreB = b.medianScore ?? 0;
-        return scoreB - scoreA;
-      });
+    const countyData = Array.from(countyMap.values());
 
     return NextResponse.json({
-      rankings,
-      stateMedianScore,
-      count: rankings.length,
+      counties: countyData,
       year,
     });
   } catch (error) {
-    console.error('Error fetching state counties:', error);
+    console.error('Error fetching county score data:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch state counties' },
+      { error: 'Failed to fetch county score data' },
       { status: 500 }
     );
   }

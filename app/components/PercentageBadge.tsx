@@ -11,8 +11,11 @@ export default function PercentageBadge(props: {
   const { value, className = '', showSign = false } = props;
   const isPositive = value > 0.0001;
   const isNegative = value < -0.0001;
+  const isZero = !isPositive && !isNegative;
   
-  const icon = showSign ? (isPositive ? '+' : isNegative ? '-' : '') : (isPositive ? '▲' : isNegative ? '▼' : '');
+  const icon = showSign 
+    ? (isPositive ? '+' : isNegative ? '-' : '') 
+    : (isPositive ? '▲' : isNegative ? '▼' : isZero ? '—' : '');
   const colorClass = isPositive
     ? 'text-[#16a34a]'
     : isNegative
@@ -21,7 +24,7 @@ export default function PercentageBadge(props: {
 
   return (
     <span className={`inline-flex items-center gap-0.5 tabular-nums font-semibold ${colorClass} ${className}`}>
-      {icon && <span>{icon}</span>}
+      {icon && <span className={isZero ? 'inline-block' : ''}>{icon}</span>}
       <span>{Math.abs(value).toFixed(1)}%</span>
     </span>
   );

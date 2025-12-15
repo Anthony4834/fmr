@@ -24,6 +24,8 @@
     "ingest:zhvi": "bun scripts/ingest-zhvi.ts",
     "reindex:zhvi-rollups": "bun scripts/reindex-zhvi-rollups.ts",
     "index:zip-latest": "bun scripts/index-zip-latest.ts",
+    "report:incomplete-zhvi": "bun scripts/report-incomplete-zhvi-zips.ts",
+    "compute:investment-scores": "bun scripts/compute-investment-scores.ts",
     "create-test-views": "bun scripts/create-test-views.ts",
     "populate:safmr-zips": "bun scripts/populate-required-safmr-zips.ts",
     "count:safmr-zips": "bun scripts/count-zips-in-required-areas.ts",
@@ -40,8 +42,10 @@
     "leaflet": "^1.9.4",
     "next": "^14.2.0",
     "react": "^18.3.0",
+    "react-chartjs-2": "^5.3.1",
     "react-dom": "^18.3.0",
     "react-leaflet": "4.2.1",
+    "react-simple-maps": "^3.0.0",
     "use-debounce": "^10.0.0"
   },
   "devDependencies": {
@@ -49,6 +53,7 @@
     "@types/node": "^20.11.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
+    "@types/react-simple-maps": "^3.0.6",
     "autoprefixer": "^10.4.0",
     "eslint": "^8.57.0",
     "eslint-config-next": "^14.2.0",

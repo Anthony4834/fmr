@@ -7,6 +7,7 @@ import HistoricalFMRChart from '@/app/components/HistoricalFMRChart';
 import StateBedroomCurveChart from '@/app/components/StateBedroomCurveChart';
 import PercentageBadge from '@/app/components/PercentageBadge';
 import Tooltip from '@/app/components/Tooltip';
+import ScoreGauge from '@/app/components/ScoreGauge';
 import { buildCitySlug, buildCountySlug } from '@/lib/location-slugs';
 
 interface FMRResultsProps {
@@ -28,10 +29,56 @@ export default function FMRResults({
 }: FMRResultsProps) {
   const router = useRouter();
   const [showAllZips, setShowAllZips] = useState(false);
+  const [areaScore, setAreaScore] = useState<number | null>(null);
+  const [areaScoreLoading, setAreaScoreLoading] = useState(false);
 
   // Reset ZIP display state when data changes
   useEffect(() => {
     setShowAllZips(false);
+  }, [data]);
+
+  // Fetch investment score for county/city/zip views
+  useEffect(() => {
+    if (!data || data.queriedType === 'address') {
+      setAreaScore(null);
+      return;
+    }
+
+    setAreaScoreLoading(true);
+    const params = new URLSearchParams();
+    
+    if (data.queriedType === 'zip' && data.zipCode) {
+      params.set('zip', data.zipCode);
+    } else if (data.queriedType === 'county' && data.countyName && data.stateCode) {
+      params.set('county', data.countyName);
+      params.set('state', data.stateCode);
+    } else if (data.queriedType === 'city' && data.cityName && data.stateCode) {
+      params.set('city', data.cityName);
+      params.set('state', data.stateCode);
+    } else {
+      setAreaScoreLoading(false);
+      return;
+    }
+    if (data.year) params.set('year', String(data.year));
+
+    fetch(`/api/investment/score?${params.toString()}`)
+      .then(res => res.json())
+      .then(result => {
+        if (result.found) {
+          // For ZIP views, use score directly; for county/city, use medianScore
+          const score = data.queriedType === 'zip' 
+            ? (result.score ?? null)
+            : (result.medianScore ?? null);
+          setAreaScore(score);
+        } else {
+          setAreaScore(null);
+        }
+        setAreaScoreLoading(false);
+      })
+      .catch(() => {
+        setAreaScore(null);
+        setAreaScoreLoading(false);
+      });
   }, [data]);
 
   if (loading) {
@@ -462,6 +509,48 @@ export default function FMRResults({
           )}
         </div>
       </div>
+
+      {/* Investment Score Gauge for County/City/ZIP views */}
+      {(dataNonNull.queriedType === 'county' || dataNonNull.queriedType === 'city' || dataNonNull.queriedType === 'zip') && (
+        <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-[#fafafa] rounded-lg border border-[#e5e5e5]">
+          {areaScoreLoading ? (
+            <div className="flex items-center gap-4">
+              <div className="w-[120px] h-[60px] bg-[#e5e5e5] rounded animate-pulse" />
+              <div className="flex-1">
+                <div className="h-3 bg-[#e5e5e5] rounded w-32 mb-2 animate-pulse" />
+                <div className="h-3 bg-[#e5e5e5] rounded w-48 animate-pulse" />
+              </div>
+            </div>
+          ) : areaScore !== null ? (
+            <ScoreGauge 
+              score={areaScore} 
+              maxValue={140}
+              label={
+                dataNonNull.queriedType === 'zip'
+                  ? 'ZIP Investment Score'
+                  : dataNonNull.queriedType === 'county'
+                    ? dataNonNull.source === 'safmr'
+                      ? 'County Median Investment Score'
+                      : 'County Investment Score'
+                    : dataNonNull.source === 'safmr'
+                      ? 'City Median Investment Score'
+                      : 'City Investment Score'
+              }
+              description={
+                dataNonNull.queriedType === 'zip'
+                  ? 'Investment score for this ZIP code'
+                  : dataNonNull.source === 'safmr'
+                    ? dataNonNull.queriedType === 'county'
+                      ? 'Based on median scores across all ZIPs in the county'
+                      : 'Based on median scores across all ZIPs in the city'
+                    : dataNonNull.queriedType === 'county'
+                      ? 'Based on county-level FMR data'
+                      : 'Based on city-level FMR data'
+              }
+            />
+          ) : null}
+        </div>
+      )}
 
       {/* ZIP codes display - compact for large datasets */}
       {zipCodesToShow.length > zipDisplayLimit && (

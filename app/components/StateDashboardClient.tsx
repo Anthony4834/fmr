@@ -10,6 +10,7 @@ import SearchInput from './SearchInput';
 import StateBedroomCurveChart from './StateBedroomCurveChart';
 import PercentageBadge from './PercentageBadge';
 import Tooltip from './Tooltip';
+import ScoreGauge from './ScoreGauge';
 
 // Dynamically import ChoroplethMap to avoid SSR issues with Leaflet
 const ChoroplethMap = dynamic(() => import('./ChoroplethMap'), {
@@ -39,7 +40,8 @@ type CountyRanking = {
   countyName: string;
   stateCode: string;
   countyFips: string | null;
-  avgFMR: number;
+  medianScore: number | null;
+  avgScore: number | null;
   percentDiff: number;
 };
 
@@ -114,6 +116,7 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
   const [sideTab, setSideTab] = useState<'rising' | 'falling' | 'jumps'>('rising');
   const [countyRankings, setCountyRankings] = useState<CountyRanking[]>([]);
   const [countyRankingsLoading, setCountyRankingsLoading] = useState(true);
+  const [stateMedianScore, setStateMedianScore] = useState<number | null>(null);
   const [hoveredCountyFips, setHoveredCountyFips] = useState<string | null>(null);
   const [hoverSource, setHoverSource] = useState<'map' | 'list' | null>(null);
   const [moversData, setMoversData] = useState<MoversData | null>(null);
@@ -145,6 +148,7 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
       .then((data) => {
         if (abortController.signal.aborted) return;
         setCountyRankings(data.rankings || []);
+        setStateMedianScore(data.stateMedianScore ?? null);
         if (typeof data.year === 'number') setDisplayYear(data.year);
         setCountyRankingsLoading(false);
       })
@@ -254,14 +258,25 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
     };
   }, [props.stateCode, displayYear]);
 
-  const medianAvgFMR = useMemo(() => {
-    if (countyRankings.length === 0) return 0;
-    const sorted = [...countyRankings].sort((a, b) => a.avgFMR - b.avgFMR);
-    const mid = Math.floor(sorted.length / 2);
-    return sorted.length % 2 === 0
-      ? (sorted[mid - 1].avgFMR + sorted[mid].avgFMR) / 2
-      : sorted[mid].avgFMR;
-  }, [countyRankings]);
+  function getColorForScore(score: number | null): string {
+    if (score === null || score === undefined || score < 95) {
+      return '#fca5a5'; // Light red: <95 or no data
+    }
+    if (score >= 130) {
+      return '#16a34a'; // Dark green: >= 130
+    }
+    return '#44e37e'; // Light green: >= 95 and < 130
+  }
+
+  function getTextColorForScore(score: number | null): string {
+    if (score === null || score === undefined || score < 95) {
+      return '#b91c1c'; // Dark red for text: <95 or no data (improved contrast for readability)
+    }
+    if (score >= 130) {
+      return '#14532d'; // Darker green for text: >= 130 (improved legibility for small/bold labels)
+    }
+    return '#16a34a'; // Darker green for text: >= 95 and < 130 (improved contrast, easier on eyes)
+  }
 
   const handleSearch = (value: string, type: 'zip' | 'city' | 'county' | 'address' | 'state') => {
     if (type === 'zip') {
@@ -368,6 +383,13 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
               </div>
             </div>
 
+            {/* State Median Score Gauge */}
+            {stateMedianScore !== null && (
+              <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-[#fafafa] rounded-lg border border-[#e5e5e5]">
+                <ScoreGauge score={stateMedianScore} maxValue={140} />
+              </div>
+            )}
+
             {/* Statewide ZIP-based metrics */}
             <div className="mb-4 sm:mb-6">
               {stateMetricsLoading ? (
@@ -468,34 +490,207 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
               )}
             </div>
 
-            {/* County Rankings */}
+            {/* Tabbed movers */}
             <div className="mb-4 sm:mb-6">
-              <h3 className="text-sm sm:text-base font-semibold text-[#0a0a0a] mb-2 sm:mb-3">Counties</h3>
+              <h3 className="text-sm sm:text-base font-semibold text-[#0a0a0a] mb-2 sm:mb-3">Movers</h3>
               <p className="text-xs text-[#737373] mb-3 sm:mb-4">
-                Ranked by average FMR (vs state median)
+                Counties with largest YoY changes and price jumps
               </p>
-              {countyRankingsLoading ? (
-                <div className="space-y-2">
-                  {[...Array(10)].map((_, i) => (
-                    <div key={i} className="h-12 bg-[#e5e5e5] rounded animate-pulse" />
-                  ))}
+              <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[60vh]">
+                <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <span className="text-xs text-[#737373]">View:</span>
+                    <div className="flex gap-1">
+                      {[
+                        { id: 'rising' as const, label: 'Rising' },
+                        { id: 'falling' as const, label: 'Falling' },
+                        { id: 'jumps' as const, label: 'Jumps' },
+                      ].map((t) => (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => setSideTab(t.id)}
+                          className={`px-2 py-1 rounded-md text-xs font-semibold border transition-colors ${
+                            sideTab === t.id
+                              ? 'bg-white border-[#d4d4d4] text-[#0a0a0a]'
+                              : 'bg-[#fafafa] border-[#e5e5e5] text-[#737373] hover:text-[#0a0a0a]'
+                          }`}
+                        >
+                          {t.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-              ) : countyRankings.length === 0 ? (
-                <div className="text-xs text-[#737373] py-4">No county data available</div>
-              ) : (
-                <div className="bg-white border border-[#e5e5e5] rounded-lg overflow-hidden">
-                  <div
-                    ref={countyListScrollRef}
-                    className="divide-y divide-[#e5e5e5] max-h-[60vh] overflow-y-auto custom-scrollbar"
-                  >
+                <div className="divide-y divide-[#e5e5e5] overflow-y-auto flex-1 min-h-0 custom-scrollbar pb-2">
+                  {moversLoading ? (
+                    <>
+                      {[...Array(8)].map((_, i) => (
+                        <div key={i} className="px-3 sm:px-4 py-2 sm:py-2.5">
+                          <div className="flex items-start justify-between gap-2 sm:gap-3">
+                            <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
+                              <div className="h-3 bg-[#e5e5e5] rounded w-4 shrink-0 animate-pulse" />
+                              <div className="min-w-0 flex-1">
+                                <div className="h-4 bg-[#e5e5e5] rounded w-32 mb-1.5 animate-pulse" />
+                                <div className="h-3 bg-[#e5e5e5] rounded w-16 animate-pulse" />
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <div className="h-4 bg-[#e5e5e5] rounded w-12 ml-auto mb-1 animate-pulse" />
+                              <div className="h-3 bg-[#e5e5e5] rounded w-16 ml-auto animate-pulse" />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  ) : (() => {
+                    const bedroomLabels = ['0 BR', '1 BR', '2 BR', '3 BR', '4 BR'];
+                    let items: any[] = [];
+                    let colorClass = '';
+                    let primaryText: (item: any) => ReactNode = () => '';
+                    let secondaryText: (item: any) => string | null = () => null;
+                    let tertiaryText: (item: any) => string | null = () => null;
+                    let tertiaryValue: (item: any) => number | null = () => null;
+
+                    if (sideTab === 'rising') {
+                      items = (moversData?.rising || []).slice(0, 15);
+                      colorClass = 'text-[#16a34a]';
+                      primaryText = (item) => <PercentageBadge value={item.yoyPercent} />;
+                      secondaryText = (item) => bedroomLabels[item.yoyBedroom] || `${item.yoyBedroom} BR`;
+                      tertiaryValue = (item) => item.bedroom2 ?? null;
+                    } else if (sideTab === 'falling') {
+                      items = (moversData?.falling || []).slice(0, 15);
+                      colorClass = 'text-[#dc2626]';
+                      primaryText = (item) => <PercentageBadge value={item.yoyPercent} />;
+                      secondaryText = (item) => bedroomLabels[item.yoyBedroom] || `${item.yoyBedroom} BR`;
+                      tertiaryValue = (item) => item.bedroom2 ?? null;
+                    } else {
+                      items = (moversData?.anomalies || []).slice(0, 15);
+                      colorClass = 'text-[#7c3aed]';
+                      primaryText = (item) => <PercentageBadge value={item.jumpPercent} />;
+                      secondaryText = (item) => `${item.jumpFrom}→${item.jumpTo} BR`;
+                      tertiaryText = (item) =>
+                        typeof item.nationalAvg === 'number' ? `Nat avg ${item.nationalAvg.toFixed(1)}%` : null;
+                      // show the destination BR rent if available (e.g. 2BR for 1→2)
+                      tertiaryValue = (item) => {
+                        const key = `bedroom${item.jumpTo}` as const;
+                        return typeof item[key] === 'number' ? item[key] : null;
+                      };
+                    }
+
+                    if (items.length === 0) {
+                      return (
+                        <div className="px-3 sm:px-4 py-6 text-center">
+                          <p className="text-xs text-[#737373]">No data available</p>
+                        </div>
+                      );
+                    }
+
+                    return items.map((item, index) => {
+                      const countyLabel = item.areaName.includes('County')
+                        ? item.areaName
+                        : `${item.areaName} County`;
+                      const href = `/county/${buildCountySlug(item.areaName, item.stateCode)}`;
+
+                      return (
+                        <a
+                          key={`${sideTab}-${item.areaName}-${item.stateCode}-${index}`}
+                          href={href}
+                          className="block px-3 sm:px-4 py-2 sm:py-2.5 hover:bg-[#fafafa] transition-colors"
+                        >
+                          <div className="flex items-start justify-between gap-2 sm:gap-3">
+                            <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
+                              <span className="text-xs text-[#a3a3a3] font-medium shrink-0 tabular-nums">#{index + 1}</span>
+                              <div className="min-w-0">
+                                <div className="font-medium text-[#0a0a0a] text-xs sm:text-sm truncate">{countyLabel}</div>
+                                <div className="text-xs text-[#737373] truncate mt-0.5">{item.stateCode}</div>
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <div className={`font-semibold text-xs sm:text-sm tabular-nums ${colorClass}`}>
+                                {primaryText(item)}
+                              </div>
+                              {secondaryText(item) && <div className="text-xs text-[#737373] mt-0.5">{secondaryText(item)}</div>}
+                              {tertiaryText(item) && <div className="text-xs text-[#a3a3a3] mt-0.5 tabular-nums">{tertiaryText(item)}</div>}
+                              {tertiaryValue(item) !== null && (
+                                <div className="text-xs text-[#a3a3a3] mt-0.5 tabular-nums">{formatCurrency(tertiaryValue(item) as number)}</div>
+                              )}
+                            </div>
+                          </div>
+                        </a>
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          {/* Secondary cards */}
+          <div className="w-full lg:w-96 flex-shrink-0 lg:sticky lg:top-8 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pr-1 custom-scrollbar">
+            <div className="flex flex-col gap-3 sm:gap-4">
+            {/* Choropleth Map */}
+            <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden">
+              <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a] mb-0.5">County Map</h3>
+                  <p className="text-xs text-[#737373]">Click a county to view details</p>
+                </div>
+                <div className="text-xs font-medium text-[#737373]">Layer: Investment Score</div>
+              </div>
+              <div className="p-4">
+                <div className="h-40 rounded-lg overflow-hidden">
+                  <ChoroplethMap
+                    stateCode={props.stateCode}
+                    year={displayYear || undefined}
+                    highlightFips={hoveredCountyFips || undefined}
+                    onCountyHover={(fips) => {
+                      setHoverSource('map');
+                      setHoveredCountyFips(fips);
+                    }}
+                    onCountyHoverEnd={(fips) => {
+                      if (hoverSource === 'map' && hoveredCountyFips === fips) {
+                        setHoverSource(null);
+                        setHoveredCountyFips(null);
+                      }
+                    }}
+                    onCountyClick={(countyName, stateCode) => {
+                      router.push(`/county/${buildCountySlug(countyName, stateCode)}`);
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* County Rankings */}
+            <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[calc(100vh-24rem)]">
+              <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
+                <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a] mb-0.5">Counties</h3>
+                <p className="text-xs text-[#737373]">Ranked by investment score (vs state median)</p>
+              </div>
+              <div
+                ref={countyListScrollRef}
+                className="flex-1 min-h-0 overflow-y-auto custom-scrollbar"
+              >
+                {countyRankingsLoading ? (
+                  <div className="space-y-2 p-3 sm:p-4">
+                    {[...Array(10)].map((_, i) => (
+                      <div key={i} className="h-12 bg-[#e5e5e5] rounded animate-pulse" />
+                    ))}
+                  </div>
+                ) : countyRankings.length === 0 ? (
+                  <div className="text-xs text-[#737373] py-4 px-3 sm:px-4 text-center">No county data available</div>
+                ) : (
+                  <div className="divide-y divide-[#e5e5e5]">
                     {countyRankings.map((county, index) => {
-                      const isPositive = county.percentDiff > 0;
-                      const isNegative = county.percentDiff < 0;
                       const isHovered = !!county.countyFips && hoveredCountyFips === county.countyFips;
                       const countyLabel = county.countyName.includes('County')
                         ? county.countyName
                         : `${county.countyName} County`;
                       const href = `/county/${buildCountySlug(county.countyName, county.stateCode)}`;
+                      const score = county.medianScore ?? county.avgScore ?? null;
+                      const scoreTextColor = getTextColorForScore(score);
 
                       return (
                         <a
@@ -524,188 +719,29 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
                               <span className="text-xs font-medium text-[#737373] w-4 sm:w-5 tabular-nums shrink-0">
                                 {index + 1}
                               </span>
-                              <span className="font-medium text-[#0a0a0a] text-sm truncate">{countyLabel}</span>
+                              <span className="font-medium text-[#0a0a0a] text-xs sm:text-sm truncate">{countyLabel}</span>
                             </div>
                             <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-                              <span className="font-semibold text-[#0a0a0a] text-xs sm:text-sm tabular-nums">
-                                {formatCurrency(county.avgFMR)}
-                              </span>
-                                    <PercentageBadge value={county.percentDiff} className="text-xs sm:text-sm shrink-0" />
+                              {score !== null ? (
+                                <>
+                                  <span 
+                                    className="font-semibold text-xs tabular-nums"
+                                    style={{ color: scoreTextColor }}
+                                  >
+                                    {Math.round(score)}
+                                  </span>
+                                  <PercentageBadge value={county.percentDiff} className="text-xs shrink-0" />
+                                </>
+                              ) : (
+                                <span className="text-xs text-[#737373]">No data</span>
+                              )}
                             </div>
                           </div>
                         </a>
                       );
                     })}
                   </div>
-                </div>
-              )}
-            </div>
-
-          </div>
-
-          {/* Secondary cards */}
-          <div className="w-full lg:w-96 flex-shrink-0 lg:sticky lg:top-8 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pr-1 custom-scrollbar">
-            <div className="flex flex-col gap-3 sm:gap-4">
-            {/* Choropleth Map */}
-            <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden">
-              <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex items-center justify-between gap-2">
-                <div>
-                  <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a] mb-0.5">County Map</h3>
-                  <p className="text-xs text-[#737373]">Click a county to view details</p>
-                </div>
-                <div className="text-xs font-medium text-[#737373]">Layer: FMR</div>
-              </div>
-              <div className="p-4">
-                <div className="h-40 rounded-lg overflow-hidden">
-                  <ChoroplethMap
-                    stateCode={props.stateCode}
-                    year={displayYear || undefined}
-                    highlightFips={hoveredCountyFips || undefined}
-                    onCountyHover={(fips) => {
-                      setHoverSource('map');
-                      setHoveredCountyFips(fips);
-                    }}
-                    onCountyHoverEnd={(fips) => {
-                      if (hoverSource === 'map' && hoveredCountyFips === fips) {
-                        setHoverSource(null);
-                        setHoveredCountyFips(null);
-                      }
-                    }}
-                    onCountyClick={(countyName, stateCode) => {
-                      router.push(`/county/${buildCountySlug(countyName, stateCode)}`);
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Tabbed movers */}
-            <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[56vh] sm:max-h-[416px]">
-              <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
-                <div className="flex items-center justify-between gap-2 mb-1.5">
-                  <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a]">Movers</h3>
-                  <div className="flex gap-1">
-                    {[
-                      { id: 'rising' as const, label: 'Rising' },
-                      { id: 'falling' as const, label: 'Falling' },
-                      { id: 'jumps' as const, label: 'Jumps' },
-                    ].map((t) => (
-                      <button
-                        key={t.id}
-                        type="button"
-                        onClick={() => setSideTab(t.id)}
-                        className={`px-2 py-1 rounded-md text-xs font-semibold border transition-colors ${
-                          sideTab === t.id
-                            ? 'bg-white border-[#d4d4d4] text-[#0a0a0a]'
-                            : 'bg-[#fafafa] border-[#e5e5e5] text-[#737373] hover:text-[#0a0a0a]'
-                        }`}
-                      >
-                        {t.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <p className="text-xs text-[#737373]">Counties with largest YoY changes and price jumps</p>
-              </div>
-              <div className="divide-y divide-[#e5e5e5] overflow-y-auto flex-1 min-h-0 custom-scrollbar pb-2">
-                {moversLoading ? (
-                  <>
-                    {[...Array(8)].map((_, i) => (
-                      <div key={i} className="px-3 sm:px-4 py-2 sm:py-2.5">
-                        <div className="flex items-start justify-between gap-2 sm:gap-3">
-                          <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
-                            <div className="h-3 bg-[#e5e5e5] rounded w-4 shrink-0 animate-pulse" />
-                            <div className="min-w-0 flex-1">
-                              <div className="h-4 bg-[#e5e5e5] rounded w-32 mb-1.5 animate-pulse" />
-                              <div className="h-3 bg-[#e5e5e5] rounded w-16 animate-pulse" />
-                            </div>
-                          </div>
-                          <div className="text-right shrink-0">
-                            <div className="h-4 bg-[#e5e5e5] rounded w-12 ml-auto mb-1 animate-pulse" />
-                            <div className="h-3 bg-[#e5e5e5] rounded w-16 ml-auto animate-pulse" />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </>
-                ) : (() => {
-                  const bedroomLabels = ['0 BR', '1 BR', '2 BR', '3 BR', '4 BR'];
-                  let items: any[] = [];
-                  let colorClass = '';
-                  let primaryText: (item: any) => ReactNode = () => '';
-                  let secondaryText: (item: any) => string | null = () => null;
-                  let tertiaryText: (item: any) => string | null = () => null;
-                  let tertiaryValue: (item: any) => number | null = () => null;
-
-                  if (sideTab === 'rising') {
-                    items = (moversData?.rising || []).slice(0, 15);
-                    colorClass = 'text-[#16a34a]';
-                    primaryText = (item) => <PercentageBadge value={item.yoyPercent} />;
-                    secondaryText = (item) => bedroomLabels[item.yoyBedroom] || `${item.yoyBedroom} BR`;
-                    tertiaryValue = (item) => item.bedroom2 ?? null;
-                  } else if (sideTab === 'falling') {
-                    items = (moversData?.falling || []).slice(0, 15);
-                    colorClass = 'text-[#dc2626]';
-                    primaryText = (item) => <PercentageBadge value={item.yoyPercent} />;
-                    secondaryText = (item) => bedroomLabels[item.yoyBedroom] || `${item.yoyBedroom} BR`;
-                    tertiaryValue = (item) => item.bedroom2 ?? null;
-                  } else {
-                    items = (moversData?.anomalies || []).slice(0, 15);
-                    colorClass = 'text-[#7c3aed]';
-                    primaryText = (item) => <PercentageBadge value={item.jumpPercent} />;
-                    secondaryText = (item) => `${item.jumpFrom}→${item.jumpTo} BR`;
-                    tertiaryText = (item) =>
-                      typeof item.nationalAvg === 'number' ? `Nat avg ${item.nationalAvg.toFixed(1)}%` : null;
-                    // show the destination BR rent if available (e.g. 2BR for 1→2)
-                    tertiaryValue = (item) => {
-                      const key = `bedroom${item.jumpTo}` as const;
-                      return typeof item[key] === 'number' ? item[key] : null;
-                    };
-                  }
-
-                  if (items.length === 0) {
-                    return (
-                      <div className="px-3 sm:px-4 py-6 text-center">
-                        <p className="text-xs text-[#737373]">No data available</p>
-                      </div>
-                    );
-                  }
-
-                  return items.map((item, index) => {
-                    const countyLabel = item.areaName.includes('County')
-                      ? item.areaName
-                      : `${item.areaName} County`;
-                    const href = `/county/${buildCountySlug(item.areaName, item.stateCode)}`;
-
-                    return (
-                      <a
-                        key={`${sideTab}-${item.areaName}-${item.stateCode}-${index}`}
-                        href={href}
-                        className="block px-3 sm:px-4 py-2 sm:py-2.5 hover:bg-[#fafafa] transition-colors"
-                      >
-                        <div className="flex items-start justify-between gap-2 sm:gap-3">
-                          <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
-                            <span className="text-xs text-[#a3a3a3] font-medium shrink-0 tabular-nums">#{index + 1}</span>
-                            <div className="min-w-0">
-                              <div className="font-medium text-[#0a0a0a] text-xs sm:text-sm truncate">{countyLabel}</div>
-                              <div className="text-xs text-[#737373] truncate mt-0.5">{item.stateCode}</div>
-                            </div>
-                          </div>
-                          <div className="text-right shrink-0">
-                            <div className={`font-semibold text-xs sm:text-sm tabular-nums ${colorClass}`}>
-                              {primaryText(item)}
-                            </div>
-                            {secondaryText(item) && <div className="text-xs text-[#737373] mt-0.5">{secondaryText(item)}</div>}
-                            {tertiaryText(item) && <div className="text-xs text-[#a3a3a3] mt-0.5 tabular-nums">{tertiaryText(item)}</div>}
-                            {tertiaryValue(item) !== null && (
-                              <div className="text-xs text-[#a3a3a3] mt-0.5 tabular-nums">{formatCurrency(tertiaryValue(item) as number)}</div>
-                            )}
-                          </div>
-                        </div>
-                      </a>
-                    );
-                  });
-                })()}
+                )}
               </div>
             </div>
             </div>
