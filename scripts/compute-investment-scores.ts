@@ -92,6 +92,13 @@ interface ZipScoreData {
   rentCapApplied: boolean;
   countyBlendingApplied: boolean;
   rawRentToPriceRatio: number;
+  // Demand data
+  zordiMetro: string | null;
+  zordiValue: number | null;
+  zordiDelta3m: number | null;
+  zoriYoy: number | null;
+  demandScore: number | null;
+  demandMultiplier: number | null;
 }
 
 function computeScore(data: ZipScoreData): number {
@@ -363,26 +370,90 @@ async function computeZipScores(
           OR (county_zhvi.county_name = COALESCE(ccl.county_name, zd.county_name) AND zd.county_fips IS NULL)
         )
       )
+    ),
+    -- Get latest ZORDI month for demand data
+    latest_zordi_month AS (
+      SELECT MAX(month) as month FROM zillow_zordi_metro_monthly
+    ),
+    -- Get ZORDI values with 3-month delta
+    zordi_current AS (
+      SELECT
+        z.region_name,
+        z.zordi as zordi_value,
+        z_prev.zordi as zordi_3m_ago,
+        CASE
+          WHEN z_prev.zordi IS NOT NULL AND z_prev.zordi != 0
+          THEN (z.zordi - z_prev.zordi) / z_prev.zordi
+          ELSE NULL
+        END as zordi_delta_3m
+      FROM zillow_zordi_metro_monthly z
+      CROSS JOIN latest_zordi_month lzm
+      LEFT JOIN zillow_zordi_metro_monthly z_prev ON
+        z_prev.region_name = z.region_name
+        AND z_prev.region_type = z.region_type
+        AND z_prev.month = (lzm.month - INTERVAL '3 months')::date
+      WHERE z.month = lzm.month
+        AND z.region_type IN ('msa', 'metro')
+    ),
+    -- Get latest ZORI month
+    latest_zori_month AS (
+      SELECT MAX(month) as month FROM zillow_zori_zip_monthly
+    ),
+    -- Calculate ZORI YoY growth for each ZIP
+    zori_growth AS (
+      SELECT
+        zc.zip_code,
+        zc.zori as zori_current,
+        zp.zori as zori_1y_ago,
+        CASE
+          WHEN zp.zori IS NOT NULL AND zp.zori > 0
+          THEN (zc.zori - zp.zori) / zp.zori
+          ELSE NULL
+        END as zori_yoy
+      FROM zillow_zori_zip_monthly zc
+      CROSS JOIN latest_zori_month lsm
+      LEFT JOIN zillow_zori_zip_monthly zp ON
+        zp.zip_code = zc.zip_code
+        AND zp.month = (lsm.month - INTERVAL '1 year')::date
+      WHERE zc.month = lsm.month
+    ),
+    -- Map ZIPs to metro areas via CBSA or metro_name from ZORI
+    zip_metro_mapping AS (
+      SELECT DISTINCT ON (z.zip_code)
+        z.zip_code,
+        COALESCE(cbsa.cbsa_name, z.metro_name) as metro_name
+      FROM zillow_zori_zip_monthly z
+      LEFT JOIN cbsa_zip_mapping cbsa ON cbsa.zip_code = z.zip_code
+      WHERE z.metro_name IS NOT NULL OR cbsa.cbsa_name IS NOT NULL
+      ORDER BY z.zip_code, cbsa.cbsa_name NULLS LAST
     )
-    SELECT 
-      zip_code,
-      state_code,
-      city_name,
-      county_name,
-      county_fips,
-      bedroom_count,
-      zip_zhvi,
-      county_zhvi_median,
-      tax_rate,
-      acs_vintage,
-      fmr_value,
-      annual_rent
-    FROM zip_data_with_canonical
-    WHERE tax_rate IS NOT NULL
-      AND zip_zhvi IS NOT NULL
-      AND fmr_value IS NOT NULL
-      AND zip_zhvi > 0
-      AND tax_rate > 0
+    SELECT
+      zdc.zip_code,
+      zdc.state_code,
+      zdc.city_name,
+      zdc.county_name,
+      zdc.county_fips,
+      zdc.bedroom_count,
+      zdc.zip_zhvi,
+      zdc.county_zhvi_median,
+      zdc.tax_rate,
+      zdc.acs_vintage,
+      zdc.fmr_value,
+      zdc.annual_rent,
+      -- Demand data
+      zmm.metro_name as zordi_metro,
+      zrd.zordi_value,
+      zrd.zordi_delta_3m,
+      zg.zori_yoy
+    FROM zip_data_with_canonical zdc
+    LEFT JOIN zip_metro_mapping zmm ON zmm.zip_code = zdc.zip_code
+    LEFT JOIN zordi_current zrd ON zrd.region_name = zmm.metro_name
+    LEFT JOIN zori_growth zg ON zg.zip_code = zdc.zip_code
+    WHERE zdc.tax_rate IS NOT NULL
+      AND zdc.zip_zhvi IS NOT NULL
+      AND zdc.fmr_value IS NOT NULL
+      AND zdc.zip_zhvi > 0
+      AND zdc.tax_rate > 0
   `;
 
   const result = await sql.query(queryText, params);
@@ -485,6 +556,12 @@ async function computeZipScores(
         ? Math.log10(effectivePropertyValue / 100_000)
         : 1.0;
 
+    // Extract demand data from row (will be populated by the query)
+    const zordiMetro = row.zordi_metro || null;
+    const zordiValue = row.zordi_value ? Number(row.zordi_value) : null;
+    const zordiDelta3m = row.zordi_delta_3m ? Number(row.zordi_delta_3m) : null;
+    const zoriYoy = row.zori_yoy ? Number(row.zori_yoy) : null;
+
     scores.push({
       zipCode,
       stateCode: row.state_code || null,
@@ -509,6 +586,13 @@ async function computeZipScores(
       rentCapApplied: rentCapWasApplied,
       countyBlendingApplied: wasBlended,
       rawRentToPriceRatio,
+      // Demand data (will be computed after percentile ranking)
+      zordiMetro,
+      zordiValue,
+      zordiDelta3m,
+      zoriYoy,
+      demandScore: null, // Computed later
+      demandMultiplier: null, // Computed later
     });
   }
 
@@ -526,6 +610,97 @@ async function computeZipScores(
   console.log(`  Price floor applied: ${priceFloorApplied} ZIPs`);
   console.log(`  Rent-to-price cap applied: ${rentCapApplied} ZIPs`);
   console.log(`  County blending applied: ${blendingApplied} ZIPs\n`);
+
+  // ============================================================================
+  // Compute Demand Scores using percentile ranking
+  // Formula:
+  //   demand_level = pct_rank(ZORDI_metro_latest)
+  //   demand_momentum = pct_rank(ΔZORDI_metro_3m)
+  //   rent_pressure = pct_rank(ZORI_zip_yoy)
+  //   DEMAND_SCORE = 0.5*demand_level + 0.3*demand_momentum + 0.2*rent_pressure
+  //   demand_multiplier = clamp(0.90, 1.10, 1 + 0.20*(DEMAND_SCORE - 50)/100)
+  // ============================================================================
+
+  // Helper function for percentile rank (0-100)
+  function computePercentileRank(values: number[]): Map<number, number> {
+    const sorted = [...values].filter(v => v !== null && Number.isFinite(v)).sort((a, b) => a - b);
+    const ranks = new Map<number, number>();
+    for (let i = 0; i < sorted.length; i++) {
+      // Percentile rank: percentage of values that fall below this value
+      ranks.set(sorted[i]!, (i / (sorted.length - 1 || 1)) * 100);
+    }
+    return ranks;
+  }
+
+  // Collect demand metrics for percentile ranking
+  const zordiValues = scores.map(s => s.zordiValue).filter(v => v !== null) as number[];
+  const zordiDeltas = scores.map(s => s.zordiDelta3m).filter(v => v !== null) as number[];
+  const zoriYoys = scores.map(s => s.zoriYoy).filter(v => v !== null) as number[];
+
+  const zordiRanks = computePercentileRank(zordiValues);
+  const zordiDeltaRanks = computePercentileRank(zordiDeltas);
+  const zoriYoyRanks = computePercentileRank(zoriYoys);
+
+  // Count how many ZIPs have demand data
+  let demandDataCount = 0;
+
+  // Compute demand scores for each ZIP
+  for (const score of scores) {
+    let demandLevel: number | null = null;
+    let demandMomentum: number | null = null;
+    let rentPressure: number | null = null;
+
+    if (score.zordiValue !== null && zordiRanks.has(score.zordiValue)) {
+      demandLevel = zordiRanks.get(score.zordiValue)!;
+    }
+    if (score.zordiDelta3m !== null && zordiDeltaRanks.has(score.zordiDelta3m)) {
+      demandMomentum = zordiDeltaRanks.get(score.zordiDelta3m)!;
+    }
+    if (score.zoriYoy !== null && zoriYoyRanks.has(score.zoriYoy)) {
+      rentPressure = zoriYoyRanks.get(score.zoriYoy)!;
+    }
+
+    // Compute weighted demand score (only if we have at least demand level)
+    if (demandLevel !== null) {
+      // If missing components, reweight to available data
+      let totalWeight = 0;
+      let weightedSum = 0;
+
+      if (demandLevel !== null) {
+        weightedSum += 0.5 * demandLevel;
+        totalWeight += 0.5;
+      }
+      if (demandMomentum !== null) {
+        weightedSum += 0.3 * demandMomentum;
+        totalWeight += 0.3;
+      }
+      if (rentPressure !== null) {
+        weightedSum += 0.2 * rentPressure;
+        totalWeight += 0.2;
+      }
+
+      // Normalize to 0-100 scale
+      const demandScore = totalWeight > 0 ? (weightedSum / totalWeight) : 50;
+      score.demandScore = demandScore;
+
+      // Compute demand multiplier: clamp(0.90, 1.10, 1 + 0.20*(DEMAND_SCORE - 50)/100)
+      // This gives ±10% adjustment based on demand
+      const rawMultiplier = 1 + 0.20 * (demandScore - 50) / 100;
+      score.demandMultiplier = Math.max(0.90, Math.min(1.10, rawMultiplier));
+
+      demandDataCount++;
+    } else {
+      // No demand data - use neutral multiplier
+      score.demandScore = null;
+      score.demandMultiplier = 1.0;
+    }
+  }
+
+  console.log(`Demand Data Statistics:`);
+  console.log(`  ZIPs with ZORDI data: ${zordiValues.length}`);
+  console.log(`  ZIPs with ZORDI momentum: ${zordiDeltas.length}`);
+  console.log(`  ZIPs with ZORI YoY growth: ${zoriYoys.length}`);
+  console.log(`  ZIPs with computed demand score: ${demandDataCount}\n`);
 
   // Compute median yield for normalization
   const yields = scores.map((s) => s.netYield).sort((a, b) => a - b);
@@ -554,7 +729,11 @@ async function computeZipScores(
   const normalizedScores = scores.map((score) => {
     const rawScore = (score.netYield / medianYield) * 100;
     const cappedScore = Math.min(rawScore, 300);
-    
+
+    // Apply demand multiplier to get score_with_demand
+    const demandMultiplier = score.demandMultiplier ?? 1.0;
+    const scoreWithDemand = Math.min(cappedScore * demandMultiplier, 300);
+
     // Track ZIPs that hit the cap
     if (rawScore > 300) {
       cappedZips.push({
@@ -569,10 +748,11 @@ async function computeZipScores(
         countyName: score.countyName,
       });
     }
-    
+
     return {
       ...score,
       score: cappedScore,
+      scoreWithDemand: scoreWithDemand,
     };
   });
 
@@ -601,19 +781,9 @@ async function computeZipScores(
 
     for (let j = 0; j < batch.length; j++) {
       const s = batch[j]!;
-      const base = j * 26;
+      const base = j * 32; // 26 original + 6 demand fields
       placeholders.push(
-        `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${
-          base + 5
-        }, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${
-          base + 10
-        }, $${base + 11}, $${base + 12}, $${base + 13}, $${base + 14}, $${
-          base + 15
-        }, $${base + 16}, $${base + 17}, $${base + 18}, $${base + 19}, $${
-          base + 20
-        }, $${base + 21}, $${base + 22}, $${base + 23}, $${base + 24}, $${
-          base + 25
-        }, $${base + 26})`
+        `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11}, $${base + 12}, $${base + 13}, $${base + 14}, $${base + 15}, $${base + 16}, $${base + 17}, $${base + 18}, $${base + 19}, $${base + 20}, $${base + 21}, $${base + 22}, $${base + 23}, $${base + 24}, $${base + 25}, $${base + 26}, $${base + 27}, $${base + 28}, $${base + 29}, $${base + 30}, $${base + 31}, $${base + 32})`
       );
       values.push(
         "zip",
@@ -643,7 +813,13 @@ async function computeZipScores(
         s.priceFloorApplied,
         s.rentCapApplied,
         s.countyBlendingApplied,
-        s.rawRentToPriceRatio
+        s.rawRentToPriceRatio,
+        // Demand data
+        s.demandScore,
+        s.demandMultiplier,
+        s.scoreWithDemand,
+        s.zordiMetro,
+        s.zoriYoy
       );
     }
 
@@ -654,7 +830,8 @@ async function computeZipScores(
         bedroom_count, fmr_year, zhvi_month, acs_vintage, property_value, tax_rate, annual_rent, annual_taxes,
         net_yield, rent_to_price_ratio, score, data_sufficient,
         raw_zhvi, county_zhvi_median, blended_zhvi, price_floor_applied,
-        rent_cap_applied, county_blending_applied, raw_rent_to_price_ratio
+        rent_cap_applied, county_blending_applied, raw_rent_to_price_ratio,
+        demand_score, demand_multiplier, score_with_demand, zordi_metro, zori_yoy
       )
       VALUES ${placeholders.join(", ")}
       ON CONFLICT (geo_type, geo_key, bedroom_count, fmr_year, zhvi_month, acs_vintage)
@@ -678,6 +855,11 @@ async function computeZipScores(
         rent_cap_applied = EXCLUDED.rent_cap_applied,
         county_blending_applied = EXCLUDED.county_blending_applied,
         raw_rent_to_price_ratio = EXCLUDED.raw_rent_to_price_ratio,
+        demand_score = EXCLUDED.demand_score,
+        demand_multiplier = EXCLUDED.demand_multiplier,
+        score_with_demand = EXCLUDED.score_with_demand,
+        zordi_metro = EXCLUDED.zordi_metro,
+        zori_yoy = EXCLUDED.zori_yoy,
         computed_at = NOW()
       `,
       values

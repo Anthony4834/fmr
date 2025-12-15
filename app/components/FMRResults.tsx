@@ -514,7 +514,7 @@ export default function FMRResults({
                     : ''}
                 </div>
                 <span className="text-xs text-[#a3a3a3] shrink-0">•</span>
-                <span className="text-xs text-[#a3a3a3] shrink-0">FY {dataNonNull.year} • Effective {formatDate(dataNonNull.effectiveDate)}</span>
+                <span className="text-xs text-[#a3a3a3] shrink-0">FY {dataNonNull.year} • Effective Oct 1, {dataNonNull.year - 1}</span>
               </div>
             </div>
           </div>

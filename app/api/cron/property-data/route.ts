@@ -62,14 +62,36 @@ async function indexZHVI() {
 
 // Call existing ACS tax endpoint
 async function indexACSTax() {
-  const baseUrl = process.env.VERCEL_URL 
-    ? `https://${process.env.VERCEL_URL}` 
+  const baseUrl = process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
     : 'http://localhost:3000';
-  
+
   const secret = process.env.CRON_SECRET || '';
-  
+
   try {
     const url = `${baseUrl}/api/cron/acs-tax${secret ? `?secret=${encodeURIComponent(secret)}` : ''}`;
+    const res = await fetch(url, {
+      headers: {
+        'x-vercel-cron': '1',
+      },
+    });
+    const json = await res.json();
+    return { success: res.ok, ...json };
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
+}
+
+// Call Zillow rentals endpoint (ZORI + ZORDI)
+async function indexZillowRentals() {
+  const baseUrl = process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : 'http://localhost:3000';
+
+  const secret = process.env.CRON_SECRET || '';
+
+  try {
+    const url = `${baseUrl}/api/cron/zillow-rentals${secret ? `?secret=${encodeURIComponent(secret)}` : ''}`;
     const res = await fetch(url, {
       headers: {
         'x-vercel-cron': '1',
@@ -145,6 +167,7 @@ export async function GET(req: NextRequest) {
     const results: any = {
       zhvi: null,
       acsTax: null,
+      zillowRentals: null,
       investmentScores: null,
     };
 
@@ -168,7 +191,17 @@ export async function GET(req: NextRequest) {
       results.acsTax = { error: e.message };
     }
 
-    // Step 3: Compute investment scores (depends on ZHVI and tax data)
+    // Step 3: Index Zillow rentals data (ZORI + ZORDI for demand scoring)
+    try {
+      console.log('[property-data cron] Starting Zillow rentals indexing...');
+      results.zillowRentals = await indexZillowRentals();
+      console.log('[property-data cron] Zillow rentals indexing complete');
+    } catch (e: any) {
+      console.error('[property-data cron] Zillow rentals indexing error:', e);
+      results.zillowRentals = { error: e.message };
+    }
+
+    // Step 4: Compute investment scores (depends on ZHVI, tax, and rentals data)
     try {
       console.log('[property-data cron] Starting investment score computation...');
       const year = await getLatestFMRYear();

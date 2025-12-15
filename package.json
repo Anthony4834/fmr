@@ -33,7 +33,8 @@
     "verify:safmr-zips": "bun scripts/verify-required-safmr-zips.ts",
     "backfill:county-fips": "bun scripts/backfill-county-fips.ts",
     "fix:remaining-missing-fmr-zips": "bun scripts/fix-remaining-missing-fmr-zips.ts",
-    "normalize:county-names": "bun scripts/normalize-county-names-from-fips.ts"
+    "normalize:county-names": "bun scripts/normalize-county-names-from-fips.ts",
+    "index:investment-scores": "bun scripts/index-investment-scores.ts"
   },
   "dependencies": {
     "@vercel/postgres": "^0.9.0",

@@ -432,11 +432,41 @@ export async function createSchema() {
       END IF;
       
       -- Add raw_rent_to_price_ratio column if it doesn't exist
-      IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns
                      WHERE table_name='investment_score' AND column_name='raw_rent_to_price_ratio') THEN
         ALTER TABLE investment_score ADD COLUMN raw_rent_to_price_ratio NUMERIC(10, 6);
       END IF;
-      
+
+      -- Add demand_score column if it doesn't exist (rental demand factor 0-100)
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                     WHERE table_name='investment_score' AND column_name='demand_score') THEN
+        ALTER TABLE investment_score ADD COLUMN demand_score NUMERIC(10, 2);
+      END IF;
+
+      -- Add demand_multiplier column if it doesn't exist (0.90-1.10)
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                     WHERE table_name='investment_score' AND column_name='demand_multiplier') THEN
+        ALTER TABLE investment_score ADD COLUMN demand_multiplier NUMERIC(10, 4);
+      END IF;
+
+      -- Add score_with_demand column if it doesn't exist (final score adjusted by demand)
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                     WHERE table_name='investment_score' AND column_name='score_with_demand') THEN
+        ALTER TABLE investment_score ADD COLUMN score_with_demand NUMERIC(10, 2);
+      END IF;
+
+      -- Add zordi_metro column for tracking which metro demand was used
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                     WHERE table_name='investment_score' AND column_name='zordi_metro') THEN
+        ALTER TABLE investment_score ADD COLUMN zordi_metro TEXT;
+      END IF;
+
+      -- Add zori_yoy column for tracking rent growth (year-over-year)
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                     WHERE table_name='investment_score' AND column_name='zori_yoy') THEN
+        ALTER TABLE investment_score ADD COLUMN zori_yoy NUMERIC(10, 6);
+      END IF;
+
       -- Update unique constraint to include zhvi_month and acs_vintage if the old constraint exists
       -- This allows preserving historical versions when data sources change
       IF EXISTS (
@@ -452,6 +482,81 @@ export async function createSchema() {
       END IF;
     END $$;
   `);
+
+  // Zillow Observed Rent Index (ZORI) - ZIP-level rent data (monthly time series)
+  await execute(`
+    CREATE TABLE IF NOT EXISTS zillow_zori_zip_monthly (
+      id SERIAL PRIMARY KEY,
+      zip_code VARCHAR(10) NOT NULL,
+      month DATE NOT NULL,
+      zori NUMERIC(10, 2),
+      state_code VARCHAR(2),
+      city_name TEXT,
+      county_name TEXT,
+      metro_name TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(zip_code, month)
+    );
+  `);
+
+  // Zillow Observed Renter Demand Index (ZORDI) - Metro-level demand data (monthly time series)
+  await execute(`
+    CREATE TABLE IF NOT EXISTS zillow_zordi_metro_monthly (
+      id SERIAL PRIMARY KEY,
+      region_name TEXT NOT NULL,
+      region_type VARCHAR(20) NOT NULL,
+      cbsa_code VARCHAR(10),
+      month DATE NOT NULL,
+      zordi NUMERIC(10, 4),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(region_name, region_type, month)
+    );
+  `);
+
+  // CBSA to ZIP mapping (for joining metro-level ZORDI to ZIP-level data)
+  await execute(`
+    CREATE TABLE IF NOT EXISTS cbsa_zip_mapping (
+      id SERIAL PRIMARY KEY,
+      zip_code VARCHAR(10) NOT NULL,
+      cbsa_code VARCHAR(10) NOT NULL,
+      cbsa_name TEXT NOT NULL,
+      state_code VARCHAR(2),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(zip_code, cbsa_code)
+    );
+  `);
+
+  // ZORI indexes
+  await execute(
+    "CREATE INDEX IF NOT EXISTS idx_zori_zip_month ON zillow_zori_zip_monthly(zip_code, month DESC);"
+  );
+  await execute(
+    "CREATE INDEX IF NOT EXISTS idx_zori_month ON zillow_zori_zip_monthly(month DESC);"
+  );
+  await execute(
+    "CREATE INDEX IF NOT EXISTS idx_zori_state ON zillow_zori_zip_monthly(state_code, month DESC);"
+  );
+
+  // ZORDI indexes
+  await execute(
+    "CREATE INDEX IF NOT EXISTS idx_zordi_region_month ON zillow_zordi_metro_monthly(region_name, month DESC);"
+  );
+  await execute(
+    "CREATE INDEX IF NOT EXISTS idx_zordi_cbsa_month ON zillow_zordi_metro_monthly(cbsa_code, month DESC);"
+  );
+  await execute(
+    "CREATE INDEX IF NOT EXISTS idx_zordi_month ON zillow_zordi_metro_monthly(month DESC);"
+  );
+
+  // CBSA mapping indexes
+  await execute(
+    "CREATE INDEX IF NOT EXISTS idx_cbsa_zip ON cbsa_zip_mapping(zip_code);"
+  );
+  await execute(
+    "CREATE INDEX IF NOT EXISTS idx_cbsa_code ON cbsa_zip_mapping(cbsa_code);"
+  );
 
   // Investment score indexes
   await execute(

@@ -133,7 +133,7 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
   const countyListScrollRef = useRef<HTMLDivElement | null>(null);
 
   const stateName = STATES.find((s) => s.code === props.stateCode)?.name || props.stateCode;
-  const effectiveText = displayYear ? `FY ${displayYear} | Effective Oct 1, ${displayYear}` : 'Loading…';
+  const effectiveText = displayYear ? `FY ${displayYear} | Effective Oct 1, ${displayYear - 1}` : 'Loading…';
 
   // Fetch county rankings
   useEffect(() => {
