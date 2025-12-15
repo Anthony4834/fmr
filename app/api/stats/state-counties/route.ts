@@ -30,53 +30,91 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all counties for the state with investment score data
-    // Group only by FIPS and state_code to avoid duplicates from county_name variations
+    // Use DISTINCT ON to ensure exactly one row per county_fips
+    // This handles cases where the same FIPS appears with different county_name variations or data versions
     const counties = await sql.query(
       `
-      WITH county_scores AS (
+      WITH all_county_data AS (
         SELECT 
           county_fips,
           state_code,
-          PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY score) as median_score,
-          AVG(score) as avg_score,
-          COUNT(*) as zip_count
+          county_name,
+          score,
+          zhvi_month,
+          acs_vintage,
+          computed_at
         FROM investment_score
         WHERE state_code = $1
           AND fmr_year = $2
           AND data_sufficient = true
           AND county_fips IS NOT NULL
           AND LENGTH(TRIM(county_fips)) = 5
-        GROUP BY county_fips, state_code
-        HAVING COUNT(*) > 0
+      ),
+      latest_versions AS (
+        -- Get the latest zhvi_month and acs_vintage for this state/year
+        SELECT 
+          MAX(zhvi_month) as latest_zhvi_month,
+          MAX(acs_vintage) as latest_acs_vintage
+        FROM all_county_data
+      ),
+      filtered_data AS (
+        -- Filter to only the latest data version
+        SELECT 
+          county_fips,
+          state_code,
+          county_name,
+          score,
+          computed_at
+        FROM all_county_data acd
+        CROSS JOIN latest_versions lv
+        WHERE (
+          (lv.latest_zhvi_month IS NULL AND acd.zhvi_month IS NULL) OR
+          (lv.latest_zhvi_month IS NOT NULL AND acd.zhvi_month = lv.latest_zhvi_month)
+        )
+        AND (
+          (lv.latest_acs_vintage IS NULL AND acd.acs_vintage IS NULL) OR
+          (lv.latest_acs_vintage IS NOT NULL AND acd.acs_vintage = lv.latest_acs_vintage)
+        )
       ),
       county_names AS (
+        -- Get one county_name per FIPS (prefer the most common one)
         SELECT DISTINCT ON (county_fips, state_code)
           county_fips,
           state_code,
-          county_name
-        FROM investment_score
-        WHERE state_code = $1
-          AND fmr_year = $2
-          AND county_fips IS NOT NULL
-          AND LENGTH(TRIM(county_fips)) = 5
-        ORDER BY county_fips, state_code, county_name
+          county_name,
+          COUNT(*) as name_count
+        FROM filtered_data
+        GROUP BY county_fips, state_code, county_name
+        ORDER BY county_fips, state_code, name_count DESC, county_name
+      ),
+      county_aggregates AS (
+        SELECT 
+          fd.county_fips,
+          fd.state_code,
+          PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY fd.score) as median_score,
+          AVG(fd.score) as avg_score,
+          COUNT(*) as zip_count
+        FROM filtered_data fd
+        GROUP BY fd.county_fips, fd.state_code
+        HAVING COUNT(*) > 0
       )
       SELECT 
-        cs.county_fips,
+        ca.county_fips,
         COALESCE(cn.county_name, 'Unknown County') as county_name,
-        cs.state_code,
-        cs.median_score,
-        cs.avg_score,
-        cs.zip_count
-      FROM county_scores cs
-      LEFT JOIN county_names cn ON cs.county_fips = cn.county_fips AND cs.state_code = cn.state_code
-      ORDER BY cs.median_score DESC NULLS LAST
+        ca.state_code,
+        ca.median_score,
+        ca.avg_score,
+        ca.zip_count
+      FROM county_aggregates ca
+      LEFT JOIN county_names cn ON ca.county_fips = cn.county_fips AND ca.state_code = cn.state_code
+      ORDER BY ca.median_score DESC NULLS LAST
       `,
       [stateCode, year]
     );
 
-    // Deduplicate by FIPS in case there are still any duplicates
-    const countyMap = new Map<string, {
+    // Final deduplication: first by FIPS, then by county name to handle data quality issues
+    // where the same county name appears with multiple FIPS codes
+    const fipsMap = new Map<string, {
       countyName: string;
       stateCode: string;
       countyFips: string;
@@ -85,27 +123,55 @@ export async function GET(request: NextRequest) {
       zipCount: number;
     }>();
 
+    // First pass: deduplicate by FIPS
     (counties.rows as any[]).forEach((row) => {
       const fips = row.county_fips ? String(row.county_fips).padStart(5, '0') : null;
       if (!fips) return;
       
       // If we already have this FIPS, keep the one with more ZIPs or higher score
-      const existing = countyMap.get(fips);
+      const existing = fipsMap.get(fips);
       if (!existing || 
           (row.zip_count > existing.zipCount) ||
           (row.zip_count === existing.zipCount && (row.median_score ?? 0) > (existing.medianScore ?? 0))) {
-        countyMap.set(fips, {
+        fipsMap.set(fips, {
           countyName: row.county_name || 'Unknown County',
           stateCode: row.state_code,
           countyFips: fips,
-          medianScore: row.median_score ? parseFloat(row.median_score) : null,
-          avgScore: row.avg_score ? parseFloat(row.avg_score) : null,
-          zipCount: parseInt(row.zip_count) || 0,
+          medianScore: row.median_score ? parseFloat(String(row.median_score)) : null,
+          avgScore: row.avg_score ? parseFloat(String(row.avg_score)) : null,
+          zipCount: parseInt(String(row.zip_count)) || 0,
         });
       }
     });
 
-    const countyRows = Array.from(countyMap.values());
+    // Second pass: deduplicate by county name (normalized) to handle cases where
+    // the same county name appears with multiple FIPS codes due to data quality issues
+    const nameMap = new Map<string, {
+      countyName: string;
+      stateCode: string;
+      countyFips: string;
+      medianScore: number | null;
+      avgScore: number | null;
+      zipCount: number;
+    }>();
+
+    const normalizeCountyName = (name: string): string => {
+      return name.toLowerCase().trim().replace(/\s+/g, ' ');
+    };
+
+    Array.from(fipsMap.values()).forEach((county) => {
+      const normalizedName = normalizeCountyName(county.countyName);
+      const key = `${normalizedName}|${county.stateCode}`;
+      
+      const existing = nameMap.get(key);
+      if (!existing || 
+          (county.zipCount > existing.zipCount) ||
+          (county.zipCount === existing.zipCount && (county.medianScore ?? 0) > (existing.medianScore ?? 0))) {
+        nameMap.set(key, county);
+      }
+    });
+
+    const countyRows = Array.from(nameMap.values());
 
     // Calculate state median score
     const scores = countyRows.map(c => c.medianScore).filter((s): s is number => s !== null);

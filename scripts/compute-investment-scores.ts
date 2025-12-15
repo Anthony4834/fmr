@@ -206,25 +206,28 @@ async function computeZipScores(
       ${zipTaxWhere}
     ),
     zip_fmr_combined AS (
-      SELECT DISTINCT
+      SELECT 
         z.zip_code,
+        z.state_code,
         COALESCE(
           safmr.fmr_2br,
-          cfmr.fmr_2br
+          MAX(cfmr.fmr_2br)
         ) as fmr_2br,
         COALESCE(
           safmr.fmr_3br,
-          cfmr.fmr_3br
+          MAX(cfmr.fmr_3br)
         ) as fmr_3br,
         COALESCE(
           safmr.fmr_4br,
-          cfmr.fmr_4br
+          MAX(cfmr.fmr_4br)
         ) as fmr_4br
       FROM latest_zhvi z
       LEFT JOIN zip_safmr safmr ON safmr.zip_code = z.zip_code
       LEFT JOIN zip_county_mapping zcm ON zcm.zip_code = z.zip_code
+        AND zcm.state_code = z.state_code
       LEFT JOIN county_fmr cfmr ON cfmr.county_code = zcm.county_fips 
         AND cfmr.state_code = z.state_code
+      GROUP BY z.zip_code, z.state_code, safmr.fmr_2br, safmr.fmr_3br, safmr.fmr_4br
     ),
     zip_data AS (
       SELECT 
@@ -232,7 +235,20 @@ async function computeZipScores(
         z.state_code,
         z.city_name,
         z.county_name,
-        MAX(zcm.county_fips) as county_fips,
+        -- Get FIPS from zip_county_mapping, normalizing county names for matching
+        -- ZHVI has "County" suffix, zip_county_mapping may not (or vice versa)
+        COALESCE(
+          -- First try: exact match on county_name
+          MAX(CASE WHEN zcm.county_name = z.county_name THEN zcm.county_fips END),
+          -- Second try: normalized match (remove "County", "Parish", etc. suffixes)
+          MAX(CASE 
+            WHEN LOWER(REGEXP_REPLACE(zcm.county_name, '\\s+(County|Parish|Borough|Municipality|Census Area|City and Borough)\\s*$', '', 'i')) = 
+                 LOWER(REGEXP_REPLACE(z.county_name, '\\s+(County|Parish|Borough|Municipality|Census Area|City and Borough)\\s*$', '', 'i'))
+            THEN zcm.county_fips 
+          END),
+          -- Fallback: any FIPS for this ZIP+state (ZIP might span counties, pick one)
+          MAX(zcm.county_fips)
+        ) as county_fips,
         -- Priority: 3BR → 2BR → 4BR
         COALESCE(
           MAX(CASE WHEN z.bedroom_count = 3 AND z.zhvi IS NOT NULL THEN z.zhvi END),
@@ -250,14 +266,16 @@ async function computeZipScores(
           MAX(CASE WHEN z.bedroom_count = 4 THEN fmr.fmr_4br END)
         ) as fmr_value
       FROM latest_zhvi z
-      LEFT JOIN zip_fmr_combined fmr ON fmr.zip_code = z.zip_code
-      LEFT JOIN zip_county_mapping zcm ON zcm.zip_code = z.zip_code
+      LEFT JOIN zip_fmr_combined fmr ON 
+        fmr.zip_code = z.zip_code
+        AND fmr.state_code = z.state_code
+      LEFT JOIN zip_county_mapping zcm ON 
+        zcm.zip_code = z.zip_code
+        AND zcm.state_code = z.state_code
       LEFT JOIN zip_tax tax ON tax.zcta = z.zip_code
       WHERE tax.effective_tax_rate IS NOT NULL
         AND z.zhvi IS NOT NULL
         AND z.zhvi > 0`;
-
-  const params: any[] = [targetMonth, fmrYear];
 
   if (stateFilter) {
     queryText += ` AND z.state_code = $${params.length + 1}`;
@@ -292,14 +310,20 @@ async function computeZipScores(
       zd.fmr_value,
       (zd.fmr_value * 12) as annual_rent
     FROM zip_data zd
-    LEFT JOIN zip_county_mapping zcm ON zcm.zip_code = zd.zip_code
+    LEFT JOIN zip_county_mapping zcm ON 
+      zcm.zip_code = zd.zip_code
+      AND zcm.county_name = zd.county_name
+      AND zcm.state_code = zd.state_code
     LEFT JOIN zhvi_rollup_monthly county_zhvi ON (
       county_zhvi.geo_type = 'county'
       AND county_zhvi.month = $1
       AND county_zhvi.bedroom_count = zd.selected_bedroom
+      AND county_zhvi.state_code = zd.state_code
       AND (
-        (county_zhvi.county_fips = zcm.county_fips AND county_zhvi.state_code = zd.state_code)
-        OR (county_zhvi.county_name = zd.county_name AND county_zhvi.state_code = zd.state_code)
+        -- Primary: match by FIPS (most reliable)
+        (county_zhvi.county_fips = zd.county_fips AND zd.county_fips IS NOT NULL)
+        -- Fallback: match by county_name only when FIPS is missing
+        OR (county_zhvi.county_name = zd.county_name AND zd.county_fips IS NULL)
       )
     )
     LEFT JOIN zip_tax tax ON tax.zcta = zd.zip_code

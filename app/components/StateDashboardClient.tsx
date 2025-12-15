@@ -12,6 +12,7 @@ import PercentageBadge from './PercentageBadge';
 import Tooltip from './Tooltip';
 import ScoreGauge from './ScoreGauge';
 import InvestorScoreInfoIcon from './InvestorScoreInfoIcon';
+import InvestorScoreInfoButton from './InvestorScoreInfoButton';
 
 // Dynamically import ChoroplethMap to avoid SSR issues with Leaflet
 const ChoroplethMap = dynamic(() => import('./ChoroplethMap'), {
@@ -332,9 +333,12 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
               <p className="text-xs text-[#737373] font-medium tracking-wide uppercase">Fair Market Rent Data</p>
             </button>
           </div>
-          <p className="text-sm sm:text-base text-[#525252] max-w-2xl">
-            Search HUD Fair Market Rent data by address, city, ZIP code, or county
-          </p>
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <p className="text-sm sm:text-base text-[#525252] max-w-2xl">
+              Search HUD Fair Market Rent data by address, city, ZIP code, or county
+            </p>
+            <InvestorScoreInfoButton />
+          </div>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 items-start">
@@ -682,9 +686,8 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
                   <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a] mb-0.5">County Map</h3>
                   <p className="text-xs text-[#737373]">Click a county to view details</p>
                 </div>
-                <div className="text-xs font-medium text-[#737373] flex items-center gap-1.5">
+                <div className="text-xs font-medium text-[#737373]">
                   Layer: Investment Score
-                  <InvestorScoreInfoIcon />
                 </div>
               </div>
               <div className="p-4">
