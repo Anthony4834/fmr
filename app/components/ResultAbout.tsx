@@ -94,15 +94,18 @@ export default function ResultAbout({ data }: { data: FMRResult }) {
           <div className="mt-3">
             <div className="text-xs font-semibold text-[#0a0a0a] mb-1">Related ZIPs</div>
             <div className="flex flex-wrap gap-2">
-              {data.zipCodes.slice(0, 10).map((z) => (
-                <a
-                  key={z}
-                  className="text-xs px-2.5 py-1 rounded-md border border-[#e5e5e5] bg-white hover:bg-[#fafafa] font-mono"
-                  href={`/zip/${z}`}
-                >
-                  {z}
-                </a>
-              ))}
+              {data.zipCodes.slice(0, 10).map((z) => {
+                const zipHref = `/zip/${z}${data.stateCode ? `?state=${data.stateCode}` : ''}`;
+                return (
+                  <a
+                    key={z}
+                    className="text-xs px-2.5 py-1 rounded-md border border-[#e5e5e5] bg-white hover:bg-[#fafafa] font-mono"
+                    href={zipHref}
+                  >
+                    {z}
+                  </a>
+                );
+              })}
             </div>
           </div>
         )}
@@ -110,6 +113,7 @@ export default function ResultAbout({ data }: { data: FMRResult }) {
     </details>
   );
 }
+
 
 
 

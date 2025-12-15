@@ -2,7 +2,10 @@
   "buildCommand": "bun run build",
   "devCommand": "bun run dev",
   "installCommand": "bun install",
-  "framework": "nextjs"
+  "framework": "nextjs",
+  "crons": [
+    { "path": "/api/cron/property-data", "schedule": "0 8 1 * *" }
+  ]
 }
 
 

@@ -2,7 +2,10 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import PercentageBadge from './PercentageBadge';
 import { buildCitySlug, buildCountySlug } from '@/lib/location-slugs';
+import { STATES } from '@/lib/states';
+import USStateMap from './USStateMap';
 
 interface Insight {
   zipCode?: string;
@@ -117,6 +120,10 @@ export default function NationwideStats() {
   const [popular, setPopular] = useState<PopularItem[] | null>(null);
   const [popularStatus, setPopularStatus] = useState<FetchStatus>('idle');
   const [popularError, setPopularError] = useState<string | null>(null);
+  const [statesRanked, setStatesRanked] = useState<Array<{ stateCode: string; medianScore: number | null; zipCount: number }>>([]);
+  const [statesRankedLoading, setStatesRankedLoading] = useState(true);
+  const [sideTab, setSideTab] = useState<'rising' | 'falling' | 'jumps'>('rising');
+  const [overviewView, setOverviewView] = useState<'map' | 'list'>('map');
 
   const abortRef = useRef<AbortController | null>(null);
   const requestSeqRef = useRef(0);
@@ -262,7 +269,7 @@ export default function NationwideStats() {
 
     (async () => {
       try {
-        const res = await fetch(`/api/stats/popular-searches?type=${activeType}&days=30&limit=10`, {
+        const res = await fetch(`/api/stats/popular-searches?type=${activeType}&days=30&limit=50`, {
           signal: abortController.signal,
         });
         const json = await res.json();
@@ -306,6 +313,25 @@ export default function NationwideStats() {
       }
     };
   }, [activeType]);
+
+  // Fetch states ranked by investment score
+  useEffect(() => {
+    setStatesRankedLoading(true);
+    fetch(`/api/stats/states-ranked?limit=50`)
+      .then(res => res.json())
+      .then(result => {
+        if (result.states) {
+          setStatesRanked(result.states);
+        } else {
+          setStatesRanked([]);
+        }
+        setStatesRankedLoading(false);
+      })
+      .catch(() => {
+        setStatesRanked([]);
+        setStatesRankedLoading(false);
+      });
+  }, []);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -439,10 +465,10 @@ export default function NationwideStats() {
 
   const popularSubtitle =
     activeType === 'zip'
-      ? 'Top 10 ZIP codes (last 30 days)'
+      ? 'Top 50 ZIP codes (last 30 days)'
       : activeType === 'city'
-        ? 'Top 10 cities (last 30 days)'
-        : 'Top 10 counties (last 30 days)';
+        ? 'Top 50 cities (last 30 days)'
+        : 'Top 50 counties (last 30 days)';
 
   const showSkeleton = status === 'loading' && !data;
   const showHardError = status === 'error' && !data;
@@ -459,13 +485,250 @@ export default function NationwideStats() {
   });
 
   return (
-    <div className="h-full flex flex-col lg:overflow-hidden">
-      {/* Type Tabs - Always visible */}
-      {tabsContent}
+    <div className="h-full flex flex-col lg:overflow-hidden space-y-8">
+      {/* Market Overview with Map/List Toggle */}
+      <div>
+        <div className="mb-4 flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <h2 className="text-lg sm:text-xl font-semibold text-[#0a0a0a] mb-1">Market Overview</h2>
+          </div>
+          {/* View Toggle */}
+          <div className="flex gap-1 border border-[#e5e5e5] rounded-lg p-1 bg-[#fafafa]">
+            <button
+              onClick={() => setOverviewView('map')}
+              className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+                overviewView === 'map'
+                  ? 'bg-white text-[#0a0a0a] shadow-sm'
+                  : 'text-[#737373] hover:text-[#0a0a0a]'
+              }`}
+            >
+              Map
+            </button>
+            <button
+              onClick={() => setOverviewView('list')}
+              className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+                overviewView === 'list'
+                  ? 'bg-white text-[#0a0a0a] shadow-sm'
+                  : 'text-[#737373] hover:text-[#0a0a0a]'
+              }`}
+            >
+              List
+            </button>
+          </div>
+        </div>
+        
+        {overviewView === 'map' ? (
+          <USStateMap />
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 items-stretch">
+          {/* States Ranked by Investment Score */}
+          <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[56vh] sm:max-h-[416px] lg:max-h-[56vh] relative">
+            <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex-1">
+                  <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a] mb-0.5">
+                    States Ranked by Investment Score
+                  </h3>
+                  <p className="text-xs text-[#737373]">Top 50 by median score</p>
+                </div>
+                {statesRankedLoading && (
+                  <div className="h-3.5 w-3.5 sm:h-4 sm:w-4 rounded-full border-2 border-[#d4d4d4] border-t-transparent animate-spin shrink-0" />
+                )}
+              </div>
+            </div>
+            <div className="divide-y divide-[#e5e5e5] overflow-y-auto flex-1 min-h-0 custom-scrollbar pb-2">
+              {statesRankedLoading ? (
+                [...Array(10)].map((_, j) => (
+                  <div key={j} className="px-3 sm:px-4 py-2 sm:py-2.5">
+                    <div className="flex items-start justify-between gap-2 sm:gap-3">
+                      <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
+                        <div className="h-3 bg-[#e5e5e5] rounded w-4 shrink-0 animate-pulse"></div>
+                        <div className="min-w-0 flex-1">
+                          <div className="h-3.5 sm:h-4 bg-[#e5e5e5] rounded w-28 sm:w-36 mb-1 sm:mb-1.5 animate-pulse"></div>
+                          <div className="h-3 bg-[#e5e5e5] rounded w-24 sm:w-32 animate-pulse"></div>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className="h-3.5 sm:h-4 bg-[#e5e5e5] rounded w-12 sm:w-16 ml-auto mb-1 animate-pulse"></div>
+                        <div className="h-3 bg-[#e5e5e5] rounded w-16 sm:w-20 ml-auto animate-pulse"></div>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : statesRanked.length > 0 ? (
+                statesRanked.slice(0, 50).map((state, index) => {
+                  const stateName = STATES.find(s => s.code === state.stateCode)?.name || state.stateCode;
+                  const scoreColor = state.medianScore !== null && state.medianScore >= 0
+                    ? state.medianScore < 95
+                      ? '#b91c1c'
+                      : state.medianScore >= 130
+                        ? '#14532d'
+                        : '#16a34a'
+                    : '#737373';
+                  return (
+                    <a
+                      key={state.stateCode}
+                      href={`/state/${state.stateCode}`}
+                      className="block px-3 sm:px-4 py-2 sm:py-2.5 hover:bg-[#fafafa] transition-colors"
+                    >
+                      <div className="flex items-start justify-between gap-2 sm:gap-3">
+                        <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
+                          <span className="text-xs text-[#a3a3a3] font-medium shrink-0 tabular-nums">#{index + 1}</span>
+                          <div className="min-w-0">
+                            <div className="font-medium text-[#0a0a0a] text-xs sm:text-sm truncate">{stateName}</div>
+                            <div className="text-xs text-[#737373] truncate mt-0.5">{state.stateCode}</div>
+                            {state.zipCount > 0 && (
+                              <div className="text-xs text-[#a3a3a3] mt-0.5">{state.zipCount} ZIPs</div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          {state.medianScore !== null ? (
+                            <div className="font-semibold text-xs sm:text-sm tabular-nums" style={{ color: scoreColor }}>
+                              {Math.round(state.medianScore)}
+                            </div>
+                          ) : (
+                            <div className="font-semibold text-[#737373] text-xs sm:text-sm tabular-nums">—</div>
+                          )}
+                        </div>
+                      </div>
+                    </a>
+                  );
+                })
+              ) : (
+                <div className="px-3 sm:px-4 py-2.5 text-xs text-[#737373]">No data available</div>
+              )}
+            </div>
+          </div>
 
-      {/* Filters */}
-      <div className="mb-2 sm:mb-3 flex flex-wrap items-center gap-2 sm:gap-3">
-        <div className="flex items-center gap-2">
+          {/* Popular Searches (Card) */}
+          <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[56vh] sm:max-h-[416px] lg:max-h-[56vh]">
+            <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex-1">
+                  <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a] mb-0.5">Popular Searches</h3>
+                  <p className="text-xs text-[#737373]">{popularSubtitle}</p>
+                </div>
+                {popularStatus === 'loading' && (
+                  <div className="h-3.5 w-3.5 sm:h-4 sm:w-4 rounded-full border-2 border-[#d4d4d4] border-t-transparent animate-spin shrink-0" />
+                )}
+              </div>
+            </div>
+            <div className="divide-y divide-[#e5e5e5] overflow-y-auto flex-1 min-h-0 custom-scrollbar pb-2">
+              {popularError && (
+                <div className="px-3 sm:px-4 py-2.5 text-xs text-[#991b1b]">
+                  Failed to load popular searches{popularError ? `: ${popularError}` : ''}.
+                </div>
+              )}
+              {!popularError && popularStatus === 'loading' && (popular?.length || 0) === 0 && (
+                [...Array(10)].map((_, j) => (
+                  <div key={j} className="px-3 sm:px-4 py-2 sm:py-2.5">
+                    <div className="flex items-start justify-between gap-2 sm:gap-3">
+                      <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
+                        <div className="h-3 bg-[#e5e5e5] rounded w-4 shrink-0 animate-pulse"></div>
+                        <div className="min-w-0 flex-1">
+                          <div className="h-3.5 sm:h-4 bg-[#e5e5e5] rounded w-28 sm:w-36 mb-1 sm:mb-1.5 animate-pulse"></div>
+                          <div className="h-3 bg-[#e5e5e5] rounded w-24 sm:w-32 animate-pulse"></div>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className="h-3 bg-[#e5e5e5] rounded w-10 sm:w-12 ml-auto animate-pulse"></div>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+              {!popularError && popularStatus !== 'loading' && (popular?.length || 0) === 0 && (
+                <div className="px-3 sm:px-4 py-2.5 text-xs text-[#737373]">
+                  No search data yet — run a few searches to populate this list.
+                </div>
+              )}
+              {!popularError && (popular?.length || 0) > 0 && (
+                popular!.slice(0, 50).map((item, index) => {
+                  const href = popularLinkFor(activeType, item.query);
+                  if (!href) return null;
+
+                  // Match the other cards: primary label + secondary location line + right-side rent stats.
+                  let line1: ReactNode = item.query;
+                  let line2: string | null = null;
+
+                  if (activeType === 'zip') {
+                    line1 = item.query;
+                    if (item.countyName && item.stateCode) {
+                      const county = item.countyName.includes('County') ? item.countyName : `${item.countyName} County`;
+                      line2 = `${county}, ${item.stateCode}`;
+                    }
+                  } else {
+                    const [left, right] = item.query.split(',').map((s) => s.trim());
+                    if (left && right && right.length === 2) {
+                      if (activeType === 'county') {
+                        const county = left.toLowerCase().endsWith(' county') ? left : `${left} County`;
+                        line1 = county;
+                        line2 = right.toUpperCase();
+                      } else if (activeType === 'city') {
+                        // For city popular rows, show county + state as the hint (city itself is line1).
+                        line1 = left;
+                        if (item.countyName && item.stateCode) {
+                          const county = item.countyName.includes('County') ? item.countyName : `${item.countyName} County`;
+                          line2 = `${county}, ${item.stateCode}`;
+                        } else {
+                          line2 = right.toUpperCase();
+                        }
+                      } else {
+                        line1 = left;
+                        line2 = right.toUpperCase();
+                      }
+                    }
+                  }
+
+                  return (
+                    <a
+                      key={`${activeType}:popular:${item.query}:${index}`}
+                      href={href}
+                      className="block px-3 sm:px-4 py-2 sm:py-2.5 hover:bg-[#fafafa] transition-colors"
+                    >
+                      <div className="flex items-start justify-between gap-2 sm:gap-3">
+                        <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
+                          <span className="text-xs text-[#a3a3a3] font-medium shrink-0 tabular-nums">#{index + 1}</span>
+                          <div className="min-w-0">
+                            <div className="font-medium text-[#0a0a0a] text-xs sm:text-sm truncate">{line1}</div>
+                            {line2 && <div className="text-xs text-[#737373] truncate mt-0.5">{line2}</div>}
+                            {!!item.zipCount && activeType !== 'zip' && (
+                              <div className="text-xs text-[#a3a3a3] mt-0.5">{item.zipCount} ZIPs</div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          {item.rentPerBedroom2BR ? (
+                            <div className="font-semibold text-[#0a0a0a] text-xs sm:text-sm tabular-nums">${item.rentPerBedroom2BR.toFixed(0)}/br</div>
+                          ) : (
+                            <div className="font-semibold text-[#0a0a0a] text-xs sm:text-sm tabular-nums">2BR: {formatCurrency(item.bedroom2 || 0)}</div>
+                          )}
+                          {item.bedroom0 && item.bedroom4 && (
+                            <div className="text-xs text-[#737373] mt-0.5 tabular-nums">
+                              {formatCurrency(item.bedroom0)} - {formatCurrency(item.bedroom4)}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </a>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+        )}
+      </div>
+
+      {/* Tabbed Metrics - Most Expensive, Most Affordable, Movers */}
+      <div>
+        {/* Type Tabs */}
+        {tabsContent}
+
+        {/* Filters */}
+        <div className="mb-4 flex flex-wrap items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2">
           <div className="text-xs font-semibold text-[#525252]">State</div>
           <select
             value={stateFilter}
@@ -496,22 +759,22 @@ export default function NationwideStats() {
         </div>
       </div>
 
-      {/* Non-blocking error banner (keep cards visible if we have data) */}
-      {error && !showHardError && (
-        <div className="mb-2 sm:mb-3 rounded-md border border-[#fecaca] bg-[#fef2f2] px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs text-[#991b1b]">
-          Failed to load dashboard data{error ? `: ${error}` : ''}.
-        </div>
-      )}
+        {/* Non-blocking error banner (keep cards visible if we have data) */}
+        {error && !showHardError && (
+          <div className="mb-2 sm:mb-3 rounded-md border border-[#fecaca] bg-[#fef2f2] px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs text-[#991b1b]">
+            Failed to load dashboard data{error ? `: ${error}` : ''}.
+          </div>
+        )}
 
-      {showSkeleton && (
-        <div className="flex flex-col gap-3 sm:gap-4 flex-1 lg:min-h-0 lg:overflow-hidden">
-          {/* Row 1 (3 cards) */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 items-stretch">
-            {[
-              { title: 'Most Expensive', subtitle: 'Top 15 by avg FMR' },
-              { title: 'Most Affordable', subtitle: 'Top 15 by avg FMR' },
-              { title: 'Popular Searches', subtitle: popularSubtitle },
-            ].map((header, i) => (
+        {showSkeleton && (
+          <div className="flex flex-col gap-5 sm:gap-6 flex-1 lg:min-h-0 lg:overflow-hidden">
+            {/* Row 1 (3 cards: Most Expensive, Most Affordable, Movers) */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5 items-stretch">
+              {[
+                { title: 'Most Expensive', subtitle: 'Top 15 by avg FMR' },
+                { title: 'Most Affordable', subtitle: 'Top 15 by avg FMR' },
+                { title: 'Movers', subtitle: 'Rising, Falling, Price Jumps' },
+              ].map((header, i) => (
               <div
                 key={i}
                 className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[56vh] sm:max-h-[416px] lg:max-h-[56vh]"
@@ -545,142 +808,17 @@ export default function NationwideStats() {
               </div>
             ))}
           </div>
-
-          {/* Row 2 (Anomalies, Rising, Falling - 3 columns) */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 items-stretch">
-            {/* Price Jump Anomalies */}
-            <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[56vh] sm:max-h-[416px] lg:max-h-[56vh]">
-              <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
-                <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a] mb-0.5">Largest Price Jumps</h3>
-                  <div className="h-3.5 w-3.5 sm:h-4 sm:w-4 rounded-full border-2 border-[#d4d4d4] border-t-transparent animate-spin shrink-0" />
-                </div>
-                <p className="text-xs text-[#737373]">Top 15 per BR price jumps</p>
-              </div>
-              <div className="divide-y divide-[#e5e5e5] overflow-y-auto flex-1 min-h-0 custom-scrollbar pb-2">
-                {[...Array(8)].map((_, j) => (
-                  <div key={j} className="px-3 sm:px-4 py-2 sm:py-2.5">
-                    <div className="flex items-start justify-between gap-2 sm:gap-3">
-                      <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
-                        <div className="h-3 bg-[#e5e5e5] rounded w-4 shrink-0 animate-pulse"></div>
-                        <div className="min-w-0 flex-1">
-                          <div className="h-3.5 sm:h-4 bg-[#e5e5e5] rounded w-28 sm:w-36 mb-1 sm:mb-1.5 animate-pulse"></div>
-                          <div className="h-3 bg-[#e5e5e5] rounded w-32 sm:w-44 animate-pulse"></div>
-                        </div>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <div className="h-3 bg-[#e5e5e5] rounded w-12 sm:w-16 ml-auto mb-1 animate-pulse"></div>
-                        <div className="h-3.5 sm:h-4 bg-[#e5e5e5] rounded w-10 sm:w-12 ml-auto mb-0.5 animate-pulse"></div>
-                        <div className="h-3 bg-[#e5e5e5] rounded w-12 sm:w-14 ml-auto animate-pulse"></div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Rising */}
-            <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[56vh] sm:max-h-[416px] lg:max-h-[56vh]">
-              <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
-                <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a] mb-0.5">Rising</h3>
-                  <div className="h-3.5 w-3.5 sm:h-4 sm:w-4 rounded-full border-2 border-[#d4d4d4] border-t-transparent animate-spin shrink-0" />
-                </div>
-                <p className="text-xs text-[#737373]">Top 15 highest YoY increases</p>
-              </div>
-              <div className="divide-y divide-[#e5e5e5] overflow-y-auto flex-1 min-h-0 custom-scrollbar pb-2">
-                {[...Array(8)].map((_, j) => (
-                  <div key={j} className="px-3 sm:px-4 py-2 sm:py-2.5">
-                    <div className="flex items-start justify-between gap-2 sm:gap-3">
-                      <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
-                        <div className="h-3 bg-[#e5e5e5] rounded w-4 shrink-0 animate-pulse"></div>
-                        <div className="min-w-0 flex-1">
-                          <div className="h-3.5 sm:h-4 bg-[#e5e5e5] rounded w-28 sm:w-36 mb-1 sm:mb-1.5 animate-pulse"></div>
-                          <div className="h-3 bg-[#e5e5e5] rounded w-24 sm:w-32 animate-pulse"></div>
-                        </div>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <div className="h-3.5 sm:h-4 bg-[#e5e5e5] rounded w-12 sm:w-16 ml-auto mb-1 animate-pulse"></div>
-                        <div className="h-3 bg-[#e5e5e5] rounded w-16 sm:w-20 ml-auto animate-pulse"></div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Falling */}
-            <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[56vh] sm:max-h-[416px] lg:max-h-[56vh]">
-              <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
-                <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a] mb-0.5">Falling</h3>
-                  <div className="h-3.5 w-3.5 sm:h-4 sm:w-4 rounded-full border-2 border-[#d4d4d4] border-t-transparent animate-spin shrink-0" />
-                </div>
-                <p className="text-xs text-[#737373]">Top 15 highest YoY decreases</p>
-              </div>
-              <div className="divide-y divide-[#e5e5e5] overflow-y-auto flex-1 min-h-0 custom-scrollbar pb-2">
-                {[...Array(8)].map((_, j) => (
-                  <div key={j} className="px-3 sm:px-4 py-2 sm:py-2.5">
-                    <div className="flex items-start justify-between gap-2 sm:gap-3">
-                      <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
-                        <div className="h-3 bg-[#e5e5e5] rounded w-4 shrink-0 animate-pulse"></div>
-                        <div className="min-w-0 flex-1">
-                          <div className="h-3.5 sm:h-4 bg-[#e5e5e5] rounded w-28 sm:w-36 mb-1 sm:mb-1.5 animate-pulse"></div>
-                          <div className="h-3 bg-[#e5e5e5] rounded w-24 sm:w-32 animate-pulse"></div>
-                        </div>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <div className="h-3.5 sm:h-4 bg-[#e5e5e5] rounded w-12 sm:w-16 ml-auto mb-1 animate-pulse"></div>
-                        <div className="h-3 bg-[#e5e5e5] rounded w-16 sm:w-20 ml-auto animate-pulse"></div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
         </div>
-      )}
+        )}
 
-      {showHardError && (
-        <div className="flex flex-col gap-3 sm:gap-4 flex-1 lg:min-h-0 lg:overflow-hidden">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 items-stretch">
-            {[
-              { title: 'Most Expensive', subtitle: 'Top 15 by avg FMR' },
-              { title: 'Most Affordable', subtitle: 'Top 15 by avg FMR' },
-              { title: 'Popular Searches', subtitle: popularSubtitle },
-            ].map((header, i) => (
-              <div
-                key={i}
-                className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[56vh] sm:max-h-[416px] lg:max-h-[56vh]"
-              >
-                <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
-                  <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a] mb-0.5">{header.title}</h3>
-                  <p className="text-xs text-[#737373]">{header.subtitle}</p>
-                </div>
-                <div className="flex-1 flex flex-col items-center justify-center text-xs sm:text-sm text-[#737373] gap-2 sm:gap-3 py-6 sm:py-8">
-                  <div>Failed to load</div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      forceRefreshTypeRef.current = activeType;
-                      cacheRef.current[activeType] = null;
-                      setRefreshNonce((n) => n + 1);
-                    }}
-                    className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md border border-[#e5e5e5] bg-white text-[#0a0a0a] text-xs font-medium hover:bg-[#fafafa]"
-                  >
-                    Retry
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 items-stretch">
-            {[
-              { title: 'Largest Price Jumps', subtitle: 'Top 15 per BR price jumps' },
-              { title: 'Rising', subtitle: 'Top 15 highest YoY increases' },
-              { title: 'Falling', subtitle: 'Top 15 highest YoY decreases' },
-            ].map((header, i) => (
+        {showHardError && (
+          <div className="flex flex-col gap-5 sm:gap-6 flex-1 lg:min-h-0 lg:overflow-hidden">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5 items-stretch">
+              {[
+                { title: 'Most Expensive', subtitle: 'Top 15 by avg FMR' },
+                { title: 'Most Affordable', subtitle: 'Top 15 by avg FMR' },
+                { title: 'Movers', subtitle: 'Rising, Falling, Price Jumps' },
+              ].map((header, i) => (
               <div
                 key={i}
                 className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[56vh] sm:max-h-[416px] lg:max-h-[56vh]"
@@ -707,13 +845,13 @@ export default function NationwideStats() {
             ))}
           </div>
         </div>
-      )}
+        )}
 
-      {/* Main Dashboard Grid */}
-      {!!data && (
-      <div className="flex flex-col gap-3 sm:gap-4 flex-1 lg:min-h-0 lg:overflow-hidden">
-        {/* Row 1 */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 items-stretch">
+        {/* Main Dashboard Grid - Tabbed Metrics */}
+        {!!data && (
+          <div className="flex flex-col gap-5 sm:gap-6 flex-1 lg:min-h-0 lg:overflow-hidden">
+            {/* Row: Most Expensive, Most Affordable, Movers */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5 items-stretch">
           {/* Top 15 Most Expensive */}
           <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[56vh] sm:max-h-[416px] lg:max-h-[56vh]">
           <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
@@ -810,135 +948,35 @@ export default function NationwideStats() {
           </div>
           </div>
 
-          {/* Popular Searches (Card) */}
+          {/* Movers (Consolidated: Rising, Falling, Price Jumps) */}
           <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[56vh] sm:max-h-[416px] lg:max-h-[56vh]">
             <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex-1">
-                  <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a] mb-0.5">Popular Searches</h3>
-                  <p className="text-xs text-[#737373]">{popularSubtitle}</p>
+              <div className="flex items-center justify-between gap-2 mb-1.5">
+                <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a]">Movers</h3>
+                <div className="flex gap-1">
+                  {['rising', 'falling', 'jumps'].map((tab) => (
+                    <button
+                      key={tab}
+                      type="button"
+                      onClick={() => setSideTab(tab as 'rising' | 'falling' | 'jumps')}
+                      className={`px-2 py-1 rounded-md text-xs font-semibold border transition-colors ${
+                        sideTab === tab
+                          ? 'bg-white border-[#d4d4d4] text-[#0a0a0a]'
+                          : 'bg-[#fafafa] border-[#e5e5e5] text-[#737373] hover:text-[#0a0a0a]'
+                      }`}
+                    >
+                      {tab === 'jumps' ? 'Jumps' : tab === 'rising' ? 'Rising' : 'Falling'}
+                    </button>
+                  ))}
                 </div>
-                {popularStatus === 'loading' && (
-                  <div className="h-3.5 w-3.5 sm:h-4 sm:w-4 rounded-full border-2 border-[#d4d4d4] border-t-transparent animate-spin shrink-0" />
-                )}
               </div>
+              <p className="text-xs text-[#737373]">
+                {sideTab === 'jumps' ? 'Top 15 per BR price jumps' : sideTab === 'rising' ? 'Top 15 highest YoY increases' : 'Top 15 highest YoY decreases'}
+              </p>
             </div>
             <div className="divide-y divide-[#e5e5e5] overflow-y-auto flex-1 min-h-0 custom-scrollbar pb-2">
-              {popularError && (
-                <div className="px-3 sm:px-4 py-2.5 text-xs text-[#991b1b]">
-                  Failed to load popular searches{popularError ? `: ${popularError}` : ''}.
-                </div>
-              )}
-              {!popularError && popularStatus === 'loading' && (popular?.length || 0) === 0 && (
-                [...Array(6)].map((_, j) => (
-                  <div key={j} className="px-3 sm:px-4 py-2 sm:py-2.5">
-                    <div className="flex items-start justify-between gap-2 sm:gap-3">
-                      <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
-                        <div className="h-3 bg-[#e5e5e5] rounded w-4 shrink-0 animate-pulse"></div>
-                        <div className="min-w-0 flex-1">
-                          <div className="h-3.5 sm:h-4 bg-[#e5e5e5] rounded w-28 sm:w-36 mb-1 sm:mb-1.5 animate-pulse"></div>
-                          <div className="h-3 bg-[#e5e5e5] rounded w-24 sm:w-32 animate-pulse"></div>
-                        </div>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <div className="h-3 bg-[#e5e5e5] rounded w-10 sm:w-12 ml-auto animate-pulse"></div>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-              {!popularError && popularStatus !== 'loading' && (popular?.length || 0) === 0 && (
-                <div className="px-3 sm:px-4 py-2.5 text-xs text-[#737373]">
-                  No search data yet — run a few searches to populate this list.
-                </div>
-              )}
-              {!popularError && (popular?.length || 0) > 0 && (
-                popular!.slice(0, 10).map((item, index) => {
-                  const href = popularLinkFor(activeType, item.query);
-                  if (!href) return null;
-
-                  // Match the other cards: primary label + secondary location line + right-side rent stats.
-                  let line1: ReactNode = item.query;
-                  let line2: string | null = null;
-
-                  if (activeType === 'zip') {
-                    line1 = item.query;
-                    if (item.countyName && item.stateCode) {
-                      const county = item.countyName.includes('County') ? item.countyName : `${item.countyName} County`;
-                      line2 = `${county}, ${item.stateCode}`;
-                    }
-                  } else {
-                    const [left, right] = item.query.split(',').map((s) => s.trim());
-                    if (left && right && right.length === 2) {
-                      if (activeType === 'county') {
-                        const county = left.toLowerCase().endsWith(' county') ? left : `${left} County`;
-                        line1 = county;
-                        line2 = right.toUpperCase();
-                      } else if (activeType === 'city') {
-                        // For city popular rows, show county + state as the hint (city itself is line1).
-                        line1 = left;
-                        if (item.countyName && item.stateCode) {
-                          const county = item.countyName.includes('County') ? item.countyName : `${item.countyName} County`;
-                          line2 = `${county}, ${item.stateCode}`;
-                        } else {
-                          line2 = right.toUpperCase();
-                        }
-                      } else {
-                        line1 = left;
-                        line2 = right.toUpperCase();
-                      }
-                    }
-                  }
-
-                  return (
-                    <a
-                      key={`${activeType}:popular:${item.query}:${index}`}
-                      href={href}
-                      className="block px-3 sm:px-4 py-2 sm:py-2.5 hover:bg-[#fafafa] transition-colors"
-                    >
-                      <div className="flex items-start justify-between gap-2 sm:gap-3">
-                        <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
-                          <span className="text-xs text-[#a3a3a3] font-medium shrink-0 tabular-nums">#{index + 1}</span>
-                          <div className="min-w-0">
-                            <div className="font-medium text-[#0a0a0a] text-xs sm:text-sm truncate">{line1}</div>
-                            {line2 && <div className="text-xs text-[#737373] truncate mt-0.5">{line2}</div>}
-                            {!!item.zipCount && activeType !== 'zip' && (
-                              <div className="text-xs text-[#a3a3a3] mt-0.5">{item.zipCount} ZIPs</div>
-                            )}
-                          </div>
-                        </div>
-                        <div className="text-right shrink-0">
-                          {item.rentPerBedroom2BR ? (
-                            <div className="font-semibold text-[#0a0a0a] text-xs sm:text-sm tabular-nums">${item.rentPerBedroom2BR.toFixed(0)}/br</div>
-                          ) : (
-                            <div className="font-semibold text-[#0a0a0a] text-xs sm:text-sm tabular-nums">2BR: {formatCurrency(item.bedroom2 || 0)}</div>
-                          )}
-                          {item.bedroom0 && item.bedroom4 && (
-                            <div className="text-xs text-[#737373] mt-0.5 tabular-nums">
-                              {formatCurrency(item.bedroom0)} - {formatCurrency(item.bedroom4)}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </a>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        </div>
-
-          {/* Row 2 (Anomalies, Rising, Falling - 3 columns) */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 items-stretch">
-            {/* Price Jump Anomalies */}
-            <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[56vh] sm:max-h-[416px] lg:max-h-[56vh]">
-              <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
-                <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a] mb-0.5">Largest Price Jumps</h3>
-                <p className="text-xs text-[#737373]">Top 15 per BR price jumps</p>
-              </div>
-              <div className="divide-y divide-[#e5e5e5] overflow-y-auto flex-1 min-h-0 custom-scrollbar pb-2">
-                {filteredAnomalies && filteredAnomalies.length > 0 ? (
-                  filteredAnomalies.slice(0, 15).map((anomaly, index) => {
+              {sideTab === 'jumps' && filteredAnomalies && filteredAnomalies.length > 0 ? (
+                filteredAnomalies.slice(0, 15).map((anomaly, index) => {
                     const getBedroomValue = (size: number) => {
                       if (size === 0) return anomaly.bedroom0;
                       if (size === 1) return anomaly.bedroom1;
@@ -954,7 +992,7 @@ export default function NationwideStats() {
                     const href = hrefForInsight(anomaly);
                     const stepLabel = `${bedroomLabels[anomaly.jumpFrom || 0]}→${bedroomLabels[anomaly.jumpTo || 0]}`;
                     const jump = anomaly.jumpPercent;
-                    const jumpText = jump === null || jump === undefined ? '—' : `+${jump.toFixed(1)}%`;
+                    const jumpText = jump === null || jump === undefined ? '—' : <PercentageBadge value={jump} />;
                     const natAvg = anomaly.nationalAvg;
                     const natAvgText = natAvg === null || natAvg === undefined ? '—' : `Avg: ${natAvg.toFixed(1)}%`;
                     const fmrText = fromValue && toValue ? `${formatCurrency(fromValue)}→${formatCurrency(toValue)}` : '—';
@@ -995,21 +1033,8 @@ export default function NationwideStats() {
                       </a>
                     );
                   })
-                ) : (
-                  <div className="px-3 sm:px-4 py-2 sm:py-2.5 text-xs text-[#737373]">No data available</div>
-                )}
-              </div>
-            </div>
-
-            {/* Rising */}
-            <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[56vh] sm:max-h-[416px] lg:max-h-[56vh]">
-              <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
-                <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a] mb-0.5">Rising</h3>
-                <p className="text-xs text-[#737373]">Top 15 highest YoY increases</p>
-              </div>
-              <div className="divide-y divide-[#e5e5e5] overflow-y-auto flex-1 min-h-0 custom-scrollbar pb-2">
-                {data.rising && data.rising.length > 0 ? (
-                  data.rising.slice(0, 15).map((item, index) => {
+              ) : sideTab === 'rising' && data.rising && data.rising.length > 0 ? (
+                data.rising.slice(0, 15).map((item, index) => {
                   const location = formatLocation(item);
                   const href = hrefForInsight(item);
                   const bedroomLabels = ['0BR', '1BR', '2BR', '3BR', '4BR'];
@@ -1040,8 +1065,8 @@ export default function NationwideStats() {
                           </div>
                         </div>
                         <div className="text-right shrink-0">
-                          <div className="font-semibold text-[#16a34a] text-xs sm:text-sm tabular-nums">
-                            +{item.yoyPercent.toFixed(1)}%
+                          <div className="text-xs sm:text-sm">
+                            <PercentageBadge value={item.yoyPercent} />
                           </div>
                           <div className="text-xs text-[#737373] mt-0.5">{bedroomLabel}</div>
                           {item.bedroom0 && item.bedroom4 && (
@@ -1054,21 +1079,8 @@ export default function NationwideStats() {
                     </a>
                   );
                 })
-                ) : (
-                  <div className="px-3 sm:px-4 py-2 sm:py-2.5 text-xs text-[#737373]">No data available</div>
-                )}
-              </div>
-            </div>
-
-            {/* Falling */}
-            <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[56vh] sm:max-h-[416px] lg:max-h-[56vh]">
-              <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
-                <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a] mb-0.5">Falling</h3>
-                <p className="text-xs text-[#737373]">Top 15 highest YoY decreases</p>
-              </div>
-              <div className="divide-y divide-[#e5e5e5] overflow-y-auto flex-1 min-h-0 custom-scrollbar pb-2">
-                {data.falling && data.falling.length > 0 ? (
-                  data.falling.slice(0, 15).map((item, index) => {
+              ) : sideTab === 'falling' && data.falling && data.falling.length > 0 ? (
+                data.falling.slice(0, 15).map((item, index) => {
                   const location = formatLocation(item);
                   const href = hrefForInsight(item);
                   const bedroomLabels = ['0BR', '1BR', '2BR', '3BR', '4BR'];
@@ -1113,14 +1125,15 @@ export default function NationwideStats() {
                     </a>
                   );
                   })
-                ) : (
-                  <div className="px-3 sm:px-4 py-2 sm:py-2.5 text-xs text-[#737373]">No data available</div>
-                )}
-              </div>
+              ) : (
+                <div className="px-3 sm:px-4 py-2 sm:py-2.5 text-xs text-[#737373]">No data available</div>
+              )}
             </div>
           </div>
+        </div>
+          </div>
+        )}
       </div>
-      )}
     </div>
   );
 }

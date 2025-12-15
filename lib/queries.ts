@@ -2,7 +2,7 @@ import { sql } from '@vercel/postgres';
 import type { FMRHistoryPoint, FMRResult, ZIPFMRData } from '@/lib/types';
 
 export interface AutocompleteResult {
-  type: 'zip' | 'city' | 'county';
+  type: 'zip' | 'city' | 'county' | 'state';
   display: string;
   value: string;
   state?: string;
@@ -82,7 +82,10 @@ function aggregateResultToHistoryPoint(result: FMRResult): FMRHistoryPoint {
 /**
  * Search for autocomplete suggestions using PostgreSQL trigram search
  */
-export async function searchAutocomplete(query: string, type?: 'zip' | 'city' | 'county' | 'all'): Promise<AutocompleteResult[]> {
+export async function searchAutocomplete(
+  query: string,
+  type?: 'zip' | 'city' | 'county' | 'state' | 'all'
+): Promise<AutocompleteResult[]> {
   let searchTerm = query.trim();
   if (!searchTerm || searchTerm.length < 2) {
     return [];
@@ -119,6 +122,20 @@ export async function searchAutocomplete(query: string, type?: 'zip' | 'city' | 
   const countySearchOriginal = citySearchTerm.trim();
 
   const results: AutocompleteResult[] = [];
+
+  // Search states (pure in-memory match; no DB required)
+  if (!type || type === 'state' || type === 'all') {
+    const { findStateMatches } = await import('@/lib/states');
+    const matches = findStateMatches(searchTerm, 8);
+    matches.forEach((st) => {
+      results.push({
+        type: 'state',
+        display: `${st.name} (${st.code})`,
+        value: st.code,
+        state: st.code,
+      });
+    });
+  }
 
   // Search ZIP codes (excluding PR)
   if (!type || type === 'zip' || type === 'all') {

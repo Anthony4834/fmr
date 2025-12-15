@@ -26,6 +26,8 @@ export async function computeDashboardInsights(opts: {
       ? Math.floor(bedroomSize)
       : null;
 
+  const jumpFromForBr = (b: number) => (b <= 1 ? 0 : b - 1);
+
   // Calculate national averages for bedroom transitions
   // - If `stateCode` provided: compute within that state.
   // - Else: nationwide, excluding territories.
@@ -64,7 +66,7 @@ export async function computeDashboardInsights(opts: {
             ON zcm.county_fips = fd.county_code 
             AND zcm.state_code = fd.state_code 
             AND fd.year = ${year}
-          WHERE zcm.state_code = ${stateCode}
+          WHERE zcm.state_code = ${stateCode}::text
           ORDER BY zcm.zip_code
         )
         SELECT 
@@ -175,7 +177,7 @@ export async function computeDashboardInsights(opts: {
           AND zcm.state_code = fd.state_code 
           AND fd.year = ${year}
         WHERE (
-          (${stateCode}::text IS NOT NULL AND zcm.state_code = ${stateCode})
+          (${stateCode}::text IS NOT NULL AND zcm.state_code = ${stateCode}::text)
           OR
           (${stateCode}::text IS NULL AND zcm.state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS'))
         )
@@ -201,8 +203,8 @@ export async function computeDashboardInsights(opts: {
       ORDER BY avg_fmr DESC
     `;
 
-    // Sort by avg_fmr (default) or bedroom_N when a BR filter is active
-    const sortKey = br !== null ? `bedroom_${br}` : 'avg_fmr';
+    // Most Expensive: always sort by avg_fmr (ignore bedroom filter)
+    const sortKey = 'avg_fmr';
     const topZipsSorted = topZips.rows
       .sort((a: any, b: any) => parseFloat(b[sortKey] || 0) - parseFloat(a[sortKey] || 0))
       .slice(0, 50);
@@ -241,7 +243,7 @@ export async function computeDashboardInsights(opts: {
           AND zcm.state_code = fd.state_code 
           AND fd.year = ${year}
         WHERE (
-          (${stateCode}::text IS NOT NULL AND zcm.state_code = ${stateCode})
+          (${stateCode}::text IS NOT NULL AND zcm.state_code = ${stateCode}::text)
           OR
           (${stateCode}::text IS NULL AND zcm.state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS'))
         )
@@ -267,8 +269,8 @@ export async function computeDashboardInsights(opts: {
       ORDER BY avg_fmr ASC
     `;
 
-    // Sort by avg_fmr (default) or bedroom_N when a BR filter is active
-    const bottomSortKey = br !== null ? `bedroom_${br}` : 'avg_fmr';
+    // Most Affordable: always sort by avg_fmr (ignore bedroom filter)
+    const bottomSortKey = 'avg_fmr';
     const bottomZipsSorted = bottomZips.rows
       .sort((a: any, b: any) => parseFloat(a[bottomSortKey] || 0) - parseFloat(b[bottomSortKey] || 0))
       .slice(0, 50);
@@ -297,7 +299,7 @@ export async function computeDashboardInsights(opts: {
           c.state_code
         FROM cities c
         WHERE (
-          (${stateCode}::text IS NOT NULL AND c.state_code = ${stateCode})
+          (${stateCode}::text IS NOT NULL AND c.state_code = ${stateCode}::text)
           OR
           (${stateCode}::text IS NULL AND c.state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS'))
         )
@@ -388,7 +390,7 @@ export async function computeDashboardInsights(opts: {
           AND zcm.state_code = fd.state_code 
           AND fd.year = ${year}
         WHERE (
-          (${stateCode}::text IS NOT NULL AND zcm.state_code = ${stateCode})
+          (${stateCode}::text IS NOT NULL AND zcm.state_code = ${stateCode}::text)
           OR
           (${stateCode}::text IS NULL AND zcm.state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS'))
         )
@@ -421,27 +423,31 @@ export async function computeDashboardInsights(opts: {
 
     const processedAnomalies = (anomalies.rows as any[])
       .map((row) => {
-        if (br !== null) {
-          const key = `bedroom_${br}`;
-          if (row[key] === null || row[key] === undefined) return null;
-        }
-        const jumps = [
+        const allJumps = [
           { from: 0, to: 1, pct: parseFloat(row.jump_0_to_1_pct) || null, amount: parseFloat(row.jump_0_to_1) || null, natAvg: nationalAvgJumps[0] },
           { from: 1, to: 2, pct: parseFloat(row.jump_1_to_2_pct) || null, amount: parseFloat(row.jump_1_to_2) || null, natAvg: nationalAvgJumps[1] },
           { from: 2, to: 3, pct: parseFloat(row.jump_2_to_3_pct) || null, amount: parseFloat(row.jump_2_to_3) || null, natAvg: nationalAvgJumps[2] },
           { from: 3, to: 4, pct: parseFloat(row.jump_3_to_4_pct) || null, amount: parseFloat(row.jump_3_to_4) || null, natAvg: nationalAvgJumps[3] },
-        ].filter((j) => {
+        ];
+
+        const usable = allJumps.filter((j) => {
           const pct = j.pct;
-          return pct !== null && !isNaN(pct) && isFinite(pct) && 
+          return pct !== null && !isNaN(pct) && isFinite(pct) &&
                  j.natAvg > 0 && isFinite(j.natAvg) &&
                  j.amount !== null && !isNaN(j.amount) && isFinite(j.amount);
         });
+        if (usable.length === 0) return null;
 
-        if (jumps.length === 0) return null;
+        const picked = br !== null
+          ? (() => {
+              const from = jumpFromForBr(br);
+              const to = from + 1;
+              const j = usable.find((x) => x.from === from && x.to === to);
+              return j || null;
+            })()
+          : usable.reduce((max, jump) => (jump.pct! > max.pct! ? jump : max));
 
-        const maxJump = jumps.reduce((max, jump) => {
-          return jump.pct! > max.pct! ? jump : max;
-        });
+        if (!picked) return null;
 
         return {
           zip_code: row.zip_code,
@@ -450,11 +456,11 @@ export async function computeDashboardInsights(opts: {
           bedroom_2: parseFloat(row.bedroom_2) || null,
           bedroom_3: parseFloat(row.bedroom_3) || null,
           bedroom_4: parseFloat(row.bedroom_4) || null,
-          maxJumpFrom: maxJump.from,
-          maxJumpTo: maxJump.to,
-          maxJumpPct: maxJump.pct!,
-          maxJumpAmount: maxJump.amount!,
-          nationalAvg: maxJump.natAvg,
+          maxJumpFrom: picked.from,
+          maxJumpTo: picked.to,
+          maxJumpPct: picked.pct!,
+          maxJumpAmount: picked.amount!,
+          nationalAvg: picked.natAvg,
         };
       })
       .filter((a) => a !== null)
@@ -484,7 +490,7 @@ export async function computeDashboardInsights(opts: {
             c.state_code
           FROM cities c
           WHERE (
-            (${stateCode}::text IS NOT NULL AND c.state_code = ${stateCode})
+            (${stateCode}::text IS NOT NULL AND c.state_code = ${stateCode}::text)
             OR
             (${stateCode}::text IS NULL AND c.state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS'))
           )
@@ -522,7 +528,7 @@ export async function computeDashboardInsights(opts: {
         SELECT DISTINCT zcm.zip_code
         FROM zip_county_mapping zcm
         WHERE (
-          (${stateCode}::text IS NOT NULL AND zcm.state_code = ${stateCode})
+          (${stateCode}::text IS NOT NULL AND zcm.state_code = ${stateCode}::text)
           OR
           (${stateCode}::text IS NULL AND zcm.state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS'))
         )
@@ -663,27 +669,27 @@ export async function computeDashboardInsights(opts: {
       }
     });
 
-    const zipYoYChanges = (zipYoY.rows as any[])
-      .map((row) => {
+    // Rising/Falling YoY:
+    // - If a bedroom filter is selected, rank by that bedroom only (one row per ZIP).
+    // - If "All", rank by (ZIP, bedroom) so a ZIP can appear multiple times for different BRs.
+    const zipYoYEntries = (zipYoY.rows as any[])
+      .flatMap((row) => {
+        const zipCode = String(row.zip_code);
         const baseChanges = [
-          { br: 0, curr: parseFloat(row.curr_0), prev: parseFloat(row.prev_0), pct: null as number | null },
-          { br: 1, curr: parseFloat(row.curr_1), prev: parseFloat(row.prev_1), pct: null as number | null },
-          { br: 2, curr: parseFloat(row.curr_2), prev: parseFloat(row.prev_2), pct: null as number | null },
-          { br: 3, curr: parseFloat(row.curr_3), prev: parseFloat(row.prev_3), pct: null as number | null },
-          { br: 4, curr: parseFloat(row.curr_4), prev: parseFloat(row.prev_4), pct: null as number | null },
+          { br: 0, curr: parseFloat(row.curr_0), prev: parseFloat(row.prev_0) },
+          { br: 1, curr: parseFloat(row.curr_1), prev: parseFloat(row.prev_1) },
+          { br: 2, curr: parseFloat(row.curr_2), prev: parseFloat(row.prev_2) },
+          { br: 3, curr: parseFloat(row.curr_3), prev: parseFloat(row.prev_3) },
+          { br: 4, curr: parseFloat(row.curr_4), prev: parseFloat(row.prev_4) },
         ];
 
-        const changes = (br !== null ? baseChanges.filter((c) => c.br === br) : baseChanges)
+        const filtered = br !== null ? baseChanges.filter((c) => c.br === br) : baseChanges;
+        const changes = filtered
           .filter((c) => !isNaN(c.curr) && !isNaN(c.prev) && isFinite(c.curr) && isFinite(c.prev) && c.curr > 0 && c.prev > 0)
           .map((c) => ({ ...c, pct: ((c.curr - c.prev) / c.prev) * 100 }));
 
-        if (changes.length === 0) return null;
-
-        const maxChange = changes.reduce((max, c) => (c.pct! > max.pct! ? c : max));
-        const minChange = changes.reduce((min, c) => (c.pct! < min.pct! ? c : min));
-
-        return {
-          zipCode: String(row.zip_code),
+        return changes.map((c) => ({
+          zipCode,
           cityName: row.city_name || null,
           countyName: row.county_name || null,
           stateCode: row.state_code || null,
@@ -692,47 +698,18 @@ export async function computeDashboardInsights(opts: {
           bedroom2: parseFloat(row.curr_2) || null,
           bedroom3: parseFloat(row.curr_3) || null,
           bedroom4: parseFloat(row.curr_4) || null,
-          maxYoY: maxChange.pct!,
-          maxYoYBedroom: maxChange.br,
-          minYoY: minChange.pct!,
-          minYoYBedroom: minChange.br,
-        };
-      })
-      .filter((c) => c !== null) as any[];
+          yoyPercent: c.pct!,
+          yoyBedroom: c.br,
+        }));
+      }) as any[];
 
-    const risingZips = [...zipYoYChanges]
-      .sort((a, b) => b.maxYoY - a.maxYoY)
-      .slice(0, 50)
-      .map((z) => ({
-        zipCode: z.zipCode,
-        cityName: z.cityName,
-        countyName: z.countyName,
-        stateCode: z.stateCode,
-        bedroom0: z.bedroom0,
-        bedroom1: z.bedroom1,
-        bedroom2: z.bedroom2,
-        bedroom3: z.bedroom3,
-        bedroom4: z.bedroom4,
-        yoyPercent: z.maxYoY,
-        yoyBedroom: z.maxYoYBedroom,
-      }));
+    const risingZips = [...zipYoYEntries]
+      .sort((a, b) => b.yoyPercent - a.yoyPercent)
+      .slice(0, 50);
 
-    const fallingZips = [...zipYoYChanges]
-      .sort((a, b) => a.minYoY - b.minYoY)
-      .slice(0, 50)
-      .map((z) => ({
-        zipCode: z.zipCode,
-        cityName: z.cityName,
-        countyName: z.countyName,
-        stateCode: z.stateCode,
-        bedroom0: z.bedroom0,
-        bedroom1: z.bedroom1,
-        bedroom2: z.bedroom2,
-        bedroom3: z.bedroom3,
-        bedroom4: z.bedroom4,
-        yoyPercent: z.minYoY,
-        yoyBedroom: z.minYoYBedroom,
-      }));
+    const fallingZips = [...zipYoYEntries]
+      .sort((a, b) => a.yoyPercent - b.yoyPercent)
+      .slice(0, 50);
 
     return {
       type: 'zip' as const,
@@ -954,18 +931,19 @@ export async function computeDashboardInsights(opts: {
       };
     });
 
-    const filteredCities = br !== null ? citiesWithAvg.filter((c) => c.primaryFMR !== null) : citiesWithAvg;
+    // Most Expensive / Affordable: always based on avgFMR (ignore bedroom filter)
+    const topCities = [...citiesWithAvg]
+      .sort((a, b) => b.avgFMR - a.avgFMR)
+      .slice(0, 50);
+    const bottomCities = [...citiesWithAvg]
+      .sort((a, b) => a.avgFMR - b.avgFMR)
+      .slice(0, 50);
 
-    const topCities = [...filteredCities]
-      .sort((a, b) => (br !== null ? (b.primaryFMR || 0) - (a.primaryFMR || 0) : b.avgFMR - a.avgFMR))
-      .slice(0, 50);
-    const bottomCities = [...filteredCities]
-      .sort((a, b) => (br !== null ? (a.primaryFMR || 0) - (b.primaryFMR || 0) : a.avgFMR - b.avgFMR))
-      .slice(0, 50);
+    const filteredCities = br !== null ? citiesWithAvg.filter((c) => c.primaryFMR !== null) : citiesWithAvg;
 
     const cityAnomalies = filteredCities
       .map((city) => {
-        const jumps = [
+        const allJumps = [
           { from: 0, to: 1, pct: city.bedroom0 && city.bedroom1 && city.bedroom0 > 0
             ? ((city.bedroom1 - city.bedroom0) / city.bedroom0 * 100) : null,
             amount: city.bedroom0 && city.bedroom1 ? (city.bedroom1 - city.bedroom0) : null, natAvg: nationalAvgJumps[0] },
@@ -978,13 +956,21 @@ export async function computeDashboardInsights(opts: {
           { from: 3, to: 4, pct: city.bedroom3 && city.bedroom4 && city.bedroom3 > 0
             ? ((city.bedroom4 - city.bedroom3) / city.bedroom3 * 100) : null,
             amount: city.bedroom3 && city.bedroom4 ? (city.bedroom4 - city.bedroom3) : null, natAvg: nationalAvgJumps[3] },
-        ].filter((j) => j.pct !== null && j.natAvg > 0);
+        ];
 
-        if (jumps.length === 0) return null;
+        const usable = allJumps.filter((j) => j.pct !== null && j.natAvg > 0);
+        if (usable.length === 0) return null;
 
-        const maxJump = jumps.reduce((max, jump) => {
-          return jump.pct! > max.pct! ? jump : max;
-        });
+        const picked = br !== null
+          ? (() => {
+              const from = jumpFromForBr(br);
+              const to = from + 1;
+              const j = usable.find((x) => x.from === from && x.to === to);
+              return j || null;
+            })()
+          : usable.reduce((max, jump) => (jump.pct! > max.pct! ? jump : max));
+
+        if (!picked) return null;
 
         return {
           cityName: city.cityName,
@@ -995,11 +981,11 @@ export async function computeDashboardInsights(opts: {
           bedroom2: city.bedroom2,
           bedroom3: city.bedroom3,
           bedroom4: city.bedroom4,
-          jumpFrom: maxJump.from,
-          jumpTo: maxJump.to,
-          jumpPercent: maxJump.pct!,
-          jumpAmount: maxJump.amount!,
-          nationalAvg: maxJump.natAvg,
+          jumpFrom: picked.from,
+          jumpTo: picked.to,
+          jumpPercent: picked.pct!,
+          jumpAmount: picked.amount!,
+          nationalAvg: picked.natAvg,
         };
       })
       .filter((a) => a !== null)
@@ -1102,11 +1088,14 @@ export async function computeDashboardInsights(opts: {
       });
     });
 
-    const cityYoYComputed = filteredCities
-      .map((city) => {
+    // Rising/Falling YoY:
+    // - If a bedroom filter is selected, rank by that bedroom only (one row per city).
+    // - If "All", rank by (city, bedroom) so a city can appear multiple times for different BRs.
+    const cityYoYEntries = (filteredCities
+      .flatMap((city) => {
         const key = `${city.cityName}|${city.stateCode}`;
         const prev = prevYearCityMap.get(key);
-        if (!prev) return null;
+        if (!prev) return [];
 
         const baseChanges = [
           { br: 0, curr: city.bedroom0, prev: prev.bedroom0, pct: null as number | null },
@@ -1123,12 +1112,7 @@ export async function computeDashboardInsights(opts: {
                          c.curr > 0 && c.prev > 0)
           .map((c) => ({ ...c, pct: ((c.curr! - c.prev!) / c.prev!) * 100 }));
 
-        if (changes.length === 0) return null;
-
-        const maxChange = changes.reduce((max, c) => (c.pct! > max.pct! ? c : max));
-        const minChange = changes.reduce((min, c) => (c.pct! < min.pct! ? c : min));
-
-        return {
+        return changes.map((c) => ({
           cityName: city.cityName,
           stateCode: city.stateCode,
           stateName: city.stateName,
@@ -1139,49 +1123,19 @@ export async function computeDashboardInsights(opts: {
           bedroom3: city.bedroom3,
           bedroom4: city.bedroom4,
           zipCount: city.zipCount,
-          maxYoY: maxChange.pct!,
-          maxYoYBedroom: maxChange.br,
-          minYoY: minChange.pct!,
-          minYoYBedroom: minChange.br,
-        };
+          yoyPercent: c.pct!,
+          yoyBedroom: c.br,
+        }));
       })
-      .filter((c) => c !== null) as any[];
+      ) as any[];
 
-    const risingCities = [...cityYoYComputed]
-      .sort((a, b) => b.maxYoY - a.maxYoY)
-      .slice(0, 50)
-      .map((c) => ({
-        cityName: c.cityName,
-        stateCode: c.stateCode,
-        stateName: c.stateName,
-        countyName: c.countyName ?? null,
-        bedroom0: c.bedroom0,
-        bedroom1: c.bedroom1,
-        bedroom2: c.bedroom2,
-        bedroom3: c.bedroom3,
-        bedroom4: c.bedroom4,
-        zipCount: c.zipCount,
-        yoyPercent: c.maxYoY,
-        yoyBedroom: c.maxYoYBedroom,
-      }));
+    const risingCities = [...cityYoYEntries]
+      .sort((a, b) => b.yoyPercent - a.yoyPercent)
+      .slice(0, 50);
 
-    const fallingCities = [...cityYoYComputed]
-      .sort((a, b) => a.minYoY - b.minYoY)
-      .slice(0, 50)
-      .map((c) => ({
-        cityName: c.cityName,
-        stateCode: c.stateCode,
-        stateName: c.stateName,
-        countyName: c.countyName ?? null,
-        bedroom0: c.bedroom0,
-        bedroom1: c.bedroom1,
-        bedroom2: c.bedroom2,
-        bedroom3: c.bedroom3,
-        bedroom4: c.bedroom4,
-        zipCount: c.zipCount,
-        yoyPercent: c.minYoY,
-        yoyBedroom: c.minYoYBedroom,
-      }));
+    const fallingCities = [...cityYoYEntries]
+      .sort((a, b) => a.yoyPercent - b.yoyPercent)
+      .slice(0, 50);
 
     return {
       type: 'city' as const,
@@ -1242,135 +1196,56 @@ export async function computeDashboardInsights(opts: {
 
   // county
   const prevYear = year - 1;
-  const topCounties =
-    br !== null
-      ? await sql`
-          SELECT 
-            area_name,
-            state_code,
-            bedroom_0, bedroom_1, bedroom_2, bedroom_3, bedroom_4,
-            (COALESCE(bedroom_0, 0) + COALESCE(bedroom_1, 0) + COALESCE(bedroom_2, 0) + 
-             COALESCE(bedroom_3, 0) + COALESCE(bedroom_4, 0)) / 
-            NULLIF((CASE WHEN bedroom_0 IS NOT NULL THEN 1 ELSE 0 END +
-                    CASE WHEN bedroom_1 IS NOT NULL THEN 1 ELSE 0 END +
-                    CASE WHEN bedroom_2 IS NOT NULL THEN 1 ELSE 0 END +
-                    CASE WHEN bedroom_3 IS NOT NULL THEN 1 ELSE 0 END +
-                    CASE WHEN bedroom_4 IS NOT NULL THEN 1 ELSE 0 END), 0) as avg_fmr,
-            (CASE ${br}
-              WHEN 0 THEN bedroom_0
-              WHEN 1 THEN bedroom_1
-              WHEN 2 THEN bedroom_2
-              WHEN 3 THEN bedroom_3
-              WHEN 4 THEN bedroom_4
-            END) as primary_fmr
-          FROM fmr_data
-          WHERE year = ${year}
-            AND (
-              (${stateCode}::text IS NOT NULL AND state_code = ${stateCode})
-              OR
-              (${stateCode}::text IS NULL AND state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS'))
-            )
-            AND (bedroom_0 IS NOT NULL OR bedroom_1 IS NOT NULL OR bedroom_2 IS NOT NULL OR 
-                 bedroom_3 IS NOT NULL OR bedroom_4 IS NOT NULL)
-            AND (CASE ${br}
-              WHEN 0 THEN bedroom_0
-              WHEN 1 THEN bedroom_1
-              WHEN 2 THEN bedroom_2
-              WHEN 3 THEN bedroom_3
-              WHEN 4 THEN bedroom_4
-            END) IS NOT NULL
-          ORDER BY primary_fmr DESC
-          LIMIT 50
-        `
-      : await sql`
-          SELECT 
-            area_name,
-            state_code,
-            bedroom_0, bedroom_1, bedroom_2, bedroom_3, bedroom_4,
-            (COALESCE(bedroom_0, 0) + COALESCE(bedroom_1, 0) + COALESCE(bedroom_2, 0) + 
-             COALESCE(bedroom_3, 0) + COALESCE(bedroom_4, 0)) / 
-            NULLIF((CASE WHEN bedroom_0 IS NOT NULL THEN 1 ELSE 0 END +
-                    CASE WHEN bedroom_1 IS NOT NULL THEN 1 ELSE 0 END +
-                    CASE WHEN bedroom_2 IS NOT NULL THEN 1 ELSE 0 END +
-                    CASE WHEN bedroom_3 IS NOT NULL THEN 1 ELSE 0 END +
-                    CASE WHEN bedroom_4 IS NOT NULL THEN 1 ELSE 0 END), 0) as avg_fmr
-          FROM fmr_data
-          WHERE year = ${year}
-            AND (
-              (${stateCode}::text IS NOT NULL AND state_code = ${stateCode})
-              OR
-              (${stateCode}::text IS NULL AND state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS'))
-            )
-            AND (bedroom_0 IS NOT NULL OR bedroom_1 IS NOT NULL OR bedroom_2 IS NOT NULL OR 
-                 bedroom_3 IS NOT NULL OR bedroom_4 IS NOT NULL)
-          ORDER BY avg_fmr DESC
-          LIMIT 50
-        `;
+  // Most Expensive / Affordable: always based on avg_fmr (ignore bedroom filter)
+  const topCounties = await sql`
+    SELECT 
+      area_name,
+      state_code,
+      bedroom_0, bedroom_1, bedroom_2, bedroom_3, bedroom_4,
+      (COALESCE(bedroom_0, 0) + COALESCE(bedroom_1, 0) + COALESCE(bedroom_2, 0) + 
+       COALESCE(bedroom_3, 0) + COALESCE(bedroom_4, 0)) / 
+      NULLIF((CASE WHEN bedroom_0 IS NOT NULL THEN 1 ELSE 0 END +
+              CASE WHEN bedroom_1 IS NOT NULL THEN 1 ELSE 0 END +
+              CASE WHEN bedroom_2 IS NOT NULL THEN 1 ELSE 0 END +
+              CASE WHEN bedroom_3 IS NOT NULL THEN 1 ELSE 0 END +
+              CASE WHEN bedroom_4 IS NOT NULL THEN 1 ELSE 0 END), 0) as avg_fmr
+    FROM fmr_data
+    WHERE year = ${year}
+      AND (
+        (${stateCode}::text IS NOT NULL AND state_code = ${stateCode}::text)
+        OR
+        (${stateCode}::text IS NULL AND state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS'))
+      )
+      AND (bedroom_0 IS NOT NULL OR bedroom_1 IS NOT NULL OR bedroom_2 IS NOT NULL OR 
+           bedroom_3 IS NOT NULL OR bedroom_4 IS NOT NULL)
+    ORDER BY avg_fmr DESC
+    LIMIT 50
+  `;
 
-  const bottomCounties =
-    br !== null
-      ? await sql`
-          SELECT 
-            area_name,
-            state_code,
-            bedroom_0, bedroom_1, bedroom_2, bedroom_3, bedroom_4,
-            (COALESCE(bedroom_0, 0) + COALESCE(bedroom_1, 0) + COALESCE(bedroom_2, 0) + 
-             COALESCE(bedroom_3, 0) + COALESCE(bedroom_4, 0)) / 
-            NULLIF((CASE WHEN bedroom_0 IS NOT NULL THEN 1 ELSE 0 END +
-                    CASE WHEN bedroom_1 IS NOT NULL THEN 1 ELSE 0 END +
-                    CASE WHEN bedroom_2 IS NOT NULL THEN 1 ELSE 0 END +
-                    CASE WHEN bedroom_3 IS NOT NULL THEN 1 ELSE 0 END +
-                    CASE WHEN bedroom_4 IS NOT NULL THEN 1 ELSE 0 END), 0) as avg_fmr,
-            (CASE ${br}
-              WHEN 0 THEN bedroom_0
-              WHEN 1 THEN bedroom_1
-              WHEN 2 THEN bedroom_2
-              WHEN 3 THEN bedroom_3
-              WHEN 4 THEN bedroom_4
-            END) as primary_fmr
-          FROM fmr_data
-          WHERE year = ${year}
-            AND (
-              (${stateCode}::text IS NOT NULL AND state_code = ${stateCode})
-              OR
-              (${stateCode}::text IS NULL AND state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS'))
-            )
-            AND (bedroom_0 IS NOT NULL OR bedroom_1 IS NOT NULL OR bedroom_2 IS NOT NULL OR 
-                 bedroom_3 IS NOT NULL OR bedroom_4 IS NOT NULL)
-            AND (CASE ${br}
-              WHEN 0 THEN bedroom_0
-              WHEN 1 THEN bedroom_1
-              WHEN 2 THEN bedroom_2
-              WHEN 3 THEN bedroom_3
-              WHEN 4 THEN bedroom_4
-            END) IS NOT NULL
-          ORDER BY primary_fmr ASC
-          LIMIT 50
-        `
-      : await sql`
-          SELECT 
-            area_name,
-            state_code,
-            bedroom_0, bedroom_1, bedroom_2, bedroom_3, bedroom_4,
-            (COALESCE(bedroom_0, 0) + COALESCE(bedroom_1, 0) + COALESCE(bedroom_2, 0) + 
-             COALESCE(bedroom_3, 0) + COALESCE(bedroom_4, 0)) / 
-            NULLIF((CASE WHEN bedroom_0 IS NOT NULL THEN 1 ELSE 0 END +
-                    CASE WHEN bedroom_1 IS NOT NULL THEN 1 ELSE 0 END +
-                    CASE WHEN bedroom_2 IS NOT NULL THEN 1 ELSE 0 END +
-                    CASE WHEN bedroom_3 IS NOT NULL THEN 1 ELSE 0 END +
-                    CASE WHEN bedroom_4 IS NOT NULL THEN 1 ELSE 0 END), 0) as avg_fmr
-          FROM fmr_data
-          WHERE year = ${year}
-            AND (
-              (${stateCode}::text IS NOT NULL AND state_code = ${stateCode})
-              OR
-              (${stateCode}::text IS NULL AND state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS'))
-            )
-            AND (bedroom_0 IS NOT NULL OR bedroom_1 IS NOT NULL OR bedroom_2 IS NOT NULL OR 
-                 bedroom_3 IS NOT NULL OR bedroom_4 IS NOT NULL)
-          ORDER BY avg_fmr ASC
-          LIMIT 50
-        `;
+  const bottomCounties = await sql`
+    SELECT 
+      area_name,
+      state_code,
+      bedroom_0, bedroom_1, bedroom_2, bedroom_3, bedroom_4,
+      (COALESCE(bedroom_0, 0) + COALESCE(bedroom_1, 0) + COALESCE(bedroom_2, 0) + 
+       COALESCE(bedroom_3, 0) + COALESCE(bedroom_4, 0)) / 
+      NULLIF((CASE WHEN bedroom_0 IS NOT NULL THEN 1 ELSE 0 END +
+              CASE WHEN bedroom_1 IS NOT NULL THEN 1 ELSE 0 END +
+              CASE WHEN bedroom_2 IS NOT NULL THEN 1 ELSE 0 END +
+              CASE WHEN bedroom_3 IS NOT NULL THEN 1 ELSE 0 END +
+              CASE WHEN bedroom_4 IS NOT NULL THEN 1 ELSE 0 END), 0) as avg_fmr
+    FROM fmr_data
+    WHERE year = ${year}
+      AND (
+        (${stateCode}::text IS NOT NULL AND state_code = ${stateCode}::text)
+        OR
+        (${stateCode}::text IS NULL AND state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS'))
+      )
+      AND (bedroom_0 IS NOT NULL OR bedroom_1 IS NOT NULL OR bedroom_2 IS NOT NULL OR 
+           bedroom_3 IS NOT NULL OR bedroom_4 IS NOT NULL)
+    ORDER BY avg_fmr ASC
+    LIMIT 50
+  `;
 
   const countyAnomalies = await sql`
     SELECT 
@@ -1396,7 +1271,7 @@ export async function computeDashboardInsights(opts: {
     FROM fmr_data
     WHERE year = ${year}
       AND (
-        (${stateCode}::text IS NOT NULL AND state_code = ${stateCode})
+        (${stateCode}::text IS NOT NULL AND state_code = ${stateCode}::text)
         OR
         (${stateCode}::text IS NULL AND state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS'))
       )
@@ -1404,7 +1279,7 @@ export async function computeDashboardInsights(opts: {
            bedroom_3 IS NOT NULL OR bedroom_4 IS NOT NULL)
       AND (
         ${br}::int IS NULL
-        OR (CASE ${br}
+        OR (CASE ${br}::int
           WHEN 0 THEN bedroom_0
           WHEN 1 THEN bedroom_1
           WHEN 2 THEN bedroom_2
@@ -1416,18 +1291,26 @@ export async function computeDashboardInsights(opts: {
 
   const processedCountyAnomalies = (countyAnomalies.rows as any[])
     .map((row) => {
-      const jumps = [
+      const allJumps = [
         { from: 0, to: 1, pct: parseFloat(row.jump_0_to_1_pct) || null, amount: parseFloat(row.jump_0_to_1) || null, natAvg: nationalAvgJumps[0] },
         { from: 1, to: 2, pct: parseFloat(row.jump_1_to_2_pct) || null, amount: parseFloat(row.jump_1_to_2) || null, natAvg: nationalAvgJumps[1] },
         { from: 2, to: 3, pct: parseFloat(row.jump_2_to_3_pct) || null, amount: parseFloat(row.jump_2_to_3) || null, natAvg: nationalAvgJumps[2] },
         { from: 3, to: 4, pct: parseFloat(row.jump_3_to_4_pct) || null, amount: parseFloat(row.jump_3_to_4) || null, natAvg: nationalAvgJumps[3] },
-      ].filter((j) => j.pct !== null && j.natAvg > 0);
+      ];
 
-      if (jumps.length === 0) return null;
+      const usable = allJumps.filter((j) => j.pct !== null && j.natAvg > 0);
+      if (usable.length === 0) return null;
 
-      const maxJump = jumps.reduce((max, jump) => {
-        return jump.pct! > max.pct! ? jump : max;
-      });
+      const picked = br !== null
+        ? (() => {
+            const from = jumpFromForBr(br);
+            const to = from + 1;
+            const j = usable.find((x) => x.from === from && x.to === to);
+            return j || null;
+          })()
+        : usable.reduce((max, jump) => (jump.pct! > max.pct! ? jump : max));
+
+      if (!picked) return null;
 
       return {
         areaName: row.area_name,
@@ -1437,11 +1320,11 @@ export async function computeDashboardInsights(opts: {
         bedroom_2: parseFloat(row.bedroom_2) || null,
         bedroom_3: parseFloat(row.bedroom_3) || null,
         bedroom_4: parseFloat(row.bedroom_4) || null,
-        maxJumpFrom: maxJump.from,
-        maxJumpTo: maxJump.to,
-        maxJumpPct: maxJump.pct!,
-        maxJumpAmount: maxJump.amount!,
-        nationalAvg: maxJump.natAvg,
+        maxJumpFrom: picked.from,
+        maxJumpTo: picked.to,
+        maxJumpPct: picked.pct!,
+        maxJumpAmount: picked.amount!,
+        nationalAvg: picked.natAvg,
       };
     })
     .filter((a) => a !== null)
@@ -1463,7 +1346,7 @@ export async function computeDashboardInsights(opts: {
       AND prev.year = ${prevYear}
     WHERE curr.year = ${year}
       AND (
-        (${stateCode}::text IS NOT NULL AND curr.state_code = ${stateCode})
+        (${stateCode}::text IS NOT NULL AND curr.state_code = ${stateCode}::text)
         OR
         (${stateCode}::text IS NULL AND curr.state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS'))
       )
@@ -1473,7 +1356,7 @@ export async function computeDashboardInsights(opts: {
            prev.bedroom_3 IS NOT NULL OR prev.bedroom_4 IS NOT NULL)
       AND (
         ${br}::int IS NULL
-        OR (CASE ${br}
+        OR (CASE ${br}::int
           WHEN 0 THEN curr.bedroom_0
           WHEN 1 THEN curr.bedroom_1
           WHEN 2 THEN curr.bedroom_2
@@ -1483,7 +1366,7 @@ export async function computeDashboardInsights(opts: {
       )
       AND (
         ${br}::int IS NULL
-        OR (CASE ${br}
+        OR (CASE ${br}::int
           WHEN 0 THEN prev.bedroom_0
           WHEN 1 THEN prev.bedroom_1
           WHEN 2 THEN prev.bedroom_2
@@ -1493,26 +1376,25 @@ export async function computeDashboardInsights(opts: {
       )
   `;
 
-  const countyYoYChanges = (countyYoY.rows as any[])
-    .map((row) => {
+  // Rising/Falling YoY:
+  // - If a bedroom filter is selected, rank by that bedroom only (one row per county).
+  // - If "All", rank by (county, bedroom) so a county can appear multiple times for different BRs.
+  const countyYoYEntries = (countyYoY.rows as any[])
+    .flatMap((row) => {
       const baseChanges = [
-        { br: 0, curr: parseFloat(row.curr_0), prev: parseFloat(row.prev_0), pct: null as number | null },
-        { br: 1, curr: parseFloat(row.curr_1), prev: parseFloat(row.prev_1), pct: null as number | null },
-        { br: 2, curr: parseFloat(row.curr_2), prev: parseFloat(row.prev_2), pct: null as number | null },
-        { br: 3, curr: parseFloat(row.curr_3), prev: parseFloat(row.prev_3), pct: null as number | null },
-        { br: 4, curr: parseFloat(row.curr_4), prev: parseFloat(row.prev_4), pct: null as number | null },
+        { br: 0, curr: parseFloat(row.curr_0), prev: parseFloat(row.prev_0) },
+        { br: 1, curr: parseFloat(row.curr_1), prev: parseFloat(row.prev_1) },
+        { br: 2, curr: parseFloat(row.curr_2), prev: parseFloat(row.prev_2) },
+        { br: 3, curr: parseFloat(row.curr_3), prev: parseFloat(row.prev_3) },
+        { br: 4, curr: parseFloat(row.curr_4), prev: parseFloat(row.prev_4) },
       ];
 
-      const changes = (br !== null ? baseChanges.filter((c) => c.br === br) : baseChanges)
+      const filtered = br !== null ? baseChanges.filter((c) => c.br === br) : baseChanges;
+      const changes = filtered
         .filter((c) => !isNaN(c.curr) && !isNaN(c.prev) && isFinite(c.curr) && isFinite(c.prev) && c.curr > 0 && c.prev > 0)
         .map((c) => ({ ...c, pct: ((c.curr - c.prev) / c.prev) * 100 }));
 
-      if (changes.length === 0) return null;
-
-      const maxChange = changes.reduce((max, c) => (c.pct! > max.pct! ? c : max));
-      const minChange = changes.reduce((min, c) => (c.pct! < min.pct! ? c : min));
-
-      return {
+      return changes.map((c) => ({
         areaName: row.area_name,
         stateCode: row.state_code,
         bedroom0: parseFloat(row.curr_0) || null,
@@ -1520,43 +1402,18 @@ export async function computeDashboardInsights(opts: {
         bedroom2: parseFloat(row.curr_2) || null,
         bedroom3: parseFloat(row.curr_3) || null,
         bedroom4: parseFloat(row.curr_4) || null,
-        maxYoY: maxChange.pct!,
-        maxYoYBedroom: maxChange.br,
-        minYoY: minChange.pct!,
-        minYoYBedroom: minChange.br,
-      };
-    })
-    .filter((c) => c !== null) as any[];
+        yoyPercent: c.pct!,
+        yoyBedroom: c.br,
+      }));
+    }) as any[];
 
-  const risingCounties = [...countyYoYChanges]
-    .sort((a, b) => b.maxYoY - a.maxYoY)
-    .slice(0, 50)
-    .map((c) => ({
-      areaName: c.areaName,
-      stateCode: c.stateCode,
-      bedroom0: c.bedroom0,
-      bedroom1: c.bedroom1,
-      bedroom2: c.bedroom2,
-      bedroom3: c.bedroom3,
-      bedroom4: c.bedroom4,
-      yoyPercent: c.maxYoY,
-      yoyBedroom: c.maxYoYBedroom,
-    }));
+  const risingCounties = [...countyYoYEntries]
+    .sort((a, b) => b.yoyPercent - a.yoyPercent)
+    .slice(0, 50);
 
-  const fallingCounties = [...countyYoYChanges]
-    .sort((a, b) => a.minYoY - b.minYoY)
-    .slice(0, 50)
-    .map((c) => ({
-      areaName: c.areaName,
-      stateCode: c.stateCode,
-      bedroom0: c.bedroom0,
-      bedroom1: c.bedroom1,
-      bedroom2: c.bedroom2,
-      bedroom3: c.bedroom3,
-      bedroom4: c.bedroom4,
-      yoyPercent: c.minYoY,
-      yoyBedroom: c.minYoYBedroom,
-    }));
+  const fallingCounties = [...countyYoYEntries]
+    .sort((a, b) => a.yoyPercent - b.yoyPercent)
+    .slice(0, 50);
 
   return {
     type: 'county' as const,

@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type { FMRResult } from '@/lib/types';
-import { computeIdealPurchasePrice, type DownPaymentInput } from '@/lib/investment';
+import { computeIdealPurchasePrice, computeCashFlow, computeMaxPriceForCashFlow, type DownPaymentInput } from '@/lib/investment';
+import type { IdealPurchasePriceResult } from '@/lib/investment';
 
 type MarketParams = {
   propertyTaxRateAnnualPct: number | null;
@@ -13,6 +14,9 @@ type MarketParams = {
 };
 
 type PersistedPrefs = {
+  mode: 'cashflow' | 'maxprice';
+  purchasePrice: string; // For cash flow mode
+  desiredCashFlow: string; // For max price mode
   bedrooms: number;
   cashOnCashAnnualPct: string;
   downPaymentMode: 'percent' | 'amount';
@@ -20,6 +24,9 @@ type PersistedPrefs = {
   downPaymentAmount: string;
   insuranceMonthly: string;
   hoaMonthly: string;
+  propertyManagementMode: 'percent' | 'amount';
+  propertyManagementPercent: string;
+  propertyManagementAmount: string;
   overrideTaxRate: boolean;
   overrideMortgageRate: boolean;
   taxRateAnnualPct: string;
@@ -27,8 +34,12 @@ type PersistedPrefs = {
 };
 
 const LS_KEY = 'fmr_fyi_ideal_purchase_prefs_v1';
+const LS_KEY_DETAILS_EXPANDED = 'fmr_fyi_calc_details_expanded';
 
 const DEFAULT_PREFS: PersistedPrefs = {
+  mode: 'maxprice',
+  purchasePrice: '200000',
+  desiredCashFlow: '200',
   bedrooms: 2,
   cashOnCashAnnualPct: '10',
   downPaymentMode: 'percent',
@@ -36,6 +47,9 @@ const DEFAULT_PREFS: PersistedPrefs = {
   downPaymentAmount: '50000',
   insuranceMonthly: '175',
   hoaMonthly: '0',
+  propertyManagementMode: 'percent',
+  propertyManagementPercent: '10',
+  propertyManagementAmount: '0',
   overrideTaxRate: false,
   overrideMortgageRate: false,
   taxRateAnnualPct: '1.2',
@@ -59,6 +73,12 @@ function safeParsePrefs(): PersistedPrefs {
     merged.taxRateAnnualPct = toStr(merged.taxRateAnnualPct, DEFAULT_PREFS.taxRateAnnualPct);
     merged.mortgageRateAnnualPct = toStr(merged.mortgageRateAnnualPct, DEFAULT_PREFS.mortgageRateAnnualPct);
     merged.bedrooms = Number.isFinite(Number(merged.bedrooms)) ? Number(merged.bedrooms) : DEFAULT_PREFS.bedrooms;
+    merged.mode = merged.mode === 'maxprice' || merged.mode === 'cashflow' ? merged.mode : DEFAULT_PREFS.mode;
+    merged.purchasePrice = toStr(merged.purchasePrice, DEFAULT_PREFS.purchasePrice);
+    merged.desiredCashFlow = toStr(merged.desiredCashFlow, DEFAULT_PREFS.desiredCashFlow);
+    merged.propertyManagementMode = merged.propertyManagementMode === 'amount' || merged.propertyManagementMode === 'percent' ? merged.propertyManagementMode : DEFAULT_PREFS.propertyManagementMode;
+    merged.propertyManagementPercent = toStr(merged.propertyManagementPercent, DEFAULT_PREFS.propertyManagementPercent);
+    merged.propertyManagementAmount = toStr(merged.propertyManagementAmount, DEFAULT_PREFS.propertyManagementAmount);
     return merged as PersistedPrefs;
   } catch {
     return DEFAULT_PREFS;
@@ -81,6 +101,23 @@ function formatCurrency(value: number | null | undefined) {
 function formatPct(value: number | null | undefined) {
   if (value === null || value === undefined || !Number.isFinite(value)) return '—';
   return `${value.toFixed(2)}%`;
+}
+
+function sanitizeNumericInput(value: string, allowDecimal: boolean = false): string {
+  // Remove all non-numeric characters, optionally allowing decimal point
+  if (allowDecimal) {
+    // Allow digits and one decimal point
+    const cleaned = value.replace(/[^\d.]/g, '');
+    // Ensure only one decimal point
+    const parts = cleaned.split('.');
+    if (parts.length > 2) {
+      return parts[0] + '.' + parts.slice(1).join('');
+    }
+    return cleaned;
+  } else {
+    // Only allow digits
+    return value.replace(/[^\d]/g, '');
+  }
 }
 
 function parseNumberOrZero(raw: string) {
@@ -160,10 +197,22 @@ export default function IdealPurchasePriceCard({ data }: { data: FMRResult | nul
   const [market, setMarket] = useState<MarketParams | null>(null);
   const [marketError, setMarketError] = useState<string | null>(null);
   const [marketLoading, setMarketLoading] = useState(false);
+  const [detailsExpanded, setDetailsExpanded] = useState(false);
 
   useEffect(() => {
     setPrefs(safeParsePrefs());
     setPrefsLoaded(true);
+    // Load details expanded state
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = window.localStorage.getItem(LS_KEY_DETAILS_EXPANDED);
+        if (saved !== null) {
+          setDetailsExpanded(saved === 'true');
+        }
+      } catch {
+        // ignore
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -195,6 +244,7 @@ export default function IdealPurchasePriceCard({ data }: { data: FMRResult | nul
       .finally(() => setMarketLoading(false));
   }, [data?.zipCode, data?.countyName, data?.stateCode, data?.queriedType, data?.source]);
 
+
   // Persist “likely static” values (as requested)
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -202,7 +252,31 @@ export default function IdealPurchasePriceCard({ data }: { data: FMRResult | nul
     persistPrefs(prefs);
   }, [prefs, prefsLoaded]);
 
-  const rentMonthly = useMemo(() => (data ? getRentForBedrooms(data, prefs.bedrooms) : null), [data, prefs.bedrooms]);
+  // Persist details expanded state
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(LS_KEY_DETAILS_EXPANDED, String(detailsExpanded));
+    } catch {
+      // ignore
+    }
+  }, [detailsExpanded]);
+
+  const rentMonthlyRaw = useMemo(() => (data ? getRentForBedrooms(data, prefs.bedrooms) : null), [data, prefs.bedrooms]);
+  
+  // Calculate property management cost (not subtracted from rent, but added to expenses)
+  const propertyManagementCost = useMemo(() => {
+    if (rentMonthlyRaw === null) return 0;
+    if (prefs.propertyManagementMode === 'percent') {
+      const pct = parseNumberOrZero(prefs.propertyManagementPercent);
+      return rentMonthlyRaw * (pct / 100);
+    } else {
+      return parseNumberOrZero(prefs.propertyManagementAmount);
+    }
+  }, [rentMonthlyRaw, prefs.propertyManagementMode, prefs.propertyManagementPercent, prefs.propertyManagementAmount]);
+  
+  // Use full rent (not subtracting PM)
+  const rentMonthly = rentMonthlyRaw;
 
   // If market fetch succeeds but parsing yields null, fall back to saved defaults so the calculator still works.
   const savedTaxRate = parseNumberOrZero(prefs.taxRateAnnualPct);
@@ -219,73 +293,205 @@ export default function IdealPurchasePriceCard({ data }: { data: FMRResult | nul
   const result = useMemo(() => {
     if (!data || !canRenderForData(data)) return null;
     if (rentMonthly === null) return null;
-    // While market values are loading and we aren't overriding, show a loading state instead of computing.
-    if (marketLoading && !prefs.overrideTaxRate && !prefs.overrideMortgageRate) return null;
+    
+    if (prefs.mode === 'cashflow') {
+      // Calculate cash flow given purchase price
+      if (marketLoading && !prefs.overrideTaxRate && !prefs.overrideMortgageRate) return null;
+      
+      const purchasePrice = parseNumberOrZero(prefs.purchasePrice);
+      if (purchasePrice <= 0) return null;
+      
+      return computeCashFlow({
+        purchasePrice,
+        rentMonthly,
+        bedrooms: prefs.bedrooms,
+        interestRateAnnualPct: mortgageRateAnnualPct,
+        propertyTaxRateAnnualPct: taxRateAnnualPct,
+        insuranceMonthly: parseNumberOrZero(prefs.insuranceMonthly),
+        hoaMonthly: parseNumberOrZero(prefs.hoaMonthly),
+        propertyManagementMonthly: propertyManagementCost,
+        downPayment,
+        termMonths: 360,
+      });
+    } else {
+      // Calculate max purchase price given desired cash flow
+      if (marketLoading && !prefs.overrideTaxRate && !prefs.overrideMortgageRate) return null;
+      
+      const desiredCashFlow = parseNumberOrZero(prefs.desiredCashFlow);
+      if (desiredCashFlow < 0) return null;
+      
+      return computeMaxPriceForCashFlow({
+        rentMonthly,
+        bedrooms: prefs.bedrooms,
+        interestRateAnnualPct: mortgageRateAnnualPct,
+        propertyTaxRateAnnualPct: taxRateAnnualPct,
+        insuranceMonthly: parseNumberOrZero(prefs.insuranceMonthly),
+        hoaMonthly: parseNumberOrZero(prefs.hoaMonthly),
+        propertyManagementMonthly: propertyManagementCost,
+        desiredCashFlowMonthly: desiredCashFlow,
+        downPayment,
+        termMonths: 360,
+      });
+    }
+  }, [data, rentMonthly, taxRateAnnualPct, mortgageRateAnnualPct, prefs, downPayment, marketLoading, propertyManagementCost]);
 
-    return computeIdealPurchasePrice({
-      rentMonthly,
-      bedrooms: prefs.bedrooms,
-      interestRateAnnualPct: mortgageRateAnnualPct,
-      propertyTaxRateAnnualPct: taxRateAnnualPct,
-      insuranceMonthly: parseNumberOrZero(prefs.insuranceMonthly),
-      hoaMonthly: parseNumberOrZero(prefs.hoaMonthly),
-      cashFlowMonthlyPct: parseNumberOrZero(prefs.cashOnCashAnnualPct),
-      downPayment,
-      termMonths: 360,
-    });
-  }, [data, rentMonthly, taxRateAnnualPct, mortgageRateAnnualPct, prefs, downPayment, marketLoading]);
-
-  const downPaymentPctForDisplay =
-    prefs.downPaymentMode === 'amount' ? 20 : parseNumberOrZero(prefs.downPaymentPercent);
-  const downPaymentDollars = result ? (result.purchasePrice * (downPaymentPctForDisplay / 100)) : null;
+  const downPaymentPctForDisplay = parseNumberOrZero(prefs.downPaymentPercent);
+  const purchasePriceForCalc = prefs.mode === 'cashflow' 
+    ? parseNumberOrZero(prefs.purchasePrice)
+    : (result && 'purchasePrice' in result ? result.purchasePrice : 0);
+  
+  const downPaymentDollars = prefs.downPaymentMode === 'amount'
+    ? parseNumberOrZero(prefs.downPaymentAmount)
+    : purchasePriceForCalc * (downPaymentPctForDisplay / 100);
   if (!data || !canRenderForData(data)) return null;
 
   return (
-    <div className="w-full lg:w-80 flex-shrink-0 bg-white rounded-lg border border-[#e5e5e5] p-4 sm:p-6 md:p-8">
+    <div className="w-full lg:w-[420px] flex-shrink-0 bg-white rounded-lg border border-[#e5e5e5] p-4 sm:p-6 md:p-8">
       <div className="mb-4">
-        <h3 className="text-base sm:text-lg font-semibold text-[#0a0a0a] mb-1">Ideal Purchase Price</h3>
+        <h3 className="text-base sm:text-lg font-semibold text-[#0a0a0a] mb-1">Purchase Price Calculator</h3>
         <p className="text-xs text-[#737373]">Based on HUD rent + your assumptions</p>
+      </div>
+
+      {/* Mode selector */}
+      <div className="mb-4">
+        <label className="block">
+          <div className="text-xs font-semibold text-[#0a0a0a] mb-1">Calculation mode</div>
+          <select
+            value={prefs.mode}
+            onChange={(e) => setPrefs((p) => ({ ...p, mode: e.target.value as 'cashflow' | 'maxprice' }))}
+            className="w-full px-3 py-2 rounded-lg border border-[#e5e5e5] bg-white text-sm"
+          >
+            <option value="cashflow">Calculate Cash Flow</option>
+            <option value="maxprice">Calculate Max Price</option>
+          </select>
+        </label>
       </div>
 
       {/* Output */}
       <div className="rounded-lg border border-[#e5e5e5] bg-[#fafafa] p-3 sm:p-4">
-        <div className="text-xs text-[#737373] mb-1">Ideal purchase price</div>
-        <div className="text-2xl font-semibold text-[#0a0a0a] tabular-nums">
-          {result ? formatCurrency(result.purchasePrice) : '—'}
-        </div>
+        {prefs.mode === 'cashflow' ? (
+          <>
+            <div className="text-xs text-[#737373] mb-1">Monthly cash flow</div>
+            <div className="text-2xl font-semibold text-[#0a0a0a] tabular-nums">
+              {result && 'monthlyCashFlow' in result 
+                ? formatCurrency((result as any).monthlyCashFlow)
+                : '—'}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="text-xs text-[#737373] mb-1">Maximum purchase price</div>
+            <div className="text-2xl font-semibold text-[#0a0a0a] tabular-nums">
+              {result && 'purchasePrice' in result ? formatCurrency((result as any).purchasePrice) : '—'}
+            </div>
+          </>
+        )}
         <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-[#525252]">
           <div>
             <div className="text-[#737373]">Rent</div>
-            <div className="font-medium tabular-nums">{rentMonthly ? formatCurrency(rentMonthly) : '—'}</div>
+            <div className="font-medium tabular-nums">{rentMonthlyRaw ? formatCurrency(rentMonthlyRaw) : '—'}</div>
+          </div>
+          <div>
+            <div className="text-[#737373]">Down payment</div>
+            <div className="font-medium tabular-nums">
+              {result ? formatCurrency(downPaymentDollars) : '—'}
+            </div>
           </div>
           <div>
             <div className="text-[#737373]">Loan</div>
-            <div className="font-medium tabular-nums">{result ? formatCurrency(result.loanAmount) : '—'}</div>
-          </div>
-          <div>
-            <div className="text-[#737373]">Down</div>
             <div className="font-medium tabular-nums">
-              {result ? `${formatCurrency(downPaymentDollars)}` : '—'}
+              {result 
+                ? (prefs.mode === 'cashflow' && 'loanAmount' in result
+                    ? formatCurrency((result as any).loanAmount)
+                    : formatCurrency(result.loanAmount))
+                : '—'}
             </div>
           </div>
           <div>
-            <div className="text-[#737373]">Cash flow</div>
+            <div className="text-[#737373]">Mortgage</div>
             <div className="font-medium tabular-nums">
-              {result ? `${formatCurrency(result.monthlyCashFlowRequired)}/mo` : '—'}
+              {result 
+                ? (prefs.mode === 'cashflow' && 'monthlyMortgagePayment' in result
+                    ? formatCurrency((result as any).monthlyMortgagePayment)
+                    : 'maxMortgagePayment' in result
+                    ? formatCurrency((result as IdealPurchasePriceResult).maxMortgagePayment)
+                    : '—')
+                : '—'}
             </div>
           </div>
           <div>
-            <div className="text-[#737373]">Tax rate</div>
+            <div className="text-[#737373]">Expenses</div>
             <div className="font-medium tabular-nums">
-              {marketLoading && !prefs.overrideTaxRate ? 'Loading…' : formatPct(taxRateAnnualPct)}
+              {result 
+                ? (prefs.mode === 'cashflow' && 'monthlyExpenses' in result
+                    ? formatCurrency((result as any).monthlyExpenses)
+                    : result && 'purchasePrice' in result
+                    ? formatCurrency(
+                        parseNumberOrZero(prefs.insuranceMonthly) +
+                        parseNumberOrZero(prefs.hoaMonthly) +
+                        propertyManagementCost +
+                        ((taxRateAnnualPct / 100) / 12 * result.purchasePrice)
+                      )
+                    : '—')
+                : '—'}
             </div>
           </div>
-          <div>
-            <div className="text-[#737373]">Rate (30Y)</div>
-            <div className="font-medium tabular-nums">
-              {marketLoading && !prefs.overrideMortgageRate ? 'Loading…' : formatPct(mortgageRateAnnualPct)}
+        </div>
+
+        {/* Collapsible details section */}
+        <div className="mt-3 border-t border-[#e5e5e5] pt-3">
+          <button
+            type="button"
+            onClick={() => setDetailsExpanded(!detailsExpanded)}
+            className="w-full flex items-center justify-between text-xs text-[#525252] hover:text-[#0a0a0a] transition-colors"
+          >
+            <span>Details</span>
+            <span className="tabular-nums">{detailsExpanded ? '−' : '+'}</span>
+          </button>
+          {detailsExpanded && (
+            <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-[#525252]">
+              <div>
+                <div className="text-[#737373]">Insurance</div>
+                <div className="font-medium tabular-nums">
+                  {formatCurrency(parseNumberOrZero(prefs.insuranceMonthly))}
+                </div>
+              </div>
+              <div>
+                <div className="text-[#737373]">HOA</div>
+                <div className="font-medium tabular-nums">
+                  {formatCurrency(parseNumberOrZero(prefs.hoaMonthly))}
+                </div>
+              </div>
+              <div>
+                <div className="text-[#737373]">Property management</div>
+                <div className="font-medium tabular-nums">
+                  {formatCurrency(propertyManagementCost)}
+                </div>
+              </div>
+              <div>
+                <div className="text-[#737373]">Taxes</div>
+                <div className="font-medium tabular-nums">
+                  {result && 'monthlyTaxes' in result
+                    ? formatCurrency((result as any).monthlyTaxes)
+                    : result && 'purchasePrice' in result
+                    ? formatCurrency(((taxRateAnnualPct / 100) / 12) * result.purchasePrice)
+                    : '—'}
+                </div>
+              </div>
+              <div>
+                <div className="text-[#737373]">Tax rate</div>
+                <div className="font-medium tabular-nums">
+                  {marketLoading && !prefs.overrideTaxRate ? 'Loading…' : formatPct(taxRateAnnualPct)}
+                </div>
+              </div>
+              <div>
+                <div className="text-[#737373]">Mortgage rate</div>
+                <div className="font-medium tabular-nums">
+                  {marketLoading && !prefs.overrideMortgageRate ? 'Loading…' : formatPct(mortgageRateAnnualPct)}
+                </div>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {!result && (
@@ -317,16 +523,29 @@ export default function IdealPurchasePriceCard({ data }: { data: FMRResult | nul
             </select>
           </label>
 
-          <label className="block">
-            <div className="text-xs font-semibold text-[#0a0a0a] mb-1">Cash flow %</div>
-            <input
-              type="text"
-              inputMode="decimal"
-              value={prefs.cashOnCashAnnualPct}
-              onChange={(e) => setPrefs((p) => ({ ...p, cashOnCashAnnualPct: e.target.value }))}
-              className="w-full px-3 py-2 rounded-lg border border-[#e5e5e5] bg-white text-sm tabular-nums"
-            />
-          </label>
+          {prefs.mode === 'cashflow' ? (
+            <label className="block">
+              <div className="text-xs font-semibold text-[#0a0a0a] mb-1">Purchase price</div>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={prefs.purchasePrice}
+                onChange={(e) => setPrefs((p) => ({ ...p, purchasePrice: sanitizeNumericInput(e.target.value) }))}
+                className="w-full px-3 py-2 rounded-lg border border-[#e5e5e5] bg-white text-sm tabular-nums"
+              />
+            </label>
+          ) : (
+            <label className="block">
+              <div className="text-xs font-semibold text-[#0a0a0a] mb-1">Cash flow</div>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={prefs.desiredCashFlow}
+                onChange={(e) => setPrefs((p) => ({ ...p, desiredCashFlow: sanitizeNumericInput(e.target.value) }))}
+                className="w-full px-3 py-2 rounded-lg border border-[#e5e5e5] bg-white text-sm tabular-nums"
+              />
+            </label>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-2">
@@ -349,19 +568,19 @@ export default function IdealPurchasePriceCard({ data }: { data: FMRResult | nul
                 type="text"
                 inputMode="decimal"
                 value={prefs.downPaymentPercent}
-                onChange={(e) => setPrefs((p) => ({ ...p, downPaymentPercent: e.target.value }))}
+                onChange={(e) => setPrefs((p) => ({ ...p, downPaymentPercent: sanitizeNumericInput(e.target.value, true) }))}
                 className="w-full px-3 py-2 rounded-lg border border-[#e5e5e5] bg-white text-sm tabular-nums"
               />
             </label>
           ) : (
             <label className="block">
-              <div className="text-xs font-semibold text-[#0a0a0a] mb-1">Down $ (assumes 20%)</div>
+              <div className="text-xs font-semibold text-[#0a0a0a] mb-1">Down $</div>
               <input
                 type="text"
                 inputMode="numeric"
-                value={result ? String(Math.round(downPaymentDollars || 0)) : ''}
-                readOnly
-                className="w-full px-3 py-2 rounded-lg border border-[#e5e5e5] bg-[#fafafa] text-sm tabular-nums"
+                value={prefs.downPaymentAmount}
+                onChange={(e) => setPrefs((p) => ({ ...p, downPaymentAmount: sanitizeNumericInput(e.target.value) }))}
+                className="w-full px-3 py-2 rounded-lg border border-[#e5e5e5] bg-white text-sm tabular-nums"
               />
             </label>
           )}
@@ -374,7 +593,7 @@ export default function IdealPurchasePriceCard({ data }: { data: FMRResult | nul
               type="text"
               inputMode="numeric"
               value={prefs.insuranceMonthly}
-              onChange={(e) => setPrefs((p) => ({ ...p, insuranceMonthly: e.target.value }))}
+              onChange={(e) => setPrefs((p) => ({ ...p, insuranceMonthly: sanitizeNumericInput(e.target.value) }))}
               className="w-full px-3 py-2 rounded-lg border border-[#e5e5e5] bg-white text-sm tabular-nums"
             />
           </label>
@@ -384,10 +603,48 @@ export default function IdealPurchasePriceCard({ data }: { data: FMRResult | nul
               type="text"
               inputMode="numeric"
               value={prefs.hoaMonthly}
-              onChange={(e) => setPrefs((p) => ({ ...p, hoaMonthly: e.target.value }))}
+              onChange={(e) => setPrefs((p) => ({ ...p, hoaMonthly: sanitizeNumericInput(e.target.value) }))}
               className="w-full px-3 py-2 rounded-lg border border-[#e5e5e5] bg-white text-sm tabular-nums"
             />
           </label>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <label className="block">
+            <div className="text-xs font-semibold text-[#0a0a0a] mb-1">Property management</div>
+            <select
+              value={prefs.propertyManagementMode}
+              onChange={(e) => setPrefs((p) => ({ ...p, propertyManagementMode: e.target.value as 'percent' | 'amount' }))}
+              className="w-full px-3 py-2 rounded-lg border border-[#e5e5e5] bg-white text-sm"
+            >
+              <option value="percent">%</option>
+              <option value="amount">$</option>
+            </select>
+          </label>
+
+          {prefs.propertyManagementMode === 'percent' ? (
+            <label className="block">
+              <div className="text-xs font-semibold text-[#0a0a0a] mb-1">PM %</div>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={prefs.propertyManagementPercent}
+                onChange={(e) => setPrefs((p) => ({ ...p, propertyManagementPercent: sanitizeNumericInput(e.target.value, true) }))}
+                className="w-full px-3 py-2 rounded-lg border border-[#e5e5e5] bg-white text-sm tabular-nums"
+              />
+            </label>
+          ) : (
+            <label className="block">
+              <div className="text-xs font-semibold text-[#0a0a0a] mb-1">PM $ / mo</div>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={prefs.propertyManagementAmount}
+                onChange={(e) => setPrefs((p) => ({ ...p, propertyManagementAmount: sanitizeNumericInput(e.target.value) }))}
+                className="w-full px-3 py-2 rounded-lg border border-[#e5e5e5] bg-white text-sm tabular-nums"
+              />
+            </label>
+          )}
         </div>
 
         <div className="pt-2 border-t border-[#e5e5e5] space-y-2">
@@ -435,7 +692,7 @@ export default function IdealPurchasePriceCard({ data }: { data: FMRResult | nul
               inputMode="decimal"
               value={prefs.taxRateAnnualPct}
               disabled={!prefs.overrideTaxRate}
-              onChange={(e) => setPrefs((p) => ({ ...p, taxRateAnnualPct: e.target.value }))}
+              onChange={(e) => setPrefs((p) => ({ ...p, taxRateAnnualPct: sanitizeNumericInput(e.target.value, true) }))}
               className="w-full px-3 py-2 rounded-lg border border-[#e5e5e5] bg-white text-sm tabular-nums disabled:bg-[#fafafa]"
             />
             <div className="text-xs text-[#737373] truncate"> </div>
@@ -455,7 +712,7 @@ export default function IdealPurchasePriceCard({ data }: { data: FMRResult | nul
               inputMode="decimal"
               value={prefs.mortgageRateAnnualPct}
               disabled={!prefs.overrideMortgageRate}
-              onChange={(e) => setPrefs((p) => ({ ...p, mortgageRateAnnualPct: e.target.value }))}
+              onChange={(e) => setPrefs((p) => ({ ...p, mortgageRateAnnualPct: sanitizeNumericInput(e.target.value, true) }))}
               className="w-full px-3 py-2 rounded-lg border border-[#e5e5e5] bg-white text-sm tabular-nums disabled:bg-[#fafafa]"
             />
             <div className="text-xs text-[#737373] truncate"> </div>

@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const q = searchParams.get('q') || '';
-    const type = searchParams.get('type') as 'zip' | 'city' | 'county' | 'all' | null;
+    const type = searchParams.get('type') as 'zip' | 'city' | 'county' | 'state' | 'all' | null;
 
     if (!q || q.length < 2) {
       return NextResponse.json({ results: [] });

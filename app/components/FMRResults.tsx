@@ -4,6 +4,11 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { FMRResult } from '@/lib/types';
 import HistoricalFMRChart from '@/app/components/HistoricalFMRChart';
+import StateBedroomCurveChart from '@/app/components/StateBedroomCurveChart';
+import PercentageBadge from '@/app/components/PercentageBadge';
+import Tooltip from '@/app/components/Tooltip';
+import ScoreGauge from '@/app/components/ScoreGauge';
+import InvestorScoreInfoIcon from '@/app/components/InvestorScoreInfoIcon';
 import { buildCitySlug, buildCountySlug } from '@/lib/location-slugs';
 
 interface FMRResultsProps {
@@ -25,63 +30,136 @@ export default function FMRResults({
 }: FMRResultsProps) {
   const router = useRouter();
   const [showAllZips, setShowAllZips] = useState(false);
+  const [areaScore, setAreaScore] = useState<number | null>(null);
+  const [areaScoreLoading, setAreaScoreLoading] = useState(false);
 
   // Reset ZIP display state when data changes
   useEffect(() => {
     setShowAllZips(false);
   }, [data]);
 
+  // Fetch investment score for county/city/zip/address views
+  useEffect(() => {
+    if (!data) {
+      setAreaScore(null);
+      return;
+    }
+
+    setAreaScoreLoading(true);
+    const params = new URLSearchParams();
+    
+    if ((data.queriedType === 'zip' || data.queriedType === 'address') && data.zipCode) {
+      params.set('zip', data.zipCode);
+    } else if (data.queriedType === 'county' && data.countyName && data.stateCode) {
+      params.set('county', data.countyName);
+      params.set('state', data.stateCode);
+    } else if (data.queriedType === 'city' && data.cityName && data.stateCode) {
+      params.set('city', data.cityName);
+      params.set('state', data.stateCode);
+    } else {
+      setAreaScoreLoading(false);
+      return;
+    }
+    if (data.year) params.set('year', String(data.year));
+
+    fetch(`/api/investment/score?${params.toString()}`)
+      .then(res => res.json())
+      .then(result => {
+        if (result.found) {
+          // For ZIP and address views, use score directly; for county/city, use medianScore
+          const score = (data.queriedType === 'zip' || data.queriedType === 'address')
+            ? (result.score ?? null)
+            : (result.medianScore ?? null);
+          setAreaScore(score);
+        } else {
+          setAreaScore(null);
+        }
+        setAreaScoreLoading(false);
+      })
+      .catch(() => {
+        setAreaScore(null);
+        setAreaScoreLoading(false);
+      });
+  }, [data]);
+
   if (loading) {
     return (
-      <div className="mt-6">
-        {/* Compact Header Skeleton */}
-        <div className="mb-5">
-          <div className="flex items-start justify-between gap-3 mb-3 flex-wrap">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                <div className="h-6 bg-[#e5e5e5] rounded w-48 animate-pulse"></div>
-                <div className="h-5 bg-[#e5e5e5] rounded w-16 animate-pulse"></div>
+      <div className="mt-4 sm:mt-6">
+        {/* Breadcrumbs Skeleton */}
+        <div className="mb-3">
+          <div className="h-4 bg-[#e5e5e5] rounded w-48 animate-pulse"></div>
+        </div>
+
+        {/* Header Skeleton */}
+        <div className="mb-4 sm:mb-5 flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start gap-2">
+              {/* Back button skeleton */}
+              <div className="h-8 w-8 bg-[#e5e5e5] rounded-lg animate-pulse shrink-0"></div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  {/* Title skeleton */}
+                  <div className="h-5 sm:h-6 bg-[#e5e5e5] rounded w-48 sm:w-64 animate-pulse"></div>
+                  {/* Badge skeletons */}
+                  <div className="h-5 bg-[#e5e5e5] rounded w-12 animate-pulse"></div>
+                  <div className="h-5 bg-[#e5e5e5] rounded w-12 animate-pulse"></div>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* Location skeleton */}
+                  <div className="h-3 bg-[#e5e5e5] rounded w-40 animate-pulse"></div>
+                  <div className="h-3 bg-[#e5e5e5] rounded w-1 animate-pulse"></div>
+                  <div className="h-3 bg-[#e5e5e5] rounded w-32 animate-pulse"></div>
+                </div>
               </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <div className="h-4 bg-[#e5e5e5] rounded w-32 animate-pulse"></div>
-                <div className="h-4 bg-[#e5e5e5] rounded w-24 animate-pulse"></div>
-              </div>
-            </div>
-            <div className="flex items-center gap-1.5 flex-shrink-0">
-              <div className="h-6 bg-[#e5e5e5] rounded w-16 animate-pulse"></div>
-              <div className="h-6 bg-[#e5e5e5] rounded w-12 animate-pulse"></div>
             </div>
           </div>
-          <div className="h-3 bg-[#e5e5e5] rounded w-40 animate-pulse"></div>
+          {/* Zillow button skeleton */}
+          <div className="h-8 bg-[#e5e5e5] rounded-lg w-20 sm:w-28 animate-pulse shrink-0"></div>
+        </div>
+
+        {/* Investment Score Gauge Skeleton */}
+        <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-[#fafafa] rounded-lg border border-[#e5e5e5]">
+          <div className="flex items-center gap-4">
+            <div className="w-[120px] h-[60px] bg-[#e5e5e5] rounded animate-pulse" />
+            <div className="flex-1">
+              <div className="h-3 bg-[#e5e5e5] rounded w-32 mb-2 animate-pulse" />
+              <div className="h-3 bg-[#e5e5e5] rounded w-48 animate-pulse" />
+            </div>
+          </div>
         </div>
 
         {/* Table Skeleton */}
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse max-h-[280px] overflow-y-auto">
-            <thead>
-              <tr className="border-b border-[#e5e5e5]">
-                <th className="text-left py-2 px-3 font-medium text-[#737373] text-xs uppercase tracking-wider">Bedroom</th>
-                <th className="text-right py-2 px-3 font-medium text-[#737373] text-xs uppercase tracking-wider">Rent</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[...Array(5)].map((_, i) => (
-                <tr key={i} className="border-b border-[#e5e5e5]">
-                  <td className="py-2 px-3">
-                    <div className="h-4 bg-[#e5e5e5] rounded w-20 animate-pulse"></div>
-                  </td>
-                  <td className="py-2 px-3 text-right">
-                    <div className="h-4 bg-[#e5e5e5] rounded w-24 ml-auto animate-pulse"></div>
-                  </td>
+        <div className="overflow-x-auto overflow-y-visible -mx-1 sm:mx-0">
+          <div className="max-h-[240px] overflow-y-auto overflow-x-visible">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="border-b border-[#e5e5e5]">
+                  <th className="text-left py-2 px-2 sm:px-3 font-medium text-[#737373] text-xs uppercase tracking-wider">BR</th>
+                  <th className="text-right py-2 px-2 sm:px-3 font-medium text-[#737373] text-xs uppercase tracking-wider">Rent</th>
+                  <th className="text-right py-2 px-2 sm:px-3 font-medium text-[#737373] text-xs uppercase tracking-wider">YoY</th>
+                  <th className="text-right py-2 px-2 sm:px-3 font-medium text-[#737373] text-xs uppercase tracking-wider">3Y CAGR</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Footer Skeleton */}
-        <div className="mt-4 pt-3 border-t border-[#e5e5e5]">
-          <div className="h-3 bg-[#e5e5e5] rounded w-64 animate-pulse"></div>
+              </thead>
+              <tbody>
+                {[...Array(5)].map((_, i) => (
+                  <tr key={i} className="border-b border-[#e5e5e5]">
+                    <td className="py-2.5 sm:py-2 px-2 sm:px-3">
+                      <div className="h-4 bg-[#e5e5e5] rounded w-12 animate-pulse"></div>
+                    </td>
+                    <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
+                      <div className="h-4 bg-[#e5e5e5] rounded w-20 ml-auto animate-pulse"></div>
+                    </td>
+                    <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
+                      <div className="h-4 bg-[#e5e5e5] rounded w-12 ml-auto animate-pulse"></div>
+                    </td>
+                    <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
+                      <div className="h-4 bg-[#e5e5e5] rounded w-12 ml-auto animate-pulse"></div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     );
@@ -169,95 +247,6 @@ export default function FMRResults({
     }
     // For other types, show queriedLocation or areaName
     return dataNonNull.queriedLocation || dataNonNull.areaName;
-  };
-
-  const BreadcrumbRow = () => {
-    const isDrilldown = !!onBreadcrumbBack;
-    const state = dataNonNull.stateCode;
-    const county = dataNonNull.countyName;
-    const city = dataNonNull.cityName;
-    const zip =
-      (dataNonNull.queriedType === 'zip' && zipCodesToShow.length > 0 ? zipCodesToShow[0] : null) ||
-      (dataNonNull.zipCode ? dataNonNull.zipCode : null);
-
-    const crumbs: { label: string; href?: string; onClick?: () => void }[] = [];
-
-    // Prepend Home only on county-level pages (as requested)
-    if (dataNonNull.queriedType === 'county') {
-      crumbs.push({ 
-        label: 'Home', 
-        onClick: () => router.replace('/')
-      });
-    }
-
-    if (county && state) {
-      crumbs.push({ label: county.includes('County') ? county : `${county} County`, href: `/county/${buildCountySlug(county, state)}` });
-    }
-    if (city && state) {
-      crumbs.push({ label: `${city}, ${state}`, href: `/city/${buildCitySlug(city, state)}` });
-    }
-
-    // Only show ZIP crumb when the user is actually viewing a ZIP/address result.
-    // City/county views may carry a representative ZIP internally; don't show it.
-    const showZipCrumb = dataNonNull.queriedType === 'zip' || dataNonNull.queriedType === 'address';
-    if (showZipCrumb && zip && /^\d{5}$/.test(String(zip))) {
-      crumbs.push({ label: String(zip), href: `/zip/${zip}` });
-    }
-
-    if (crumbs.length === 0) return null;
-
-    const backHref = !isDrilldown && crumbs.length >= 2 ? crumbs[crumbs.length - 2]?.href : undefined;
-    const lastIndex = crumbs.length - 1;
-
-    return (
-      <div className="mb-3 sm:mb-4 flex items-center justify-between gap-2 sm:gap-3 flex-wrap">
-        <div className="flex items-center gap-1.5 sm:gap-2 text-xs font-semibold text-[#525252] min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-1 min-w-0">
-            {crumbs.map((c, idx) => {
-              const isLast = idx === lastIndex;
-              return (
-                <span key={`${c.label}-${idx}`} className="flex items-center gap-1 min-w-0">
-                  {idx > 0 && <span className="text-[#a3a3a3] shrink-0">/</span>}
-                  {isLast ? (
-                    <span className="text-[#0a0a0a] font-semibold truncate">{c.label}</span>
-                  ) : c.onClick ? (
-                    <button
-                      type="button"
-                      onClick={c.onClick}
-                      className="hover:text-[#0a0a0a] transition-colors truncate"
-                    >
-                      {c.label}
-                    </button>
-                  ) : c.href ? (
-                    <a className="hover:text-[#0a0a0a] transition-colors truncate" href={c.href}>
-                      {c.label}
-                    </a>
-                  ) : (
-                    <span className="truncate">{c.label}</span>
-                  )}
-                </span>
-              );
-            })}
-          </div>
-        </div>
-        {isDrilldown && onBreadcrumbBack ? (
-          <button
-            type="button"
-            onClick={onBreadcrumbBack}
-            className="text-xs font-semibold px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg border border-[#e5e5e5] bg-white hover:bg-[#fafafa] transition-colors shrink-0"
-          >
-            Back
-          </button>
-        ) : backHref ? (
-          <a
-            className="text-xs font-semibold px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg border border-[#e5e5e5] bg-white hover:bg-[#fafafa] transition-colors shrink-0"
-            href={backHref}
-          >
-            Back
-          </a>
-        ) : null}
-      </div>
-    );
   };
 
   // Get ZIP codes to display
@@ -369,166 +358,302 @@ export default function FMRResults({
     return { prevYear, prev, curr, delta, pct };
   };
 
+  const cagr3Year = (bedroomKey: keyof typeof representative) => {
+    if (!historyByYear) return null;
+    const currentYear = dataNonNull.year;
+    const prev3Year = currentYear - 3;
+    const prev3 = historyByYear.get(prev3Year)?.[bedroomKey] as number | undefined;
+    const curr = representative[bedroomKey];
+    if (curr === undefined || prev3 === undefined || prev3 <= 0) return null;
+    // CAGR = ((End Value / Start Value)^(1/Years)) - 1
+    const years = 3;
+    const ratio = curr / prev3;
+    const cagr = (Math.pow(ratio, 1 / years) - 1) * 100;
+    return { prev3Year, prev3, curr, cagr };
+  };
+
   const YoYBadge = ({ bedroomKey }: { bedroomKey: keyof typeof representative }) => {
     const c = yoyChange(bedroomKey);
     if (!c) return <span className="text-xs text-[#a3a3a3]">—</span>;
-    const isPositive = c.pct > 0.0001;
-    const isNegative = c.pct < -0.0001;
-    const cls = isPositive
-      ? 'bg-[#f0fdf4] text-[#16a34a]'
-      : isNegative
-        ? 'bg-[#fef2f2] text-[#dc2626]'
-        : 'bg-[#fafafa] text-[#525252]';
     return (
-      <span
-        className={`inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-semibold tabular-nums ${cls}`}
-        title={`YoY change vs FY ${c.prevYear}`}
-      >
-        {c.pct > 0 ? '+' : ''}
-        {c.pct.toFixed(1)}%
-      </span>
+      <PercentageBadge 
+        value={c.pct} 
+        className="text-[11px]"
+      />
     );
   };
 
+  // Build breadcrumbs following exact hierarchy: Home / State / County / City / Zip, limited to 3.
+  // Rule: construct the full chain (when known), then render the last 3 items.
+  const stateCode = dataNonNull.stateCode;
+  const fullBreadcrumbs: { label: string; href: string }[] = [];
+
+  fullBreadcrumbs.push({ label: 'Home', href: '/' });
+
+  if (stateCode) {
+    fullBreadcrumbs.push({ label: stateCode, href: `/state/${stateCode}` });
+  }
+
+  if (dataNonNull.countyName && stateCode) {
+    const countyDisplay = dataNonNull.countyName.includes('County')
+      ? dataNonNull.countyName
+      : `${dataNonNull.countyName} County`;
+    fullBreadcrumbs.push({
+      label: countyDisplay,
+      href: `/county/${buildCountySlug(dataNonNull.countyName, stateCode)}`,
+    });
+  }
+
+  const cityLabel =
+    dataNonNull.cityName ||
+    (dataNonNull.queriedType === 'city' && dataNonNull.queriedLocation
+      ? dataNonNull.queriedLocation.split(',')[0].trim()
+      : undefined);
+
+  if (cityLabel && stateCode) {
+    fullBreadcrumbs.push({
+      label: cityLabel,
+      href: `/city/${buildCitySlug(cityLabel, stateCode)}`,
+    });
+  }
+
+  // Only include ZIP in the hierarchy when the current view is a ZIP view.
+  // City/county results may carry a representative zipCode internally (e.g., city FMR fallback),
+  // but we should not treat that as navigation context.
+  if (dataNonNull.queriedType === 'zip' && dataNonNull.zipCode && stateCode) {
+    fullBreadcrumbs.push({
+      label: dataNonNull.zipCode,
+      href: `/zip/${dataNonNull.zipCode}?state=${stateCode}`,
+    });
+  }
+
+  const breadcrumbItems = fullBreadcrumbs.slice(-3);
+  const backHref =
+    fullBreadcrumbs.length >= 2 ? fullBreadcrumbs[fullBreadcrumbs.length - 2].href : '/';
+
   return (
     <div className="mt-4 sm:mt-6">
-      {/* Breadcrumbs (county -> city -> zip) + Back */}
-      <BreadcrumbRow />
+      {/* Breadcrumbs */}
+      {breadcrumbItems.length > 0 && (
+        <div className="mb-3 flex items-center gap-1.5 text-xs text-[#737373] flex-wrap">
+          {breadcrumbItems.map((item, index) => (
+            <span key={index} className="flex items-center gap-1.5">
+              {index > 0 && <span className="text-[#a3a3a3]">/</span>}
+              {index === breadcrumbItems.length - 1 ? (
+                <span className="text-[#0a0a0a] font-medium">{item.label}</span>
+              ) : (
+                <a href={item.href} className="hover:text-[#0a0a0a] transition-colors">
+                  {item.label}
+                </a>
+              )}
+            </span>
+          ))}
+        </div>
+      )}
 
-      {/* Compact Header */}
-      <div className="mb-4 sm:mb-5">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-3 mb-3">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 min-w-0">
-              <h2 className="text-base sm:text-xl font-semibold text-[#0a0a0a] tracking-tight leading-tight min-w-0 truncate sm:overflow-visible sm:whitespace-normal sm:text-clip">
-                {getMainTitle()}
-              </h2>
-              {zipCodesToShow.length > 0 && dataNonNull.queriedType !== 'address' && (
-                <span className="px-1.5 sm:px-2 py-0.5 rounded text-xs font-medium bg-[#fafafa] text-[#737373] border border-[#e5e5e5] shrink-0">
-                  {zipCodesToShow.length} ZIP{zipCodesToShow.length !== 1 ? 's' : ''}
-                </span>
-              )}
-            </div>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 flex-wrap">
-              <span className="text-xs sm:text-sm text-[#737373]">{formatLocation()}</span>
-              {zipCodesToShow.length > 0 && zipCodesToShow.length <= zipDisplayLimit && dataNonNull.queriedType !== 'address' && (
-                <span className="text-xs text-[#a3a3a3] break-words">
-                  {zipCodesToShow.join(', ')}
-                </span>
-              )}
-              {dataNonNull.queriedType === 'address' && zipCodesToShow.length > 0 && zipCodesToShow.length <= zipDisplayLimit && (
-                <span className="text-xs text-[#a3a3a3] break-words">
-                  {zipCodesToShow.join(', ')}
-                </span>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap shrink-0">
-            {getZillowUrl() && (
-              <a
-                href={getZillowUrl() || '#'}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg border border-[#e5e5e5] bg-white hover:bg-[#fafafa] transition-colors text-xs font-medium text-[#0a0a0a] shrink-0 flex items-center gap-1.5"
+      {/* Compact header bar (single hierarchy line) */}
+      <div className="mb-4 sm:mb-5 flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start gap-2">
+            {onBreadcrumbBack ? (
+              <button
+                type="button"
+                onClick={onBreadcrumbBack}
+                aria-label="Back"
+                title="Back"
+                className="h-8 w-8 inline-flex items-center justify-center rounded-lg border border-[#e5e5e5] bg-white hover:bg-[#fafafa] transition-colors shrink-0"
               >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                </svg>
-                <span className="hidden sm:inline">View on Zillow</span>
-                <span className="sm:hidden">Zillow</span>
+                ←
+              </button>
+            ) : (
+              <a
+                href={backHref}
+                aria-label="Back"
+                title="Back"
+                className="h-8 w-8 inline-flex items-center justify-center rounded-lg border border-[#e5e5e5] bg-white hover:bg-[#fafafa] transition-colors shrink-0"
+              >
+                ←
               </a>
             )}
-            {dataNonNull.queriedLocation && (
-              <span className={`px-1.5 sm:px-2 py-0.5 rounded text-xs font-medium shrink-0 ${
-                dataNonNull.queriedType === 'zip'
-                  ? 'bg-[#faf5ff] text-[#7c3aed]'
-                  : dataNonNull.queriedType === 'city'
-                  ? 'bg-[#eff6ff] text-[#2563eb]'
-                  : dataNonNull.queriedType === 'county'
-                  ? 'bg-[#eef2ff] text-[#4f46e5]'
-                  : dataNonNull.queriedType === 'address'
-                  ? 'bg-[#fff7ed] text-[#ea580c]'
-                  : 'bg-[#fafafa] text-[#525252]'
-              }`}>
-                {getTypeLabel()}
-              </span>
-            )}
-            {dataNonNull.queriedType === 'zip' && zipVsCountyMedianPercent !== null && zipVsCountyMedianPercent !== undefined && (
-              <span
-                className={`px-1.5 sm:px-2 py-0.5 rounded text-xs font-semibold tabular-nums shrink-0 ${
-                  zipVsCountyMedianPercent > 0
-                    ? 'bg-[#f0fdf4] text-[#16a34a]'
-                    : zipVsCountyMedianPercent < 0
-                    ? 'bg-[#fef2f2] text-[#dc2626]'
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                <div className="text-sm sm:text-base font-semibold text-[#0a0a0a] truncate">
+                  {getMainTitle()}
+                </div>
+                <span className={`px-1.5 sm:px-2 py-0.5 rounded text-xs font-medium shrink-0 ${
+                  dataNonNull.queriedType === 'zip'
+                    ? 'bg-[#faf5ff] text-[#7c3aed]'
+                    : dataNonNull.queriedType === 'city'
+                    ? 'bg-[#eff6ff] text-[#2563eb]'
+                    : dataNonNull.queriedType === 'county'
+                    ? 'bg-[#eef2ff] text-[#4f46e5]'
+                    : dataNonNull.queriedType === 'address'
+                    ? 'bg-[#fff7ed] text-[#ea580c]'
                     : 'bg-[#fafafa] text-[#525252]'
-                }`}
-                title="Compared to the county median average FMR"
-              >
-                {zipVsCountyMedianPercent > 0 ? '+' : ''}
-                {zipVsCountyMedianPercent.toFixed(1)}%
-              </span>
-            )}
-            <span className={`px-1.5 sm:px-2 py-0.5 rounded text-xs font-semibold shrink-0 ${
-              dataNonNull.source === 'safmr' 
-                ? 'bg-[#f0fdf4] text-[#16a34a]' 
-                : 'bg-[#eff6ff] text-[#2563eb]'
-            }`}>
-              {dataNonNull.source === 'safmr' ? 'SAFMR' : 'FMR'}
-            </span>
+                }`}>
+                  {getTypeLabel()}
+                </span>
+                <span className={`px-1.5 sm:px-2 py-0.5 rounded text-xs font-semibold shrink-0 ${
+                  dataNonNull.source === 'safmr' 
+                    ? 'bg-[#f0fdf4] text-[#16a34a]' 
+                    : 'bg-[#eff6ff] text-[#2563eb]'
+                }`}>
+                  {dataNonNull.source === 'safmr' ? 'SAFMR' : 'FMR'}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                <div className="text-xs text-[#737373] truncate">
+                  {formatLocation()}
+                  {dataNonNull.queriedType === 'zip' && zipVsCountyMedianPercent !== null && zipVsCountyMedianPercent !== undefined
+                    ? (
+                        <>
+                          {' • vs county median '}
+                          <PercentageBadge value={zipVsCountyMedianPercent} className="inline" />
+                        </>
+                      )
+                    : ''}
+                </div>
+                <span className="text-xs text-[#a3a3a3] shrink-0">•</span>
+                <span className="text-xs text-[#a3a3a3] shrink-0">FY {dataNonNull.year} • Effective {formatDate(dataNonNull.effectiveDate)}</span>
+              </div>
+            </div>
           </div>
         </div>
-        
-        {/* ZIP codes display - compact for large datasets */}
-        {zipCodesToShow.length > zipDisplayLimit && (
-          <div className="mb-3">
-            <button
-              onClick={() => setShowAllZips(!showAllZips)}
-              className="text-xs text-[#525252] hover:text-[#0a0a0a] font-medium transition-colors mb-2 flex items-center gap-1"
+
+        <div className="flex items-center gap-2 shrink-0">
+          {getZillowUrl() && (
+            <a
+              href={getZillowUrl() || '#'}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg border border-[#e5e5e5] bg-white hover:bg-[#fafafa] transition-colors text-xs font-medium text-[#0a0a0a] shrink-0 flex items-center gap-1.5"
             >
-              {showAllZips ? 'Hide' : 'Show'} all ZIP codes
-              <span className="text-[#a3a3a3]">({zipCodesToShow.length})</span>
-              <svg 
-                className={`w-3 h-3 transition-transform ${showAllZips ? 'rotate-180' : ''}`} 
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
               </svg>
-            </button>
-            {showAllZips && (
-              <div className="bg-white border border-[#e5e5e5] rounded-lg overflow-hidden">
-                <div className="max-h-64 overflow-y-auto p-2 sm:p-3 custom-scrollbar">
-                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-1.5 sm:gap-2">
-                    {zipCodesToShow.map((zip) => (
-                      <div
-                        key={zip}
-                        className="px-2 sm:px-2.5 py-1 sm:py-1.5 bg-[#fafafa] border border-[#e5e5e5] rounded text-xs font-mono text-[#0a0a0a] text-center hover:bg-[#f5f5f5] hover:border-[#d4d4d4] transition-colors"
-                      >
-                        {zip}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-        
-        <div className="text-xs text-[#a3a3a3]">
-          FY {dataNonNull.year} • Effective {formatDate(dataNonNull.effectiveDate)}
+              <span className="hidden sm:inline">View on Zillow</span>
+              <span className="sm:hidden">Zillow</span>
+            </a>
+          )}
         </div>
       </div>
 
+      {/* Investment Score Gauge for County/City/ZIP/Address views */}
+      {(dataNonNull.queriedType === 'county' || dataNonNull.queriedType === 'city' || dataNonNull.queriedType === 'zip' || dataNonNull.queriedType === 'address') && (
+        <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-[#fafafa] rounded-lg border border-[#e5e5e5] relative">
+          {areaScoreLoading ? (
+            <div className="flex items-center gap-4">
+              <div className="w-[120px] h-[60px] bg-[#e5e5e5] rounded animate-pulse" />
+              <div className="flex-1">
+                <div className="h-3 bg-[#e5e5e5] rounded w-32 mb-2 animate-pulse" />
+                <div className="h-3 bg-[#e5e5e5] rounded w-48 animate-pulse" />
+              </div>
+            </div>
+          ) : areaScore !== null ? (
+            <>
+              <ScoreGauge 
+                score={areaScore} 
+                maxValue={140}
+                label={
+                  (dataNonNull.queriedType === 'zip' || dataNonNull.queriedType === 'address')
+                    ? 'ZIP Investment Score'
+                    : dataNonNull.queriedType === 'county'
+                      ? dataNonNull.source === 'safmr'
+                        ? 'County Median Investment Score'
+                        : 'County Investment Score'
+                      : dataNonNull.source === 'safmr'
+                        ? 'City Median Investment Score'
+                        : 'City Investment Score'
+                }
+                description={
+                  (dataNonNull.queriedType === 'zip' || dataNonNull.queriedType === 'address')
+                    ? 'Investment Score for this ZIP code'
+                    : dataNonNull.source === 'safmr'
+                      ? dataNonNull.queriedType === 'county'
+                        ? 'Based on median scores across all ZIPs in the county'
+                        : 'Based on median scores across all ZIPs in the city'
+                      : dataNonNull.queriedType === 'county'
+                        ? 'Based on county-level FMR data'
+                        : 'Based on city-level FMR data'
+                }
+              />
+              <div className="absolute top-3 right-3">
+                <InvestorScoreInfoIcon />
+              </div>
+            </>
+          ) : null}
+        </div>
+      )}
+
+      {/* ZIP codes display - compact for large datasets */}
+      {zipCodesToShow.length > zipDisplayLimit && (
+        <div className="mb-3">
+          <button
+            onClick={() => setShowAllZips(!showAllZips)}
+            className="text-xs text-[#525252] hover:text-[#0a0a0a] font-medium transition-colors mb-2 flex items-center gap-1"
+          >
+            {showAllZips ? 'Hide' : 'Show'} all ZIP codes
+            <span className="text-[#a3a3a3]">({zipCodesToShow.length})</span>
+            <svg
+              className={`w-3 h-3 transition-transform ${showAllZips ? 'rotate-180' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {showAllZips && (
+            <div className="bg-white border border-[#e5e5e5] rounded-lg overflow-hidden">
+              <div className="max-h-64 overflow-y-auto p-2 sm:p-3 custom-scrollbar">
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-1.5 sm:gap-2">
+                  {zipCodesToShow.map((zip) => {
+                    const zipHref = `/zip/${zip}${dataNonNull.stateCode ? `?state=${dataNonNull.stateCode}` : ''}`;
+                    return (
+                      <a
+                        key={zip}
+                        href={zipHref}
+                        className="px-2 sm:px-2.5 py-1 sm:py-1.5 bg-[#fafafa] border border-[#e5e5e5] rounded text-xs font-mono text-[#0a0a0a] text-center hover:bg-[#f5f5f5] hover:border-[#d4d4d4] transition-colors"
+                      >
+                        {zip}
+                      </a>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Compact Table */}
-      <div className="overflow-x-auto -mx-1 sm:mx-0">
-        <div className="max-h-[240px] overflow-y-auto custom-scrollbar">
+      <div className="overflow-x-auto overflow-y-visible -mx-1 sm:mx-0">
+        <div className="max-h-[240px] overflow-y-auto overflow-x-visible custom-scrollbar">
           <table className="w-full border-collapse">
           <thead>
             <tr className="border-b border-[#e5e5e5]">
-              <th className="text-left py-2 px-2 sm:px-3 font-medium text-[#737373] text-xs uppercase tracking-wider">Bedroom</th>
+              <th className="text-left py-2 px-2 sm:px-3 font-medium text-[#737373] text-xs uppercase tracking-wider">BR</th>
               <th className="text-right py-2 px-2 sm:px-3 font-medium text-[#737373] text-xs uppercase tracking-wider">Rent</th>
               <th className="text-right py-2 px-2 sm:px-3 font-medium text-[#737373] text-xs uppercase tracking-wider">YoY</th>
+              <th className="text-right py-2 px-2 sm:px-3 font-medium text-[#737373] text-xs uppercase tracking-wider overflow-visible">
+                <div className="flex items-center justify-end gap-1">
+                  3Y CAGR
+                  <Tooltip content="Compound Annual Growth Rate over 3 years" side="bottom" align="end">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      className="w-3.5 h-3.5 text-[#737373] cursor-help"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </Tooltip>
+                </div>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -575,6 +700,12 @@ export default function FMRResults({
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
                         <YoYBadge bedroomKey="bedroom0" />
                       </td>
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right text-xs tabular-nums text-[#0a0a0a]">
+                        {(() => {
+                          const cagr = cagr3Year('bedroom0');
+                          return cagr ? `${cagr.cagr.toFixed(1)}%` : '—';
+                        })()}
+                      </td>
                     </tr>
                     <tr className="border-b border-[#e5e5e5] hover:bg-[#fafafa] transition-colors">
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm text-[#0a0a0a]">1 BR</td>
@@ -583,6 +714,12 @@ export default function FMRResults({
                       </td>
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
                         <YoYBadge bedroomKey="bedroom1" />
+                      </td>
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right text-xs tabular-nums text-[#0a0a0a]">
+                        {(() => {
+                          const cagr = cagr3Year('bedroom1');
+                          return cagr ? `${cagr.cagr.toFixed(1)}%` : '—';
+                        })()}
                       </td>
                     </tr>
                     <tr className="border-b border-[#e5e5e5] hover:bg-[#fafafa] transition-colors">
@@ -593,6 +730,12 @@ export default function FMRResults({
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
                         <YoYBadge bedroomKey="bedroom2" />
                       </td>
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right text-xs tabular-nums text-[#0a0a0a]">
+                        {(() => {
+                          const cagr = cagr3Year('bedroom2');
+                          return cagr ? `${cagr.cagr.toFixed(1)}%` : '—';
+                        })()}
+                      </td>
                     </tr>
                     <tr className="border-b border-[#e5e5e5] hover:bg-[#fafafa] transition-colors">
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm text-[#0a0a0a]">3 BR</td>
@@ -602,6 +745,12 @@ export default function FMRResults({
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
                         <YoYBadge bedroomKey="bedroom3" />
                       </td>
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right text-xs tabular-nums text-[#0a0a0a]">
+                        {(() => {
+                          const cagr = cagr3Year('bedroom3');
+                          return cagr ? `${cagr.cagr.toFixed(1)}%` : '—';
+                        })()}
+                      </td>
                     </tr>
                     <tr className="border-b border-[#e5e5e5] hover:bg-[#fafafa] transition-colors">
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm text-[#0a0a0a]">4 BR</td>
@@ -610,6 +759,12 @@ export default function FMRResults({
                       </td>
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
                         <YoYBadge bedroomKey="bedroom4" />
+                      </td>
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right text-xs tabular-nums text-[#0a0a0a]">
+                        {(() => {
+                          const cagr = cagr3Year('bedroom4');
+                          return cagr ? `${cagr.cagr.toFixed(1)}%` : '—';
+                        })()}
                       </td>
                     </tr>
                     {(() => {
@@ -629,24 +784,19 @@ export default function FMRResults({
                           const prevRate = Math.round(prevYear4BR * multiplier);
                           const delta = rate - prevRate;
                           const pct = (delta / prevRate) * 100;
-                          const isPositive = pct > 0.0001;
-                          const isNegative = pct < -0.0001;
-                          const cls = isPositive
-                            ? 'bg-[#f0fdf4] text-[#16a34a]'
-                            : isNegative
-                              ? 'bg-[#fef2f2] text-[#dc2626]'
-                              : 'bg-[#fafafa] text-[#525252]';
-                          yoyBadge = (
-                            <span
-                              className={`inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-semibold tabular-nums ${cls}`}
-                              title={`YoY change vs FY ${prevYear}`}
-                            >
-                              {pct > 0 ? '+' : ''}
-                              {pct.toFixed(1)}%
-                            </span>
-                          );
+                          yoyBadge = <PercentageBadge value={pct} className="text-[11px]" />;
                         }
                         
+                        // Calculate 3Y CAGR for 5+ BR (using 4BR history)
+                        let cagrCell = '—';
+                        const prev3Year4BR = historyByYear?.get(currentYear - 3)?.bedroom4 as number | undefined;
+                        if (prev3Year4BR && prev3Year4BR > 0) {
+                          const prev3Rate = Math.round(prev3Year4BR * multiplier);
+                          const ratio = rate / prev3Rate;
+                          const cagr = (Math.pow(ratio, 1 / 3) - 1) * 100;
+                          cagrCell = `${cagr.toFixed(1)}%`;
+                        }
+
                         return (
                           <tr key={bedrooms} className="border-b border-[#e5e5e5] hover:bg-[#fafafa] transition-colors">
                             <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm text-[#0a0a0a]">{bedrooms} BR</td>
@@ -655,6 +805,9 @@ export default function FMRResults({
                             </td>
                             <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
                               {yoyBadge}
+                            </td>
+                            <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right text-xs tabular-nums text-[#0a0a0a]">
+                              {cagrCell}
                             </td>
                           </tr>
                         );
@@ -674,6 +827,12 @@ export default function FMRResults({
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
                         <YoYBadge bedroomKey="bedroom0" />
                       </td>
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right text-xs tabular-nums text-[#0a0a0a]">
+                        {(() => {
+                          const cagr = cagr3Year('bedroom0');
+                          return cagr ? `${cagr.cagr.toFixed(1)}%` : '—';
+                        })()}
+                      </td>
                     </tr>
                     <tr className="border-b border-[#e5e5e5] hover:bg-[#fafafa] transition-colors">
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm text-[#0a0a0a]">1 BR</td>
@@ -682,6 +841,12 @@ export default function FMRResults({
                       </td>
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
                         <YoYBadge bedroomKey="bedroom1" />
+                      </td>
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right text-xs tabular-nums text-[#0a0a0a]">
+                        {(() => {
+                          const cagr = cagr3Year('bedroom1');
+                          return cagr ? `${cagr.cagr.toFixed(1)}%` : '—';
+                        })()}
                       </td>
                     </tr>
                     <tr className="border-b border-[#e5e5e5] hover:bg-[#fafafa] transition-colors">
@@ -692,6 +857,12 @@ export default function FMRResults({
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
                         <YoYBadge bedroomKey="bedroom2" />
                       </td>
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right text-xs tabular-nums text-[#0a0a0a]">
+                        {(() => {
+                          const cagr = cagr3Year('bedroom2');
+                          return cagr ? `${cagr.cagr.toFixed(1)}%` : '—';
+                        })()}
+                      </td>
                     </tr>
                     <tr className="border-b border-[#e5e5e5] hover:bg-[#fafafa] transition-colors">
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm text-[#0a0a0a]">3 BR</td>
@@ -701,6 +872,12 @@ export default function FMRResults({
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
                         <YoYBadge bedroomKey="bedroom3" />
                       </td>
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right text-xs tabular-nums text-[#0a0a0a]">
+                        {(() => {
+                          const cagr = cagr3Year('bedroom3');
+                          return cagr ? `${cagr.cagr.toFixed(1)}%` : '—';
+                        })()}
+                      </td>
                     </tr>
                     <tr className="border-b border-[#e5e5e5] hover:bg-[#fafafa] transition-colors">
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm text-[#0a0a0a]">4 BR</td>
@@ -709,6 +886,12 @@ export default function FMRResults({
                       </td>
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
                         <YoYBadge bedroomKey="bedroom4" />
+                      </td>
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right text-xs tabular-nums text-[#0a0a0a]">
+                        {(() => {
+                          const cagr = cagr3Year('bedroom4');
+                          return cagr ? `${cagr.cagr.toFixed(1)}%` : '—';
+                        })()}
                       </td>
                     </tr>
                     {(() => {
@@ -728,24 +911,19 @@ export default function FMRResults({
                           const prevRate = Math.round(prevYear4BR * multiplier);
                           const delta = rate - prevRate;
                           const pct = (delta / prevRate) * 100;
-                          const isPositive = pct > 0.0001;
-                          const isNegative = pct < -0.0001;
-                          const cls = isPositive
-                            ? 'bg-[#f0fdf4] text-[#16a34a]'
-                            : isNegative
-                              ? 'bg-[#fef2f2] text-[#dc2626]'
-                              : 'bg-[#fafafa] text-[#525252]';
-                          yoyBadge = (
-                            <span
-                              className={`inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-semibold tabular-nums ${cls}`}
-                              title={`YoY change vs FY ${prevYear}`}
-                            >
-                              {pct > 0 ? '+' : ''}
-                              {pct.toFixed(1)}%
-                            </span>
-                          );
+                          yoyBadge = <PercentageBadge value={pct} className="text-[11px]" />;
                         }
                         
+                        // Calculate 3Y CAGR for 5+ BR (using 4BR history)
+                        let cagrCell = '—';
+                        const prev3Year4BR = historyByYear?.get(currentYear - 3)?.bedroom4 as number | undefined;
+                        if (prev3Year4BR && prev3Year4BR > 0) {
+                          const prev3Rate = Math.round(prev3Year4BR * multiplier);
+                          const ratio = rate / prev3Rate;
+                          const cagr = (Math.pow(ratio, 1 / 3) - 1) * 100;
+                          cagrCell = `${cagr.toFixed(1)}%`;
+                        }
+
                         return (
                           <tr key={bedrooms} className="border-b border-[#e5e5e5] hover:bg-[#fafafa] transition-colors">
                             <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm text-[#0a0a0a]">{bedrooms} BR</td>
@@ -754,6 +932,9 @@ export default function FMRResults({
                             </td>
                             <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
                               {yoyBadge}
+                            </td>
+                            <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right text-xs tabular-nums text-[#0a0a0a]">
+                              {cagrCell}
                             </td>
                           </tr>
                         );
@@ -768,18 +949,28 @@ export default function FMRResults({
         </div>
       </div>
 
-      <div className="mt-3 sm:mt-4 pt-2 sm:pt-3 border-t border-[#e5e5e5]">
-        <p className="text-xs text-[#a3a3a3] leading-relaxed">
-          {dataNonNull.source === 'safmr' 
-            ? 'Small Area Fair Market Rent (SAFMR) - ZIP code level rates for designated metropolitan areas'
-            : 'Fair Market Rent (FMR) - County/metropolitan area level rates'}
-          {representative.bedroom4 && (
-            <span className="block mt-1.5 text-[#737373]">
-              5+ BR rates calculated using HUD formula: +15% per additional bedroom from 4BR rate.
-            </span>
-          )}
-        </p>
-      </div>
+      {/* Bedroom curve chart below table */}
+      {dataNonNull.history && dataNonNull.history.length >= 2 && (
+        <div className="mt-3 sm:mt-4">
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <h3 className="text-sm font-semibold text-[#0a0a0a]">Bedroom curve</h3>
+            <div className="text-xs text-[#a3a3a3] shrink-0">
+              YoY: {dataNonNull.year - 1}→{dataNonNull.year} • 3Y: {dataNonNull.year - 3}→{dataNonNull.year}
+            </div>
+          </div>
+          <div className="rounded-lg border border-[#e5e5e5] bg-white p-3 sm:p-4">
+            <StateBedroomCurveChart
+              rows={[
+                { br: 0, medianFMR: representative.bedroom0 || null, medianYoY: yoyChange('bedroom0')?.pct || null },
+                { br: 1, medianFMR: representative.bedroom1 || null, medianYoY: yoyChange('bedroom1')?.pct || null },
+                { br: 2, medianFMR: representative.bedroom2 || null, medianYoY: yoyChange('bedroom2')?.pct || null },
+                { br: 3, medianFMR: representative.bedroom3 || null, medianYoY: yoyChange('bedroom3')?.pct || null },
+                { br: 4, medianFMR: representative.bedroom4 || null, medianYoY: yoyChange('bedroom4')?.pct || null },
+              ]}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Historical (below current section) */}
       {dataNonNull.history && dataNonNull.history.length >= 2 && (

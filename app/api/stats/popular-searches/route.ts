@@ -26,7 +26,7 @@ function normalizeSegment(input: string | null): Segment {
 function normalizeLimit(input: string | null): number {
   const n = Number(input || '10');
   if (!Number.isFinite(n)) return 10;
-  return Math.min(25, Math.max(3, Math.floor(n)));
+  return Math.min(50, Math.max(3, Math.floor(n)));
 }
 
 function normalizeDays(input: string | null): number {

@@ -4,7 +4,7 @@ import { useMemo, useRef, useState, useEffect } from 'react';
 import { useDebouncedCallback } from 'use-debounce';
 
 interface AutocompleteResult {
-  type: 'zip' | 'city' | 'county' | 'address';
+  type: 'zip' | 'city' | 'county' | 'address' | 'state';
   display: string;
   value: string;
   state?: string;
@@ -12,7 +12,7 @@ interface AutocompleteResult {
 }
 
 interface SearchInputProps {
-  onSelect: (value: string, type: 'zip' | 'city' | 'county' | 'address') => void;
+  onSelect: (value: string, type: 'zip' | 'city' | 'county' | 'address' | 'state') => void;
 }
 
 function normalizeLoose(s: string) {
@@ -182,9 +182,23 @@ export default function SearchInput({ onSelect }: SearchInputProps) {
 
       const regularResults: AutocompleteResult[] = regularData.results || [];
       
-      // Combine results: addresses first, then regular results, then dedupe within each type.
-      const deduped = dedupeSuggestionsByType([...addressResults, ...regularResults]);
-      setSuggestions(deduped.slice(0, 10));
+      // IMPORTANT: if address autocomplete returns any results, do NOT mix in non-address
+      // suggestions. This preserves the existing auto-submit behavior (exactly 1 address result).
+      const combined: AutocompleteResult[] =
+        addressResults.length > 0 ? addressResults : [...regularResults];
+
+      // Dedupe within type, then apply stable type priority (state > zip > city > county > address),
+      // then cap to 10.
+      const deduped = dedupeSuggestionsByType(combined);
+      const priority: Record<AutocompleteResult['type'], number> = {
+        state: 0,
+        zip: 1,
+        city: 2,
+        county: 3,
+        address: 4,
+      };
+      const sorted = [...deduped].sort((a, b) => (priority[a.type] ?? 99) - (priority[b.type] ?? 99));
+      setSuggestions(sorted.slice(0, 10));
       setSuggestionsForQuery(searchQuery);
       setCompletedQuery(searchQuery); // only for this exact query
     } catch (error) {
@@ -351,6 +365,19 @@ export default function SearchInput({ onSelect }: SearchInputProps) {
       handleSelect(suggestions[selectedIndex]);
     } else if (query.trim()) {
       const trimmed = query.trim();
+
+      // State quick-detect (must be before ZIP/city/county/address fallbacks).
+      // Supports: "WA", "Washington", "WA state", "Washington state".
+      try {
+        const { findStateMatches } = await import('@/lib/states');
+        const hits = findStateMatches(trimmed, 1);
+        if (hits.length === 1) {
+          onSelect(hits[0].code, 'state');
+          return;
+        }
+      } catch {
+        // ignore
+      }
       
       // Try to extract ZIP code from address string (e.g., "123 Main St, City, ST 12345")
       const zipFromText = extractZipFromText(trimmed);
@@ -501,7 +528,7 @@ export default function SearchInput({ onSelect }: SearchInputProps) {
             onKeyDown={handleKeyDown}
             onFocus={() => setShowSuggestions(true)}
             ref={inputRef}
-            placeholder="Search ZIP, city, county, or address…"
+            placeholder="Search state, ZIP, city, county, or address…"
             className={`w-full pl-10 ${
               query.trim().length > 0 ? 'pr-28 sm:pr-40' : 'pr-16 sm:pr-24'
             } py-2.5 sm:py-3.5 text-[14px] sm:text-[15px] bg-white border border-[#e5e5e5] rounded-xl appearance-none focus:outline-none focus:ring-0 focus:ring-offset-0 focus:border-[#0a0a0a] transition-colors placeholder:text-[#a3a3a3] text-[#0a0a0a]`}
@@ -570,6 +597,8 @@ export default function SearchInput({ onSelect }: SearchInputProps) {
                     <span className={`text-xs uppercase px-2 py-0.5 rounded font-medium shrink-0 ${
                       suggestion.type === 'address' 
                         ? 'text-[#0a0a0a] bg-[#e5e5e5]' 
+                        : suggestion.type === 'state'
+                        ? 'text-[#0a0a0a] bg-[#f5f5f5]'
                         : suggestion.type === 'zip'
                         ? 'text-[#7c3aed] bg-[#faf5ff]'
                         : suggestion.type === 'city'
