@@ -150,26 +150,69 @@ export async function GET(req: NextRequest) {
     }
 
     if (countyParam && stateParam) {
-      // Aggregate scores for all ZIPs in the county
-      const result = await sql.query(
+      // First, try to get county FIPS from county name + state for precise matching
+      // This matches the approach used in the state view for consistency
+      const normalizedCounty = countyParam.replace(/\s+County\s*$/i, '').trim();
+      const fipsLookup = await sql.query(
         `
-        SELECT 
-          COUNT(*) as zip_count,
-          AVG(score) as avg_score,
-          PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY score) as median_score,
-          AVG(net_yield) as avg_yield,
-          AVG(property_value) as avg_property_value,
-          AVG(tax_rate) as avg_tax_rate,
-          AVG(annual_rent) as avg_annual_rent,
-          AVG(rent_to_price_ratio) as avg_rent_to_price_ratio
+        SELECT DISTINCT county_fips
         FROM investment_score
-        WHERE county_name ILIKE $1
-          AND state_code = $2
-          AND fmr_year = $3
-          AND data_sufficient = true
+        WHERE (county_name ILIKE $1 OR county_name ILIKE $2)
+          AND state_code = $3
+          AND fmr_year = $4
+          AND county_fips IS NOT NULL
+          AND LENGTH(TRIM(county_fips)) = 5
+        LIMIT 1
         `,
-        [`%${countyParam}%`, stateParam.toUpperCase(), year]
+        [`${normalizedCounty}%`, `${normalizedCounty} County%`, stateParam.toUpperCase(), year]
       );
+
+      // Aggregate scores for all ZIPs in the county
+      // Use county_fips if available (more precise), otherwise fall back to county_name matching
+      let result;
+      if (fipsLookup.rows.length > 0 && fipsLookup.rows[0]?.county_fips) {
+        const countyFips = String(fipsLookup.rows[0].county_fips).padStart(5, '0');
+        result = await sql.query(
+          `
+          SELECT 
+            COUNT(*) as zip_count,
+            AVG(score) as avg_score,
+            PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY score) as median_score,
+            AVG(net_yield) as avg_yield,
+            AVG(property_value) as avg_property_value,
+            AVG(tax_rate) as avg_tax_rate,
+            AVG(annual_rent) as avg_annual_rent,
+            AVG(rent_to_price_ratio) as avg_rent_to_price_ratio
+          FROM investment_score
+          WHERE county_fips = $1
+            AND state_code = $2
+            AND fmr_year = $3
+            AND data_sufficient = true
+          `,
+          [countyFips, stateParam.toUpperCase(), year]
+        );
+      } else {
+        // Fallback to county_name matching if FIPS not found
+        result = await sql.query(
+          `
+          SELECT 
+            COUNT(*) as zip_count,
+            AVG(score) as avg_score,
+            PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY score) as median_score,
+            AVG(net_yield) as avg_yield,
+            AVG(property_value) as avg_property_value,
+            AVG(tax_rate) as avg_tax_rate,
+            AVG(annual_rent) as avg_annual_rent,
+            AVG(rent_to_price_ratio) as avg_rent_to_price_ratio
+          FROM investment_score
+          WHERE (county_name ILIKE $1 OR county_name ILIKE $2)
+            AND state_code = $3
+            AND fmr_year = $4
+            AND data_sufficient = true
+          `,
+          [`${normalizedCounty}%`, `${normalizedCounty} County%`, stateParam.toUpperCase(), year]
+        );
+      }
 
       if (result.rows.length === 0 || Number(result.rows[0]?.zip_count) === 0) {
         return NextResponse.json({
