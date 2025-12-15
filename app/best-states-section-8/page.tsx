@@ -42,8 +42,8 @@ export default async function BestStatesSection8Page() {
       PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY score) as median_score,
       AVG(score) as avg_score,
       COUNT(*) as zip_count,
-      AVG(net_yield_pct) as avg_net_yield,
-      AVG(rent_to_price_ratio_pct) as avg_rent_to_price
+      AVG(net_yield) * 100 as avg_net_yield,
+      AVG(rent_to_price_ratio) * 100 as avg_rent_to_price
     FROM investment_score
     WHERE fmr_year = $1
       AND data_sufficient = true
