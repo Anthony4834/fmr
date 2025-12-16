@@ -168,6 +168,7 @@ export async function GET(req: NextRequest) {
       zhvi: null,
       acsTax: null,
       zillowRentals: null,
+      cbsaMapping: null,
       investmentScores: null,
     };
 
@@ -201,7 +202,31 @@ export async function GET(req: NextRequest) {
       results.zillowRentals = { error: e.message };
     }
 
-    // Step 4: Compute investment scores (depends on ZHVI, tax, and rentals data)
+    // Step 3.5: Update CBSA mappings (for metro fallback in demand scoring)
+    try {
+      console.log('[property-data cron] Starting CBSA mapping update...');
+      const { exec } = await import('child_process');
+      const { promisify } = await import('util');
+      const execAsync = promisify(exec);
+      
+      const command = 'bun scripts/ingest-cbsa-mapping.ts';
+      const { stdout, stderr } = await execAsync(command, {
+        env: { ...process.env, POSTGRES_URL: process.env.POSTGRES_URL },
+        maxBuffer: 10 * 1024 * 1024, // 10MB buffer
+      });
+      
+      results.cbsaMapping = { 
+        success: true, 
+        output: stdout,
+        warnings: stderr
+      };
+      console.log('[property-data cron] CBSA mapping update complete');
+    } catch (e: any) {
+      console.error('[property-data cron] CBSA mapping update error:', e);
+      results.cbsaMapping = { error: e.message, stderr: e.stderr, stdout: e.stdout };
+    }
+
+    // Step 4: Compute investment scores (depends on ZHVI, tax, rentals, and CBSA data)
     try {
       console.log('[property-data cron] Starting investment score computation...');
       const year = await getLatestFMRYear();

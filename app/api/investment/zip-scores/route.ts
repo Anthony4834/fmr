@@ -26,8 +26,8 @@ export async function GET(req: NextRequest) {
         `
         SELECT 
           zip_code,
-          PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY score) as median_score,
-          AVG(score) as avg_score,
+          PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY COALESCE(score_with_demand, score)) as median_score,
+          AVG(COALESCE(score_with_demand, score)) as avg_score,
           COUNT(*) as bedroom_count
         FROM investment_score
         WHERE county_name ILIKE $1
@@ -81,8 +81,8 @@ export async function GET(req: NextRequest) {
         )
         SELECT 
           isc.zip_code,
-          PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY isc.score) as median_score,
-          AVG(isc.score) as avg_score,
+          PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY COALESCE(isc.score_with_demand, isc.score)) as median_score,
+          AVG(COALESCE(isc.score_with_demand, isc.score)) as avg_score,
           COUNT(*) as bedroom_count
         FROM investment_score isc
         INNER JOIN city_zips cz ON cz.zip_code = isc.zip_code

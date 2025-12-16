@@ -59,18 +59,45 @@ export default function USStateMap({ year }: USStateMapProps) {
       setLoading(true);
       try {
         if (mapLevel === 'county') {
+          // Add cache-busting timestamp to force fresh requests
+          const timestamp = Date.now();
           const url = year
-            ? `/api/stats/state-scores?year=${year}`
-            : '/api/stats/state-scores';
-          const res = await fetch(url);
+            ? `/api/stats/state-scores?year=${year}&_t=${timestamp}`
+            : `/api/stats/state-scores?_t=${timestamp}`;
+          const res = await fetch(url, {
+            cache: 'no-store',
+            headers: {
+              'Cache-Control': 'no-cache',
+            },
+          });
           const json = await res.json();
+          console.log('[USStateMap] Fetched county scores:', {
+            count: json.countyScores?.length || 0,
+            debug: json._debug,
+            sample: json.countyScores?.slice(0, 3).map((c: any) => ({
+              fips: c.countyFips,
+              name: c.countyName,
+              score: c.medianScore,
+            })),
+          });
           setCountyScores(json.countyScores || []);
         } else {
+          // Add cache-busting timestamp to force fresh requests
+          const timestamp = Date.now();
           const url = year
-            ? `/api/stats/state-scores?level=state&year=${year}`
-            : '/api/stats/state-scores?level=state';
-          const res = await fetch(url);
+            ? `/api/stats/state-scores?level=state&year=${year}&_t=${timestamp}`
+            : `/api/stats/state-scores?level=state&_t=${timestamp}`;
+          const res = await fetch(url, {
+            cache: 'no-store',
+            headers: {
+              'Cache-Control': 'no-cache',
+            },
+          });
           const json = await res.json();
+          console.log('[USStateMap] Fetched state scores:', {
+            count: json.stateScores?.length || 0,
+            debug: json._debug,
+          });
           setStateScores(json.stateScores || []);
         }
       } catch (e) {

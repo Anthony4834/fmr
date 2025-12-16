@@ -417,28 +417,77 @@ async function computeZipScores(
         AND zp.month = (lsm.month - INTERVAL '1 year')::date
       WHERE zc.month = lsm.month
     ),
-    -- Map ZIPs to metro areas via CBSA or metro_name from ZORI
+    -- County-level metro fallback: find most common metro for ZIPs in same county
+    -- This allows us to map ZIPs without direct metro data by using metro assignments
+    -- from other ZIPs in the same county. This significantly improves coverage by
+    -- mapping ~8,352 additional ZIPs that would otherwise lack demand data.
+    county_metro_fallback AS (
+      SELECT 
+        zcm.county_fips,
+        zcm.state_code,
+        MODE() WITHIN GROUP (ORDER BY COALESCE(cbsa.cbsa_name, zori.metro_name)) as county_metro_name
+      FROM zip_county_mapping zcm
+      -- Get metro mappings for ZIPs in this county (from CBSA or ZORI)
+      LEFT JOIN cbsa_zip_mapping cbsa ON cbsa.zip_code = zcm.zip_code
+      LEFT JOIN zillow_zori_zip_monthly zori ON 
+        zori.zip_code = zcm.zip_code
+        AND zori.metro_name IS NOT NULL
+      WHERE COALESCE(cbsa.cbsa_name, zori.metro_name) IS NOT NULL
+        AND zcm.county_fips IS NOT NULL
+        AND zcm.state_code IS NOT NULL
+      GROUP BY zcm.county_fips, zcm.state_code
+      HAVING COUNT(DISTINCT COALESCE(cbsa.cbsa_name, zori.metro_name)) > 0
+    ),
+    -- Map ZIPs to metro areas via CBSA, metro_name from ZORI, or county-level fallback
     -- Normalize metro names for better matching:
     -- 1. Extract primary city from multi-city names (e.g., "Harrisburg-Carlisle, PA" -> "Harrisburg, PA")
     -- 2. Remove state codes for matching
     zip_metro_mapping AS (
-      SELECT DISTINCT ON (z.zip_code)
-        z.zip_code,
-        COALESCE(cbsa.cbsa_name, z.metro_name) as metro_name,
+      SELECT DISTINCT ON (target_zip.zip_code)
+        target_zip.zip_code,
+        COALESCE(
+          -- Priority 1: CBSA mapping (most reliable)
+          cbsa.cbsa_name,
+          -- Priority 2: ZORI metro_name
+          zori.metro_name,
+          -- Priority 3: County-level fallback (NEW)
+          cmf.county_metro_name
+        ) as metro_name,
         -- Extract primary city: take everything before first "-" or ","
         -- Then normalize: lowercase and remove state codes
         LOWER(
           REGEXP_REPLACE(
-            SPLIT_PART(COALESCE(cbsa.cbsa_name, z.metro_name), '-', 1),
+            SPLIT_PART(
+              COALESCE(
+                cbsa.cbsa_name,
+                zori.metro_name,
+                cmf.county_metro_name
+              ),
+              '-',
+              1
+            ),
             ',\\s*[A-Z]{2}(-[A-Z]{2})*',
             '',
             'g'
           )
         ) as metro_name_normalized
-      FROM zillow_zori_zip_monthly z
-      LEFT JOIN cbsa_zip_mapping cbsa ON cbsa.zip_code = z.zip_code
-      WHERE z.metro_name IS NOT NULL OR cbsa.cbsa_name IS NOT NULL
-      ORDER BY z.zip_code, cbsa.cbsa_name NULLS LAST
+      FROM zip_data_with_canonical target_zip
+      -- Try CBSA mapping first
+      LEFT JOIN cbsa_zip_mapping cbsa ON cbsa.zip_code = target_zip.zip_code
+      -- Try ZORI metro_name
+      LEFT JOIN zillow_zori_zip_monthly zori ON 
+        zori.zip_code = target_zip.zip_code
+        AND zori.metro_name IS NOT NULL
+      -- Try county-level fallback
+      LEFT JOIN county_metro_fallback cmf ON
+        cmf.county_fips = target_zip.county_fips
+        AND cmf.state_code = target_zip.state_code
+      WHERE COALESCE(cbsa.cbsa_name, zori.metro_name, cmf.county_metro_name) IS NOT NULL
+      ORDER BY target_zip.zip_code, 
+        -- Prefer CBSA > ZORI > county fallback
+        CASE WHEN cbsa.cbsa_name IS NOT NULL THEN 1
+             WHEN zori.metro_name IS NOT NULL THEN 2
+             ELSE 3 END
     ),
     -- Normalize ZORDI region names for matching (extract primary city, remove state codes)
     zordi_normalized AS (
@@ -718,17 +767,29 @@ async function computeZipScores(
 
       demandDataCount++;
     } else {
-      // No demand data - use neutral multiplier
-      score.demandScore = null;
-      score.demandMultiplier = 1.0;
+      // No demand data - assign low demand score and apply significant penalty
+      // Assumption: Absence of demand data likely indicates low demand (rural/remote areas
+      // with limited rental market activity). These areas should be penalized rather than
+      // treated neutrally, as lack of data is itself a signal of market limitations.
+      // 
+      // Strategy:
+      // - Assign demand_score = 10 (equivalent to 10th percentile - very low demand)
+      // - Apply demand_multiplier = 0.75 (25% penalty to final score)
+      // This ensures ZIPs without demand data are significantly lower ranked
+      score.demandScore = 10; // Low score indicating insufficient data / low demand
+      score.demandMultiplier = 0.75; // 25% penalty for missing demand data
     }
   }
+
+  // Count ZIPs without demand data (assigned low score)
+  const noDemandDataCount = scores.length - demandDataCount;
 
   console.log(`Demand Data Statistics:`);
   console.log(`  ZIPs with ZORDI data: ${zordiValues.length}`);
   console.log(`  ZIPs with ZORDI momentum: ${zordiDeltas.length}`);
   console.log(`  ZIPs with ZORI YoY growth: ${zoriYoys.length}`);
-  console.log(`  ZIPs with computed demand score: ${demandDataCount}\n`);
+  console.log(`  ZIPs with computed demand score: ${demandDataCount}`);
+  console.log(`  ZIPs without demand data (penalized): ${noDemandDataCount}\n`);
 
   // Compute median yield for normalization
   const yields = scores.map((s) => s.netYield).sort((a, b) => a - b);

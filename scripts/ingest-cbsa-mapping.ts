@@ -16,6 +16,7 @@
 
 import { config } from 'dotenv';
 import { sql } from '@vercel/postgres';
+import { execute, query } from '../lib/db';
 import { parse } from 'csv-parse';
 import { Readable } from 'stream';
 
@@ -96,27 +97,25 @@ async function upsertBatch(
 
   const values: any[] = [];
   const placeholders: string[] = [];
+  let paramIndex = 1;
 
-  for (let i = 0; i < rows.length; i++) {
-    const r = rows[i]!;
-    const base = i * 4;
+  for (const r of rows) {
     placeholders.push(
-      `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, NOW())`
+      `($${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, NOW())`
     );
     values.push(r.zip_code, r.cbsa_code, r.cbsa_name, r.state_code);
   }
 
-  await sql.query(
-    `
+  const queryText = `
     INSERT INTO cbsa_zip_mapping (zip_code, cbsa_code, cbsa_name, state_code, created_at)
-    VALUES ${placeholders.join(',\n      ')}
+    VALUES ${placeholders.join(', ')}
     ON CONFLICT (zip_code, cbsa_code)
     DO UPDATE SET
       cbsa_name = EXCLUDED.cbsa_name,
       state_code = EXCLUDED.state_code
-    `,
-    values
-  );
+  `;
+
+  await execute(queryText, values);
 }
 
 // Alternative: Build CBSA mapping from existing fmr_county_metro data
@@ -125,14 +124,14 @@ async function buildCbsaMappingFromFmrData() {
   console.log('\n=== Building CBSA mapping from existing FMR county-metro data ===');
 
   // Get latest year of FMR county-metro data
-  const yearResult = await sql`SELECT MAX(year) as latest_year FROM fmr_county_metro`;
-  const year = yearResult.rows[0]?.latest_year || new Date().getFullYear();
+  const yearResult = await query('SELECT MAX(year) as latest_year FROM fmr_county_metro');
+  const year = yearResult[0]?.latest_year || new Date().getFullYear();
 
   console.log(`Using FMR county-metro data from year: ${year}`);
 
   // Build mapping: ZIP -> County -> Metro (CBSA equivalent)
   // HUD area codes like "METRO33860M33860" contain the CBSA code (33860)
-  const result = await sql`
+  const result = await query(`
     WITH metro_counties AS (
       SELECT DISTINCT
         fcm.county_fips,
@@ -142,11 +141,11 @@ async function buildCbsaMappingFromFmrData() {
         -- Extract CBSA code from HUD area code (e.g., METRO33860M33860 -> 33860)
         CASE
           WHEN fcm.hud_area_code LIKE 'METRO%' THEN
-            REGEXP_REPLACE(fcm.hud_area_code, '^METRO(\d+).*', '\1')
+            REGEXP_REPLACE(fcm.hud_area_code, '^METRO(\\d+).*', '\\1')
           ELSE NULL
         END as cbsa_code
       FROM fmr_county_metro fcm
-      WHERE fcm.year = ${year}
+      WHERE fcm.year = $1
         AND fcm.is_metro = true
         AND fcm.hud_area_code IS NOT NULL
     )
@@ -161,16 +160,17 @@ async function buildCbsaMappingFromFmrData() {
       AND mc.state_code = zcm.state_code
     WHERE mc.cbsa_code IS NOT NULL
       AND LENGTH(mc.cbsa_code) >= 4
-  `;
+  `, [year]);
 
-  console.log(`Found ${result.rows.length} ZIP-to-CBSA mappings`);
+  console.log(`Found ${result.length} ZIP-to-CBSA mappings`);
 
-  if (result.rows.length === 0) {
+  if (result.length === 0) {
     console.log('No mappings found. Check if fmr_county_metro and zip_county_mapping have data.');
     return 0;
   }
 
-  // Insert in batches
+  // Insert in batches (deduplicate by zip_code + cbsa_code first)
+  const seen = new Set<string>();
   const batch: Array<{
     zip_code: string;
     cbsa_code: string;
@@ -180,10 +180,18 @@ async function buildCbsaMappingFromFmrData() {
 
   let totalInserted = 0;
 
-  for (const row of result.rows) {
+  for (const row of result) {
+    const zip = normalizeZip(row.zip_code);
+    const cbsa = String(row.cbsa_code).trim();
+    const key = `${zip}-${cbsa}`;
+    
+    // Skip duplicates
+    if (seen.has(key)) continue;
+    seen.add(key);
+
     batch.push({
-      zip_code: normalizeZip(row.zip_code),
-      cbsa_code: String(row.cbsa_code).trim(),
+      zip_code: zip,
+      cbsa_code: cbsa,
       cbsa_name: String(row.cbsa_name).trim(),
       state_code: row.state_code || null,
     });
@@ -213,7 +221,7 @@ async function buildCbsaMappingFromZordi() {
 
   // Match ZORDI region names to FMR HUD area names
   // This is fuzzy matching since naming conventions differ
-  const result = await sql`
+  const result = await query(`
     WITH zordi_metros AS (
       SELECT DISTINCT region_name, cbsa_code
       FROM zillow_zordi_metro_monthly
@@ -247,15 +255,16 @@ async function buildCbsaMappingFromZordi() {
       zcm.county_fips = mc.county_fips
       AND zcm.state_code = mc.state_code
     WHERE zm.cbsa_code IS NOT NULL OR zm.region_name IS NOT NULL
-  `;
+  `);
 
-  console.log(`Found ${result.rows.length} ZIP-to-ZORDI-metro mappings via name matching`);
+  console.log(`Found ${result.length} ZIP-to-ZORDI-metro mappings via name matching`);
 
-  if (result.rows.length === 0) {
+  if (result.length === 0) {
     return 0;
   }
 
-  // Insert in batches
+  // Insert in batches (deduplicate by zip_code + cbsa_code first)
+  const seen = new Set<string>();
   const batch: Array<{
     zip_code: string;
     cbsa_code: string;
@@ -265,10 +274,28 @@ async function buildCbsaMappingFromZordi() {
 
   let totalInserted = 0;
 
-  for (const row of result.rows) {
+  for (const row of result) {
+    const zip = normalizeZip(row.zip_code);
+    
+    // Generate CBSA code if missing, but ensure it fits in VARCHAR(10)
+    let cbsaCode = row.cbsa_code;
+    if (!cbsaCode || cbsaCode.length === 0) {
+      // Create a short identifier from the metro name (max 10 chars)
+      const namePart = row.cbsa_name.slice(0, 8).replace(/\W+/g, '').toUpperCase();
+      cbsaCode = namePart.length > 0 ? `Z${namePart}` : 'ZORDI';
+    }
+    // Ensure it's not longer than 10 characters
+    cbsaCode = String(cbsaCode).trim().slice(0, 10);
+    
+    const key = `${zip}-${cbsaCode}`;
+    
+    // Skip duplicates
+    if (seen.has(key)) continue;
+    seen.add(key);
+
     batch.push({
-      zip_code: normalizeZip(row.zip_code),
-      cbsa_code: row.cbsa_code || 'ZORDI_' + row.cbsa_name.slice(0, 20).replace(/\W+/g, '_'),
+      zip_code: zip,
+      cbsa_code: cbsaCode,
       cbsa_name: String(row.cbsa_name).trim(),
       state_code: row.state_code || null,
     });
@@ -299,8 +326,8 @@ if (import.meta.main) {
   const fromFmr = await buildCbsaMappingFromFmrData();
 
   // If ZORDI data exists, also try to match metro names
-  const zordiCount = await sql`SELECT COUNT(*) as cnt FROM zillow_zordi_metro_monthly`;
-  if (zordiCount.rows[0]?.cnt > 0) {
+  const zordiCount = await query('SELECT COUNT(*) as cnt FROM zillow_zordi_metro_monthly');
+  if (zordiCount[0]?.cnt > 0) {
     await buildCbsaMappingFromZordi();
   }
 

@@ -37,8 +37,8 @@ export async function GET(request: NextRequest) {
         SELECT 
           county_fips,
           state_code,
-          PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY score) as median_score,
-          AVG(score) as avg_score,
+          PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY COALESCE(score_with_demand, score)) as median_score,
+          AVG(COALESCE(score_with_demand, score)) as avg_score,
           COUNT(*) as zip_count
         FROM investment_score
         WHERE state_code = $1

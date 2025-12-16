@@ -13,13 +13,13 @@ export async function GET(req: NextRequest) {
     const limit = limitParam ? parseInt(limitParam, 10) : 50;
     const year = yearParam ? parseInt(yearParam, 10) : await getLatestFMRYear();
 
-    // Get states ranked by median investment score
+    // Get states ranked by median investment score (using score_with_demand for demand-weighted scores)
     const result = await sql.query(
       `
       SELECT 
         state_code,
-        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY score) as median_score,
-        AVG(score) as avg_score,
+        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY COALESCE(score_with_demand, score)) as median_score,
+        AVG(COALESCE(score_with_demand, score)) as avg_score,
         COUNT(*) as zip_count
       FROM investment_score
       WHERE fmr_year = $1

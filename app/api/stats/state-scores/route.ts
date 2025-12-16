@@ -13,13 +13,13 @@ export async function GET(req: NextRequest) {
     const year = yearParam ? parseInt(yearParam, 10) : await getLatestFMRYear();
 
     if (level === 'state') {
-      // Get median investment scores by state
+      // Get median investment scores by state (using score_with_demand for demand-weighted scores)
       const result = await sql.query(
         `
         SELECT 
           state_code,
-          PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY score) as median_score,
-          AVG(score) as avg_score,
+          PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY COALESCE(score_with_demand, score)) as median_score,
+          AVG(COALESCE(score_with_demand, score)) as avg_score,
           COUNT(*) as zip_count
         FROM investment_score
         WHERE fmr_year = $1
@@ -43,20 +43,25 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({
         year,
         stateScores,
+        _debug: {
+          timestamp: new Date().toISOString(),
+          count: stateScores.length,
+        },
       });
     }
 
     // Get median investment scores by county
     // Group only by FIPS and state_code to avoid duplicates from county_name variations
     // This matches the approach used in the state view for consistency
+    console.log('[state-scores API] Executing county query with score_with_demand, year:', year);
     const result = await sql.query(
       `
       WITH county_scores AS (
         SELECT 
           county_fips,
           state_code,
-          PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY score) as median_score,
-          AVG(score) as avg_score,
+          PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY COALESCE(score_with_demand, score)) as median_score,
+          AVG(COALESCE(score_with_demand, score)) as avg_score,
           COUNT(*) as zip_count,
           AVG(net_yield) as avg_yield
         FROM investment_score
@@ -136,9 +141,28 @@ export async function GET(req: NextRequest) {
 
     const countyScores = Array.from(countyMap.values());
 
+    // Debug: Check Butte, CA specifically
+    const butte = countyScores.find(c => c.countyFips === '06007');
+    if (butte) {
+      console.log('[state-scores API] Butte, CA (FIPS 06007):', {
+        medianScore: butte.medianScore,
+        avgScore: butte.avgScore,
+      });
+    }
+
+    // Add timestamp to help debug caching issues
     return NextResponse.json({
       year,
       countyScores,
+      _debug: {
+        timestamp: new Date().toISOString(),
+        count: countyScores.length,
+        sample: countyScores.slice(0, 3).map(c => ({
+          fips: c.countyFips,
+          name: c.countyName,
+          score: c.medianScore,
+        })),
+      },
     });
   } catch (e: any) {
     console.error('Scores error:', e);

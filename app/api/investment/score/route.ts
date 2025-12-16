@@ -46,6 +46,7 @@ export async function GET(req: NextRequest) {
           net_yield,
           rent_to_price_ratio,
           score,
+          COALESCE(score_with_demand, score) as score_with_demand,
           data_sufficient,
           computed_at
         FROM investment_score
@@ -85,7 +86,7 @@ export async function GET(req: NextRequest) {
         netYieldPct: Number(row.net_yield) * 100,
         rentToPriceRatio: Number(row.rent_to_price_ratio),
         rentToPriceRatioPct: Number(row.rent_to_price_ratio) * 100,
-        score: Number(row.score),
+        score: Number(row.score_with_demand ?? row.score),
         dataSufficient: row.data_sufficient,
         computedAt: row.computed_at,
       });
@@ -103,13 +104,13 @@ export async function GET(req: NextRequest) {
         )
         SELECT 
           COUNT(*) as zip_count,
-          AVG(score) as avg_score,
-          PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY score) as median_score,
-          AVG(net_yield) as avg_yield,
-          AVG(property_value) as avg_property_value,
-          AVG(tax_rate) as avg_tax_rate,
-          AVG(annual_rent) as avg_annual_rent,
-          AVG(rent_to_price_ratio) as avg_rent_to_price_ratio
+          AVG(COALESCE(isc.score_with_demand, isc.score)) as avg_score,
+          PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY COALESCE(isc.score_with_demand, isc.score)) as median_score,
+          AVG(isc.net_yield) as avg_yield,
+          AVG(isc.property_value) as avg_property_value,
+          AVG(isc.tax_rate) as avg_tax_rate,
+          AVG(isc.annual_rent) as avg_annual_rent,
+          AVG(isc.rent_to_price_ratio) as avg_rent_to_price_ratio
         FROM investment_score isc
         INNER JOIN city_zips cz ON cz.zip_code = isc.zip_code
         WHERE isc.fmr_year = $3
@@ -176,8 +177,8 @@ export async function GET(req: NextRequest) {
           `
           SELECT 
             COUNT(*) as zip_count,
-            AVG(score) as avg_score,
-            PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY score) as median_score,
+            AVG(COALESCE(score_with_demand, score)) as avg_score,
+            PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY COALESCE(score_with_demand, score)) as median_score,
             AVG(net_yield) as avg_yield,
             AVG(property_value) as avg_property_value,
             AVG(tax_rate) as avg_tax_rate,
@@ -197,8 +198,8 @@ export async function GET(req: NextRequest) {
           `
           SELECT 
             COUNT(*) as zip_count,
-            AVG(score) as avg_score,
-            PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY score) as median_score,
+            AVG(COALESCE(score_with_demand, score)) as avg_score,
+            PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY COALESCE(score_with_demand, score)) as median_score,
             AVG(net_yield) as avg_yield,
             AVG(property_value) as avg_property_value,
             AVG(tax_rate) as avg_tax_rate,
@@ -251,8 +252,8 @@ export async function GET(req: NextRequest) {
         `
         SELECT 
           COUNT(*) as zip_count,
-          AVG(score) as avg_score,
-          PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY score) as median_score,
+          AVG(COALESCE(score_with_demand, score)) as avg_score,
+          PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY COALESCE(score_with_demand, score)) as median_score,
           AVG(net_yield) as avg_yield,
           AVG(property_value) as avg_property_value,
           AVG(tax_rate) as avg_tax_rate,
