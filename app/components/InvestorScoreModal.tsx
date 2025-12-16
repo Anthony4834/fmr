@@ -93,7 +93,7 @@ export default function InvestorScoreModal({ isOpen, onClose }: InvestorScoreMod
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" aria-hidden={false}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4" aria-hidden={false}>
       {/* Backdrop */}
       <button
         type="button"
@@ -109,21 +109,15 @@ export default function InvestorScoreModal({ isOpen, onClose }: InvestorScoreMod
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={descId}
-        className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] sm:max-h-[90vh] overflow-hidden flex flex-col"
+        className="relative bg-white rounded-lg shadow-xl max-w-xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h2 id={titleId} className="text-xl font-semibold text-[#0a0a0a]">
-                Investor Score
-              </h2>
-              <p className="text-sm text-[#737373] mt-1">
-                A quick way to compare rental cash-flow potential across locations.
-              </p>
-            </div>
-
+        <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
+          <div className="flex items-center justify-between gap-3">
+            <h2 id={titleId} className="text-lg sm:text-xl font-semibold text-[#0a0a0a]">
+              How Investment Score Works
+            </h2>
             <button
               ref={closeBtnRef}
               type="button"
@@ -131,7 +125,7 @@ export default function InvestorScoreModal({ isOpen, onClose }: InvestorScoreMod
               className="shrink-0 rounded-md p-1 text-[#737373] hover:text-[#0a0a0a] hover:bg-black/5 transition-colors focus:outline-none focus:ring-2 focus:ring-black/30"
               aria-label="Close"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -139,100 +133,90 @@ export default function InvestorScoreModal({ isOpen, onClose }: InvestorScoreMod
         </div>
 
         {/* Content */}
-        <div className="px-4 sm:px-6 py-4 overflow-y-auto flex-1">
-          {/* One-sentence explanation */}
-          <p id={descId} className="text-sm text-[#525252] mb-6">
-            The Investor Score estimates how much rent you can earn <strong>after property taxes</strong>,
-            relative to the <strong>home price</strong>, then compares that result to the typical (median) market.
+        <div className="px-4 sm:px-6 py-4 overflow-y-auto flex-1 space-y-5">
+          {/* TL;DR */}
+          <p id={descId} className="text-sm text-[#525252]">
+            A standardized way to compare rental investment potential across U.S. locations, combining <strong>cash-flow yield</strong> with <strong>market demand</strong>.
           </p>
 
-          {/* Section 1 */}
-          <section className="mb-6">
-            <h3 className="text-base font-semibold text-[#0a0a0a] mb-3">What the score means</h3>
-            <p className="text-sm text-[#525252] mb-3">
-              Think of it like a “value rating” for rental investing. It’s based on an estimated net yield using:
-            </p>
-            <ul className="space-y-2 text-sm text-[#525252] ml-4 list-disc">
-              <li><strong>Rent (estimated):</strong> Section 8 Fair Market Rent (FMR)</li>
-              <li><strong>Home price (estimated):</strong> Zillow Home Value Index (ZHVI)</li>
-              <li><strong>Taxes (estimated):</strong> local effective property tax rate (ACS)</li>
-            </ul>
-            <p className="text-sm text-[#525252] mt-3">
-              So <strong>higher score = more rent for the price, after taxes</strong>.
-            </p>
-          </section>
-
-          {/* Section 2 */}
-          <section className="mb-6">
-            <h3 className="text-base font-semibold text-[#0a0a0a] mb-3">How to read it</h3>
-
-            <div className="rounded-md border border-[#e5e5e5] p-4 bg-white">
-              <ul className="space-y-2 text-sm text-[#525252]">
-                <li><strong>100</strong> = typical market (median)</li>
-
-                <li className="flex items-center gap-2">
-                  <span className="w-4 h-4 rounded bg-[#fca5a5]" aria-hidden="true" />
-                  <span><strong>Below 95</strong> → Below average cash-flow potential</span>
-                </li>
-
-                <li className="flex items-center gap-2">
-                  <span className="w-4 h-4 rounded bg-[#44e37e]" aria-hidden="true" />
-                  <span><strong>95–129</strong> → Above average</span>
-                </li>
-
-                <li className="flex items-center gap-2">
-                  <span className="w-4 h-4 rounded bg-[#16a34a]" aria-hidden="true" />
-                  <span><strong>130+</strong> → Strong opportunity</span>
-                </li>
-
-                <li><strong>Up to 300</strong> → Scores are capped at 300 to avoid extreme outliers</li>
-              </ul>
-
-              <p className="text-sm text-[#525252] mt-3">
-                <strong>Example:</strong> A score of 150 means the estimated net yield is about 50% higher than the median.
-              </p>
-            </div>
-          </section>
-
-          {/* Section 3 */}
-          <section className="mb-6">
-            <h3 className="text-base font-semibold text-[#0a0a0a] mb-3">What’s included (and what’s not)</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="rounded-md border border-[#e5e5e5] p-4 bg-[#fafafa]">
-                <h4 className="text-sm font-semibold text-[#0a0a0a] mb-2">Included</h4>
-                <ul className="space-y-1 text-sm text-[#525252] ml-4 list-disc">
-                  <li>Estimated rent using HUD FMR (ZIP-level when available)</li>
-                  <li>Estimated property value using Zillow ZHVI</li>
-                  <li>Estimated property taxes using ACS tax rates</li>
-                </ul>
+          {/* Score Scale */}
+          <div className="rounded-lg border border-[#e5e5e5] p-3 sm:p-4 bg-white">
+            <div className="text-xs font-medium text-[#737373] uppercase tracking-wide mb-2">Score Scale</div>
+            <div className="space-y-1.5 text-sm">
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-sm bg-[#ef4444]" />
+                <span className="text-[#525252]"><strong>&lt;95</strong> Below average</span>
               </div>
-
-              <div className="rounded-md border border-[#e5e5e5] p-4 bg-[#fafafa]">
-                <h4 className="text-sm font-semibold text-[#0a0a0a] mb-2">Not included</h4>
-                <ul className="space-y-1 text-sm text-[#525252] ml-4 list-disc">
-                  <li>Mortgage/interest rate</li>
-                  <li>Insurance, repairs, vacancy, management, HOA</li>
-                  <li>Appreciation, block-level neighborhood nuances</li>
-                </ul>
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-sm bg-[#f59e0b]" />
+                <span className="text-[#525252]"><strong>95-99</strong> Near median</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-sm bg-[#22c55e]" />
+                <span className="text-[#525252]"><strong>100-129</strong> Above average</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-sm bg-[#16a34a]" />
+                <span className="text-[#525252]"><strong>130+</strong> High yield potential</span>
               </div>
             </div>
-            <p className="text-sm text-[#525252] mt-3 italic">
-              Use this as a starting point, not a full pro forma.
-            </p>
-          </section>
+            <p className="text-xs text-[#737373] mt-2">100 = median market. Capped at 300.</p>
+          </div>
 
-          {/* Section 4: Accordion */}
-          <section className="mb-6">
+          {/* Two-Part Formula */}
+          <div>
+            <div className="text-xs font-medium text-[#737373] uppercase tracking-wide mb-2">The Formula</div>
+            <div className="text-sm text-[#525252] space-y-3">
+              <div className="rounded-lg border border-[#e5e5e5] p-3 bg-[#fafafa]">
+                <div className="font-medium text-[#0a0a0a] mb-1">1. Base Score (Net Yield)</div>
+                <p className="text-xs leading-relaxed">
+                  Calculates how much rent you keep after property taxes, relative to home price. Uses <strong>HUD Fair Market Rent</strong>, <strong>Zillow ZHVI</strong>, and <strong>ACS tax rates</strong>.
+                </p>
+              </div>
+              <div className="rounded-lg border border-[#e5e5e5] p-3 bg-[#fafafa]">
+                <div className="font-medium text-[#0a0a0a] mb-1">2. Demand Adjustment</div>
+                <p className="text-xs leading-relaxed">
+                  Adjusts score based on rental market conditions using <strong>Zillow ZORDI</strong> (metro demand index) and <strong>ZORI</strong> (rent growth). Strong demand can boost scores up to +5%; weak demand can reduce by up to -30%.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Data Sources */}
+          <div>
+            <div className="text-xs font-medium text-[#737373] uppercase tracking-wide mb-2">Data Sources</div>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="rounded border border-[#e5e5e5] p-2 bg-white">
+                <div className="font-medium text-[#0a0a0a]">Rent</div>
+                <div className="text-[#737373]">HUD FMR/SAFMR</div>
+              </div>
+              <div className="rounded border border-[#e5e5e5] p-2 bg-white">
+                <div className="font-medium text-[#0a0a0a]">Home Value</div>
+                <div className="text-[#737373]">Zillow ZHVI</div>
+              </div>
+              <div className="rounded border border-[#e5e5e5] p-2 bg-white">
+                <div className="font-medium text-[#0a0a0a]">Property Tax</div>
+                <div className="text-[#737373]">ACS 5-Year</div>
+              </div>
+              <div className="rounded border border-[#e5e5e5] p-2 bg-white">
+                <div className="font-medium text-[#0a0a0a]">Demand</div>
+                <div className="text-[#737373]">Zillow ZORDI/ZORI</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Accordion: Full Math */}
+          <div className="border-t border-[#e5e5e5] pt-4">
             <button
               type="button"
               onClick={() => setShowMath((v) => !v)}
-              className="w-full flex items-center justify-between text-sm font-semibold text-[#0a0a0a] rounded-md px-3 py-2 hover:bg-black/5 transition-colors focus:outline-none focus:ring-2 focus:ring-black/30"
+              className="w-full flex items-center justify-between text-sm font-medium text-[#0a0a0a] py-1 hover:text-[#525252] transition-colors focus:outline-none focus:ring-2 focus:ring-black/20 rounded"
               aria-expanded={showMath}
               aria-controls={mathId}
             >
-              <span>See the math</span>
+              <span>Full calculation details</span>
               <svg
-                className={`w-5 h-5 transition-transform ${showMath ? 'rotate-180' : ''}`}
+                className={`w-4 h-4 transition-transform ${showMath ? 'rotate-180' : ''}`}
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -245,84 +229,62 @@ export default function InvestorScoreModal({ isOpen, onClose }: InvestorScoreMod
             <div
               id={mathId}
               hidden={!showMath}
-              className="mt-3 pl-4 border-l-2 border-[#e5e5e5] space-y-4 text-sm text-[#525252]"
+              className="mt-3 space-y-4 text-xs text-[#525252]"
             >
-              <div>
-                <h4 className="font-semibold text-[#0a0a0a] mb-2">Step 1: Estimate annual rent and taxes</h4>
-                <ul className="space-y-1 ml-4 list-disc">
-                  <li>Annual Gross Rent = 12 × FMR (monthly)</li>
-                  <li>Annual Property Taxes = Property Value × Tax Rate</li>
-                </ul>
+              {/* Net Yield Calculation */}
+              <div className="rounded border border-[#e5e5e5] p-3 bg-[#fafafa]">
+                <div className="font-semibold text-[#0a0a0a] mb-2">Net Yield Calculation</div>
+                <div className="space-y-1 font-mono text-[11px] bg-white p-2 rounded border border-[#e5e5e5]">
+                  <div>Annual Rent = FMR × 12</div>
+                  <div>Annual Taxes = Property Value × Tax Rate</div>
+                  <div>Net Yield = (Rent - Taxes) / Value</div>
+                  <div className="pt-1 border-t border-[#e5e5e5] mt-1">Base Score = (Net Yield / Median) × 100</div>
+                </div>
               </div>
 
-              <div>
-                <h4 className="font-semibold text-[#0a0a0a] mb-2">Step 2: Net Yield</h4>
-                <p className="font-mono bg-[#fafafa] p-2 rounded border border-[#e5e5e5]">
-                  Net Yield = (Annual Rent − Annual Taxes) ÷ Property Value
-                </p>
+              {/* Demand Score */}
+              <div className="rounded border border-[#e5e5e5] p-3 bg-[#fafafa]">
+                <div className="font-semibold text-[#0a0a0a] mb-2">Demand Score (0-100)</div>
+                <div className="space-y-1">
+                  <div><strong>50%</strong> Demand Level — ZORDI percentile rank</div>
+                  <div><strong>30%</strong> Demand Momentum — ZORDI 3-month change</div>
+                  <div><strong>20%</strong> Rent Pressure — ZORI year-over-year growth</div>
+                </div>
               </div>
 
-              <div>
-                <h4 className="font-semibold text-[#0a0a0a] mb-2">Step 3: Turn yield into a score (normalized)</h4>
-                <ul className="space-y-1 ml-4 list-disc">
-                  <li>Raw Score = (Net Yield ÷ Median Net Yield) × 100</li>
-                  <li>Final Score = min(Raw Score, 300)</li>
+              {/* Demand Multiplier */}
+              <div className="rounded border border-[#e5e5e5] p-3 bg-[#fafafa]">
+                <div className="font-semibold text-[#0a0a0a] mb-2">Demand Multiplier</div>
+                <div className="space-y-1">
+                  <div><strong>High yield + strong demand:</strong> up to +5% boost</div>
+                  <div><strong>High yield + weak demand:</strong> up to -30% penalty</div>
+                  <div><strong>Low yield + strong demand:</strong> no change</div>
+                  <div><strong>Low yield + weak demand:</strong> up to -30% penalty</div>
+                </div>
+              </div>
+
+              {/* Quality Controls */}
+              <div className="rounded border border-[#e5e5e5] p-3 bg-[#fafafa]">
+                <div className="font-semibold text-[#0a0a0a] mb-2">Quality Controls</div>
+                <ul className="space-y-1 ml-3 list-disc">
+                  <li>Price floor: minimum $100k property value</li>
+                  <li>Rent cap: max 18% rent-to-price ratio</li>
+                  <li>County blending: blend with county median if ZIP value &lt;$150k</li>
+                  <li>Score cap: maximum 300</li>
+                  <li>Bedroom priority: 3BR → 2BR → 4BR</li>
                 </ul>
               </div>
             </div>
-          </section>
+          </div>
 
-          {/* Section 5 */}
-          <section className="mb-6">
-            <h3 className="text-base font-semibold text-[#0a0a0a] mb-3">Data reliability safeguards</h3>
-            <p className="text-sm text-[#525252] mb-3">
-              We apply quality controls to prevent “too good to be true” scores:
-            </p>
-            <ul className="space-y-2 text-sm text-[#525252] ml-4 list-disc">
-              <li><strong>Low-price ZIP blending:</strong> if ZIP value is under $150k, we blend 60% ZIP + 40% county median (when available).</li>
-              <li><strong>Price floor:</strong> property value can’t go below $100,000.</li>
-              <li><strong>Rent-to-price cap:</strong> annual rent can’t exceed 18% of home value.</li>
-              <li><strong>Score cap:</strong> maximum score is 300.</li>
-            </ul>
-          </section>
-
-          {/* Section 6 */}
-          <section className="mb-6">
-            <h3 className="text-base font-semibold text-[#0a0a0a] mb-3">Bedroom choice</h3>
-            <p className="text-sm text-[#525252]">
-              We use the most representative bedroom size available, prioritized: <strong>3BR → 2BR → 4BR</strong> (we skip areas that only have 0BR/1BR).
-            </p>
-          </section>
-
-          {/* Footer/CTA inside content */}
-          <section className="border-t border-[#e5e5e5] pt-4">
-            <h3 className="text-base font-semibold text-[#0a0a0a] mb-2">How to use this score</h3>
-            <ul className="space-y-1 text-sm text-[#525252] ml-4 list-disc mb-4">
-              <li>Compare ZIP codes/cities on a consistent scale</li>
-              <li>Find high-yield areas faster</li>
-              <li>Then click into a location to review local details</li>
-            </ul>
-
-            <div className="flex items-start gap-2 text-xs text-[#737373]">
-              <svg className="w-4 h-4 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <p>
-                <strong>Why Section 8 rents?</strong> FMR is a standardized rent benchmark across the U.S., making locations easier to compare consistently.
-              </p>
-            </div>
-          </section>
+          {/* Not Included */}
+          <div className="text-xs text-[#737373] border-t border-[#e5e5e5] pt-4">
+            <strong>Not included:</strong> mortgage costs, insurance, repairs, vacancy, HOA, appreciation. Use as a screening tool, not a complete pro forma.
+          </div>
         </div>
 
-        {/* Footer buttons */}
-        <div className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex items-center justify-between flex-shrink-0">
-          <a
-            href="/methodology#data-sources"
-            className="text-sm text-[#525252] hover:text-[#0a0a0a] transition-colors underline underline-offset-2"
-          >
-            View data sources
-          </a>
-
+        {/* Footer */}
+        <div className="px-4 sm:px-6 py-3 border-t border-[#e5e5e5] bg-[#fafafa] flex items-center justify-end flex-shrink-0">
           <button
             type="button"
             onClick={onClose}

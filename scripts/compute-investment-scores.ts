@@ -695,7 +695,14 @@ async function computeZipScores(
   //   demand_momentum = pct_rank(ΔZORDI_metro_3m)
   //   rent_pressure = pct_rank(ZORI_zip_yoy)
   //   DEMAND_SCORE = 0.5*demand_level + 0.3*demand_momentum + 0.2*rent_pressure
-  //   demand_multiplier = clamp(0.90, 1.10, 1 + 0.20*(DEMAND_SCORE - 50)/100)
+  // 
+  // Demand Multiplier Logic (applied after score normalization):
+  //   - Green threshold (score >= 100):
+  //     * Positive demand (score > 50): marginal increase (1.0 to 1.05)
+  //     * Negative demand (score < 50): heavy penalty (0.70 to 0.90)
+  //   - Red threshold (score < 100):
+  //     * Positive demand (score > 50): no change (multiplier = 1.0)
+  //     * Negative demand (score < 50): heavy penalty (0.70 to 0.90)
   // ============================================================================
 
   // Helper function for percentile rank (0-100)
@@ -759,25 +766,13 @@ async function computeZipScores(
       // Normalize to 0-100 scale
       const demandScore = totalWeight > 0 ? (weightedSum / totalWeight) : 50;
       score.demandScore = demandScore;
-
-      // Compute demand multiplier: clamp(0.90, 1.10, 1 + 0.20*(DEMAND_SCORE - 50)/100)
-      // This gives ±10% adjustment based on demand
-      const rawMultiplier = 1 + 0.20 * (demandScore - 50) / 100;
-      score.demandMultiplier = Math.max(0.90, Math.min(1.10, rawMultiplier));
+      // Demand multiplier will be computed after normalization based on score threshold
 
       demandDataCount++;
     } else {
-      // No demand data - assign low demand score and apply significant penalty
-      // Assumption: Absence of demand data likely indicates low demand (rural/remote areas
-      // with limited rental market activity). These areas should be penalized rather than
-      // treated neutrally, as lack of data is itself a signal of market limitations.
-      // 
-      // Strategy:
-      // - Assign demand_score = 10 (equivalent to 10th percentile - very low demand)
-      // - Apply demand_multiplier = 0.75 (25% penalty to final score)
-      // This ensures ZIPs without demand data are significantly lower ranked
+      // No demand data - assign low demand score
+      // Demand multiplier will be computed after normalization based on score threshold
       score.demandScore = 10; // Low score indicating insufficient data / low demand
-      score.demandMultiplier = 0.75; // 25% penalty for missing demand data
     }
   }
 
@@ -819,8 +814,39 @@ async function computeZipScores(
     const rawScore = (score.netYield / medianYield) * 100;
     const cappedScore = Math.min(rawScore, 300);
 
-    // Apply demand multiplier to get score_with_demand
-    const demandMultiplier = score.demandMultiplier ?? 1.0;
+    // Compute demand multiplier based on score threshold and demand score
+    // New logic:
+    // - Green threshold (score >= 100): positive demand = small increase, negative demand = heavy penalty
+    // - Red threshold (score < 100): positive demand = no change, negative demand = heavy penalty
+    let demandMultiplier: number;
+    const demandScore = score.demandScore ?? 10; // Default to low if missing
+    
+    if (cappedScore >= 100) {
+      // Green threshold: already above median
+      if (demandScore > 50) {
+        // Positive demand: marginal increase (1.0 to 1.05)
+        demandMultiplier = 1.0 + 0.05 * (demandScore - 50) / 50;
+        demandMultiplier = Math.min(1.05, demandMultiplier);
+      } else {
+        // Negative demand: heavy penalty (0.70 to 0.90)
+        // Penalty increases as demand gets worse
+        demandMultiplier = 0.70 + 0.20 * (demandScore / 50);
+        demandMultiplier = Math.max(0.70, demandMultiplier);
+      }
+    } else {
+      // Red threshold: below median
+      if (demandScore > 50) {
+        // Positive demand: no increase (multiplier = 1.0)
+        demandMultiplier = 1.0;
+      } else {
+        // Negative demand: heavy penalty (0.70 to 0.90)
+        // Same penalty as green threshold for negative demand
+        demandMultiplier = 0.70 + 0.20 * (demandScore / 50);
+        demandMultiplier = Math.max(0.70, demandMultiplier);
+      }
+    }
+    
+    score.demandMultiplier = demandMultiplier;
     const scoreWithDemand = Math.min(cappedScore * demandMultiplier, 300);
 
     // Track ZIPs that hit the cap
