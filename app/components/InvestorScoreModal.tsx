@@ -93,11 +93,11 @@ export default function InvestorScoreModal({ isOpen, onClose }: InvestorScoreMod
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4" aria-hidden={false}>
+    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-2 sm:p-4 overflow-y-auto" aria-hidden={false}>
       {/* Backdrop */}
       <button
         type="button"
-        className="absolute inset-0 bg-black/50 cursor-default"
+        className="fixed inset-0 bg-black/50 cursor-default"
         aria-label="Close modal"
         onClick={onClose}
       />
@@ -109,31 +109,29 @@ export default function InvestorScoreModal({ isOpen, onClose }: InvestorScoreMod
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={descId}
-        className="relative bg-white rounded-lg shadow-xl max-w-xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col"
+        className="relative bg-white rounded-lg shadow-xl max-w-xl w-full max-h-[85vh] sm:max-h-[80vh] my-4 sm:my-0 overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
-          <div className="flex items-center justify-between gap-3">
-            <h2 id={titleId} className="text-lg sm:text-xl font-semibold text-[#0a0a0a]">
-              How Investment Score Works
-            </h2>
-            <button
-              ref={closeBtnRef}
-              type="button"
-              onClick={onClose}
-              className="shrink-0 rounded-md p-1 text-[#737373] hover:text-[#0a0a0a] hover:bg-black/5 transition-colors focus:outline-none focus:ring-2 focus:ring-black/30"
-              aria-label="Close"
-            >
-              <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
+        <div className="px-4 sm:px-6 py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0 flex items-center justify-between gap-3">
+          <h2 id={titleId} className="text-lg font-semibold text-[#0a0a0a]">
+            How Investment Score Works
+          </h2>
+          <button
+            ref={closeBtnRef}
+            type="button"
+            onClick={onClose}
+            className="shrink-0 rounded-md p-1.5 text-[#737373] hover:text-[#0a0a0a] hover:bg-black/5 transition-colors focus:outline-none focus:ring-2 focus:ring-black/30"
+            aria-label="Close"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
 
         {/* Content */}
-        <div className="px-4 sm:px-6 py-4 overflow-y-auto flex-1 space-y-5">
+        <div className="px-4 sm:px-6 py-3 overflow-y-auto flex-1 space-y-3">
           {/* TL;DR */}
           <p id={descId} className="text-sm text-[#525252]">
             A standardized way to compare rental investment potential across U.S. locations, combining <strong>cash-flow yield</strong> with <strong>market demand</strong>.
@@ -166,14 +164,14 @@ export default function InvestorScoreModal({ isOpen, onClose }: InvestorScoreMod
           {/* Two-Part Formula */}
           <div>
             <div className="text-xs font-medium text-[#737373] uppercase tracking-wide mb-2">The Formula</div>
-            <div className="text-sm text-[#525252] space-y-3">
-              <div className="rounded-lg border border-[#e5e5e5] p-3 bg-[#fafafa]">
+            <div className="text-sm text-[#525252] space-y-2">
+              <div className="rounded-lg border border-[#e5e5e5] p-2.5 bg-[#fafafa]">
                 <div className="font-medium text-[#0a0a0a] mb-1">1. Base Score (Net Yield)</div>
                 <p className="text-xs leading-relaxed">
                   Calculates how much rent you keep after property taxes, relative to home price. Uses <strong>HUD Fair Market Rent</strong>, <strong>Zillow ZHVI</strong>, and <strong>ACS tax rates</strong>.
                 </p>
               </div>
-              <div className="rounded-lg border border-[#e5e5e5] p-3 bg-[#fafafa]">
+              <div className="rounded-lg border border-[#e5e5e5] p-2.5 bg-[#fafafa]">
                 <div className="font-medium text-[#0a0a0a] mb-1">2. Demand Adjustment</div>
                 <p className="text-xs leading-relaxed">
                   Adjusts score based on rental market conditions using <strong>Zillow ZORDI</strong> (metro demand index) and <strong>ZORI</strong> (rent growth). Strong demand can boost scores up to +5%; weak demand can reduce by up to -30%.
@@ -206,7 +204,7 @@ export default function InvestorScoreModal({ isOpen, onClose }: InvestorScoreMod
           </div>
 
           {/* Accordion: Full Math */}
-          <div className="border-t border-[#e5e5e5] pt-4">
+          <div className="border-t border-[#e5e5e5] pt-3">
             <button
               type="button"
               onClick={() => setShowMath((v) => !v)}
@@ -229,7 +227,7 @@ export default function InvestorScoreModal({ isOpen, onClose }: InvestorScoreMod
             <div
               id={mathId}
               hidden={!showMath}
-              className="mt-3 space-y-4 text-xs text-[#525252]"
+              className="mt-2 space-y-3 text-xs text-[#525252]"
             >
               {/* Net Yield Calculation */}
               <div className="rounded border border-[#e5e5e5] p-3 bg-[#fafafa]">
@@ -278,17 +276,17 @@ export default function InvestorScoreModal({ isOpen, onClose }: InvestorScoreMod
           </div>
 
           {/* Not Included */}
-          <div className="text-xs text-[#737373] border-t border-[#e5e5e5] pt-4">
+          <div className="text-xs text-[#737373] border-t border-[#e5e5e5] pt-3">
             <strong>Not included:</strong> mortgage costs, insurance, repairs, vacancy, HOA, appreciation. Use as a screening tool, not a complete pro forma.
           </div>
         </div>
 
         {/* Footer */}
-        <div className="px-4 sm:px-6 py-3 border-t border-[#e5e5e5] bg-[#fafafa] flex items-center justify-end flex-shrink-0">
+        <div className="px-4 sm:px-6 py-2.5 border-t border-[#e5e5e5] bg-[#fafafa] flex items-center justify-end flex-shrink-0">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 bg-[#0a0a0a] text-white text-sm font-medium rounded-md hover:bg-[#262626] transition-colors focus:outline-none focus:ring-2 focus:ring-black/30"
+            className="px-4 py-1.5 bg-[#0a0a0a] text-white text-sm font-medium rounded-md hover:bg-[#262626] transition-colors focus:outline-none focus:ring-2 focus:ring-black/30"
           >
             Got it
           </button>
