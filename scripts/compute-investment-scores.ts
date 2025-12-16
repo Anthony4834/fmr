@@ -418,14 +418,41 @@ async function computeZipScores(
       WHERE zc.month = lsm.month
     ),
     -- Map ZIPs to metro areas via CBSA or metro_name from ZORI
+    -- Normalize metro names for better matching:
+    -- 1. Extract primary city from multi-city names (e.g., "Harrisburg-Carlisle, PA" -> "Harrisburg, PA")
+    -- 2. Remove state codes for matching
     zip_metro_mapping AS (
       SELECT DISTINCT ON (z.zip_code)
         z.zip_code,
-        COALESCE(cbsa.cbsa_name, z.metro_name) as metro_name
+        COALESCE(cbsa.cbsa_name, z.metro_name) as metro_name,
+        -- Extract primary city: take everything before first "-" or ","
+        -- Then normalize: lowercase and remove state codes
+        LOWER(
+          REGEXP_REPLACE(
+            SPLIT_PART(COALESCE(cbsa.cbsa_name, z.metro_name), '-', 1),
+            ',\\s*[A-Z]{2}(-[A-Z]{2})*',
+            '',
+            'g'
+          )
+        ) as metro_name_normalized
       FROM zillow_zori_zip_monthly z
       LEFT JOIN cbsa_zip_mapping cbsa ON cbsa.zip_code = z.zip_code
       WHERE z.metro_name IS NOT NULL OR cbsa.cbsa_name IS NOT NULL
       ORDER BY z.zip_code, cbsa.cbsa_name NULLS LAST
+    ),
+    -- Normalize ZORDI region names for matching (extract primary city, remove state codes)
+    zordi_normalized AS (
+      SELECT 
+        region_name,
+        LOWER(
+          REGEXP_REPLACE(
+            SPLIT_PART(region_name, '-', 1),
+            ',\\s*[A-Z]{2}(-[A-Z]{2})*',
+            '',
+            'g'
+          )
+        ) as region_name_normalized
+      FROM zordi_current
     )
     SELECT
       zdc.zip_code,
@@ -447,7 +474,8 @@ async function computeZipScores(
       zg.zori_yoy
     FROM zip_data_with_canonical zdc
     LEFT JOIN zip_metro_mapping zmm ON zmm.zip_code = zdc.zip_code
-    LEFT JOIN zordi_current zrd ON zrd.region_name = zmm.metro_name
+    LEFT JOIN zordi_normalized zn ON zn.region_name_normalized = zmm.metro_name_normalized
+    LEFT JOIN zordi_current zrd ON zrd.region_name = zn.region_name
     LEFT JOIN zori_growth zg ON zg.zip_code = zdc.zip_code
     WHERE zdc.tax_rate IS NOT NULL
       AND zdc.zip_zhvi IS NOT NULL
@@ -769,6 +797,29 @@ async function computeZipScores(
     `Deduplicated: ${normalizedScores.length} → ${deduplicatedScores.length} unique ZIP codes\n`
   );
 
+  // Debug: Check if demand data is present in deduplicated scores
+  const withDemand = deduplicatedScores.filter(s => s.demandScore !== null).length;
+  console.log(`Debug: ${withDemand} deduplicated scores have demand data\n`);
+  
+  // Debug: Sample a few scores with demand to verify values
+  const sampleWithDemand = deduplicatedScores.filter(s => s.demandScore !== null).slice(0, 3);
+  if (sampleWithDemand.length > 0) {
+    console.log('Debug: Sample scores with demand data:');
+    sampleWithDemand.forEach(s => {
+      console.log(`  ZIP ${s.zipCode}: demandScore=${s.demandScore}, multiplier=${s.demandMultiplier}, scoreWithDemand=${s.scoreWithDemand}`);
+    });
+    console.log();
+  }
+  
+  // Debug: Check if values are preserved in the first batch
+  if (deduplicatedScores.length > 0) {
+    const firstWithDemand = deduplicatedScores.find(s => s.demandScore !== null);
+    if (firstWithDemand) {
+      console.log(`Debug: First score with demand - ZIP ${firstWithDemand.zipCode}, bedroom=${firstWithDemand.bedroomCount}, demandScore=${firstWithDemand.demandScore}`);
+      console.log(`  Will be inserted at index in first batch\n`);
+    }
+  }
+
   // Insert/update scores
   console.log("Inserting scores into database...\n");
   let inserted = 0;
@@ -781,9 +832,9 @@ async function computeZipScores(
 
     for (let j = 0; j < batch.length; j++) {
       const s = batch[j]!;
-      const base = j * 32; // 26 original + 6 demand fields
+      const base = j * 31; // 31 total fields (26 original + 5 demand fields: demand_score, demand_multiplier, score_with_demand, zordi_metro, zori_yoy)
       placeholders.push(
-        `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11}, $${base + 12}, $${base + 13}, $${base + 14}, $${base + 15}, $${base + 16}, $${base + 17}, $${base + 18}, $${base + 19}, $${base + 20}, $${base + 21}, $${base + 22}, $${base + 23}, $${base + 24}, $${base + 25}, $${base + 26}, $${base + 27}, $${base + 28}, $${base + 29}, $${base + 30}, $${base + 31}, $${base + 32})`
+        `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11}, $${base + 12}, $${base + 13}, $${base + 14}, $${base + 15}, $${base + 16}, $${base + 17}, $${base + 18}, $${base + 19}, $${base + 20}, $${base + 21}, $${base + 22}, $${base + 23}, $${base + 24}, $${base + 25}, $${base + 26}, $${base + 27}, $${base + 28}, $${base + 29}, $${base + 30}, $${base + 31})`
       );
       values.push(
         "zip",
@@ -821,6 +872,7 @@ async function computeZipScores(
         s.zordiMetro,
         s.zoriYoy
       );
+      
     }
 
     await sql.query(
