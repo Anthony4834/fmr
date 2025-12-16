@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Analytics as VercelAnalytics } from '@vercel/analytics/next';
 import './globals.css';
 import StructuredData from './components/StructuredData';
 import Analytics from './components/Analytics';
@@ -40,6 +41,7 @@ export default function RootLayout({
         <Analytics />
         <StructuredData />
         {children}
+        <VercelAnalytics />
       </body>
     </html>
   );
