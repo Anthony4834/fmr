@@ -37,6 +37,7 @@
     "index:investment-scores": "bun scripts/index-investment-scores.ts"
   },
   "dependencies": {
+    "@vercel/analytics": "^1.6.1",
     "@vercel/postgres": "^0.9.0",
     "chart.js": "^4",
     "csv-parse": "^5.5.0",
