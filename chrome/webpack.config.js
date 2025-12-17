@@ -47,9 +47,10 @@ module.exports = {
       ],
     }),
   ],
-  mode: 'development', // Use development mode for easier debugging
+  mode: 'production',
   optimization: {
-    minimize: false, // Chrome extensions don't need minification
+    minimize: false, // Chrome extensions typically don't need minification
   },
-  devtool: 'inline-source-map', // Enable source maps for debugging
+  devtool: false,
 };
+

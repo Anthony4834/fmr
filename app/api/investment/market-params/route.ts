@@ -265,16 +265,41 @@ export async function GET(req: NextRequest) {
       propertyTaxSource = zip ? `API Ninjas propertytax (zip ${zip}, median)` : `API Ninjas propertytax (county ${county}, ${state}, median)`;
     }
 
-    // Fetch mortgage rate from API Ninjas (still using external API)
-    const rateUrl = `https://api.api-ninjas.com/v1/mortgagerate`;
-    const rateJson = await ninjasFetchJson(rateUrl);
-    const mortgageRateAnnualPct = pick30YearFixedMortgageRateAnnualPct(rateJson);
+    // Fetch mortgage rate from database (cached by daily cron job)
+    let mortgageRateAnnualPct: number | null = null;
+    let mortgageRateSource = '';
+
+    const rateResult = await sql.query(
+      `
+      SELECT rate_annual_pct, fetched_at
+      FROM mortgage_rates
+      WHERE rate_type = '30_year_fixed'
+      ORDER BY fetched_at DESC
+      LIMIT 1
+      `
+    );
+
+    const rateRow = rateResult.rows[0];
+    if (rateRow?.rate_annual_pct !== null && rateRow?.rate_annual_pct !== undefined) {
+      mortgageRateAnnualPct = Number(rateRow.rate_annual_pct);
+      const fetchedDate = new Date(rateRow.fetched_at);
+      const daysOld = Math.floor((Date.now() - fetchedDate.getTime()) / (1000 * 60 * 60 * 24));
+      mortgageRateSource = `Database (cached ${daysOld === 0 ? 'today' : `${daysOld} day${daysOld === 1 ? '' : 's'} ago`})`;
+    }
+
+    // Fallback to API Ninjas if database doesn't have recent data
+    if (mortgageRateAnnualPct === null) {
+      const rateUrl = `https://api.api-ninjas.com/v1/mortgagerate`;
+      const rateJson = await ninjasFetchJson(rateUrl);
+      mortgageRateAnnualPct = pick30YearFixedMortgageRateAnnualPct(rateJson);
+      mortgageRateSource = 'API Ninjas mortgagerate (30-year fixed, fallback)';
+    }
 
     const out: MarketParamsResponse = {
       propertyTaxRateAnnualPct,
       propertyTaxSource,
       mortgageRateAnnualPct,
-      mortgageRateSource: 'API Ninjas mortgagerate (30-year fixed)',
+      mortgageRateSource,
       fetchedAt: new Date().toISOString(),
     };
 

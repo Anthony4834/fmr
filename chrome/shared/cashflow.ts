@@ -158,6 +158,17 @@ export function getRentForBedrooms(
   // If SAFMR with exactly one ZIP in zipFMRData, use that ZIP's values
   if (data.zipFMRData && data.zipFMRData.length === 1) {
     const zipData = data.zipFMRData[0];
+    
+    // For 5+ bedrooms, use bedroom4 as base and scale
+    if (b > 4) {
+      const base = zipData.bedroom4;
+      if (base !== null && base !== undefined) {
+        return Math.round(base * Math.pow(1.15, b - 4));
+      }
+      return null;
+    }
+    
+    // For 0-4 bedrooms, get exact match
     const base =
       b === 0 ? zipData.bedroom0 :
       b === 1 ? zipData.bedroom1 :
@@ -167,15 +178,21 @@ export function getRentForBedrooms(
       null;
     
     if (base !== null && base !== undefined) {
-      // For 5+ bedrooms, scale by 15% per bedroom above 4
-      if (b > 4) {
-        return base * Math.pow(1.15, b - 4);
-      }
       return base;
     }
   }
   
   // Otherwise use the main data
+  // For 5+ bedrooms, use bedroom4 as base and scale
+  if (b > 4) {
+    const base = data.bedroom4;
+    if (base !== null && base !== undefined) {
+      return Math.round(base * Math.pow(1.15, b - 4));
+    }
+    return null;
+  }
+  
+  // For 0-4 bedrooms, get exact match
   const base =
     b === 0 ? data.bedroom0 :
     b === 1 ? data.bedroom1 :
@@ -186,10 +203,6 @@ export function getRentForBedrooms(
   
   if (base === null || base === undefined) return null;
   
-  // For 5+ bedrooms, scale by 15% per bedroom above 4
-  if (b > 4) {
-    return base * Math.pow(1.15, b - 4);
-  }
-  
   return base;
 }
+

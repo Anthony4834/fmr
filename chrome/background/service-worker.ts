@@ -1,6 +1,6 @@
 // Background service worker for the extension
 
-console.log('[FMR Extension] Service worker loaded');
+// Service worker initialized
 
 // Handle extension installation
 chrome.runtime.onInstalled.addListener((details) => {
@@ -19,8 +19,10 @@ chrome.runtime.onInstalled.addListener((details) => {
       overrideMortgageRate: false,
       propertyTaxRateAnnualPct: null,
       mortgageRateAnnualPct: null,
-      showBadgeOnAllPages: true,
-      badgePosition: 'near-address',
+      enabledSites: {
+        redfin: true,
+        zillow: true,
+      },
     });
   }
 });
@@ -30,3 +32,4 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // Handle any messages if needed in the future
   return true; // Keep message channel open for async responses
 });
+

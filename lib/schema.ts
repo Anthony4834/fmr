@@ -218,6 +218,18 @@ export async function createSchema() {
     );
   `);
 
+  // Cached mortgage rates (fetched daily from API Ninjas)
+  await execute(`
+    CREATE TABLE IF NOT EXISTS mortgage_rates (
+      id SERIAL PRIMARY KEY,
+      rate_type VARCHAR(50) NOT NULL DEFAULT '30_year_fixed',
+      rate_annual_pct NUMERIC(10, 6) NOT NULL,
+      source VARCHAR(100) NOT NULL DEFAULT 'API Ninjas',
+      fetched_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+
   // Create indexes
   console.log("Creating indexes...");
 
@@ -339,6 +351,14 @@ export async function createSchema() {
   );
   await execute(
     "CREATE INDEX IF NOT EXISTS idx_acs_tax_rate ON acs_tax_zcta_latest(effective_tax_rate);"
+  );
+
+  // Mortgage rate indexes
+  await execute(
+    "CREATE INDEX IF NOT EXISTS idx_mortgage_rates_fetched_at ON mortgage_rates(fetched_at DESC);"
+  );
+  await execute(
+    "CREATE INDEX IF NOT EXISTS idx_mortgage_rates_type_fetched ON mortgage_rates(rate_type, fetched_at DESC);"
   );
 
   // Section 8 Investment Score (precomputed for fast lookups)

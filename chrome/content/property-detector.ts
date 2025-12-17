@@ -47,10 +47,64 @@ export function extractBedrooms(): number | null {
   
   if (site === 'zillow') {
     if (isDetail) {
+      // For detail pages, try multiple approaches to find bedrooms
+      
+      // Approach 1: Try bed-bath-sqft-text structure (mobile/desktop)
+      const mobileContainer = document.querySelector('[data-testid="mobile-bed-bath-sqft"]');
+      const desktopContainer = document.querySelector('[data-testid="desktop-bed-bath-sqft"]');
+      
+      for (const container of [mobileContainer, desktopContainer].filter(Boolean)) {
+        const firstContainer = container?.querySelector('[data-testid="bed-bath-sqft-text__container"]');
+        if (firstContainer) {
+          const valueElement = firstContainer.querySelector('[data-testid="bed-bath-sqft-text__value"]');
+          if (valueElement) {
+            const valueText = valueElement.textContent?.trim() || '';
+            // Check for "—" or other non-numeric indicators
+            if (!valueText.includes('—') && !valueText.toLowerCase().includes('n/a') && valueText.length > 0) {
+              const count = parseInt(valueText, 10);
+              if (!isNaN(count) && count >= 0 && count <= 8) {
+                return count;
+              }
+            }
+          }
+        }
+      }
+      
+      // Approach 2: Try direct bed-bath-sqft-text__container (first one is beds)
+      const allContainers = document.querySelectorAll('[data-testid="bed-bath-sqft-text__container"]');
+      if (allContainers.length > 0) {
+        const firstContainer = allContainers[0];
+        const valueElement = firstContainer.querySelector('[data-testid="bed-bath-sqft-text__value"]');
+        if (valueElement) {
+          const valueText = valueElement.textContent?.trim() || '';
+          if (!valueText.includes('—') && !valueText.toLowerCase().includes('n/a') && valueText.length > 0) {
+            const count = parseInt(valueText, 10);
+            if (!isNaN(count) && count >= 0 && count <= 8) {
+              return count;
+            }
+          }
+        }
+      }
+      
+      // Approach 3: Try to find elements with "bed" or "beds" text
+      const bedElements = document.querySelectorAll('[data-testid*="bed"], [class*="bed"]');
+      for (const element of Array.from(bedElements)) {
+        const text = element.textContent || '';
+        const match = text.match(/(\d+)\s*(?:bed|bd|br|bedroom)/i);
+        if (match) {
+          const count = parseInt(match[1], 10);
+          if (!isNaN(count) && count >= 0 && count <= 8) {
+            return count;
+          }
+        }
+      }
+      
+      // Fallback to other selectors
       selectors = [
         '[data-testid="bed-bath-item"] [data-testid="bed"]',
         '.ds-bed-bath-living-area-container [data-testid="bed"]',
         '.ds-bed-bath-living-area-row [data-testid="bed"]',
+        '[data-testid="bed"]',
       ];
     } else {
       selectors = [
@@ -135,8 +189,21 @@ export function extractPrice(): number | null {
   
   if (site === 'zillow') {
     if (isDetail) {
+      // Try price-text class first (matches the HTML structure)
+      const priceTextElement = document.querySelector('[data-testid="home-info"] .price-text') || 
+                               document.querySelector('.price-text');
+      if (priceTextElement) {
+        const text = priceTextElement.textContent || '';
+        const price = parsePrice(text);
+        if (price !== null) {
+          return price;
+        }
+      }
+      
+      // Fallback to other selectors
       selectors = [
         '[data-testid="price"]',
+        '[data-testid="home-info"] [data-testid="price"]',
         '.ds-price',
         '.ds-summary-row span[aria-label*="$"]',
       ];
@@ -252,3 +319,250 @@ export function extractPropertyData(): PropertyData {
     price: extractPrice(),
   };
 }
+
+/**
+ * Extract address from a Redfin card element
+ */
+export function extractAddressFromCard(cardElement: HTMLElement): string | null {
+  // Try the address link
+  const addressLink = cardElement.querySelector('.bp-Homecard__Address');
+  if (addressLink) {
+    const text = addressLink.textContent?.trim();
+    if (text && text.length > 5) {
+      return text;
+    }
+  }
+  return null;
+}
+
+/**
+ * Extract bedrooms from a Redfin card element
+ */
+export function extractBedroomsFromCard(cardElement: HTMLElement): number | null {
+  const bedsElement = cardElement.querySelector('.bp-Homecard__Stats--beds');
+  if (bedsElement) {
+    const text = bedsElement.textContent || '';
+    // Check for "—" or other non-numeric indicators
+    if (text.includes('—') || text.trim() === '' || text.toLowerCase().includes('n/a')) {
+      return null;
+    }
+    const match = text.match(/(\d+)\s*(?:bed|bd|br|bedroom)/i);
+    if (match) {
+      const count = parseInt(match[1], 10);
+      if (!isNaN(count) && count >= 0 && count <= 8) {
+        return count;
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Extract price from a Redfin card element
+ */
+export function extractPriceFromCard(cardElement: HTMLElement): number | null {
+  // Try the price value element
+  const priceElement = cardElement.querySelector('.bp-Homecard__Price--value');
+  if (priceElement) {
+    const text = priceElement.textContent || '';
+    const price = parsePrice(text);
+    if (price !== null) return price;
+  }
+  
+  // Fallback: try the whole price container
+  const priceContainer = cardElement.querySelector('.bp-Homecard__Price');
+  if (priceContainer) {
+    const text = priceContainer.textContent || '';
+    const price = parsePrice(text);
+    if (price !== null) return price;
+  }
+  
+  return null;
+}
+
+/**
+ * Extract property data from a Redfin card element
+ */
+export function extractPropertyDataFromCard(cardElement: HTMLElement): {
+  address: string | null;
+  bedrooms: number | null;
+  price: number | null;
+} {
+  return {
+    address: extractAddressFromCard(cardElement),
+    bedrooms: extractBedroomsFromCard(cardElement),
+    price: extractPriceFromCard(cardElement),
+  };
+}
+
+/**
+ * Extract address from a Zillow card element
+ */
+export function extractAddressFromZillowCard(cardElement: HTMLElement): string | null {
+  // Try the address element inside the property-card-link
+  const addressElement = cardElement.querySelector('address');
+  if (addressElement) {
+    const text = addressElement.textContent?.trim();
+    if (text && text.length > 5) {
+      return text;
+    }
+  }
+  return null;
+}
+
+/**
+ * Extract bedrooms from a Zillow card element
+ */
+export function extractBedroomsFromZillowCard(cardElement: HTMLElement): number | null {
+  // Bedrooms are in [data-testid="property-card-details"] > li > b (first li)
+  const detailsList = cardElement.querySelector('[data-testid="property-card-details"]');
+  if (detailsList) {
+    const firstLi = detailsList.querySelector('li');
+    if (firstLi) {
+      const boldElement = firstLi.querySelector('b');
+      if (boldElement) {
+        const text = boldElement.textContent?.trim();
+        if (text) {
+          // Check for "—" or other non-numeric indicators
+          if (text.includes('—') || text.toLowerCase().includes('n/a')) {
+            return null;
+          }
+          const count = parseInt(text, 10);
+          if (!isNaN(count) && count >= 0 && count <= 8) {
+            return count;
+          }
+        }
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Extract price from a Zillow card element
+ */
+export function extractPriceFromZillowCard(cardElement: HTMLElement): number | null {
+  // Try the price element with data-test attribute
+  const priceElement = cardElement.querySelector('[data-test="property-card-price"]');
+  if (priceElement) {
+    const text = priceElement.textContent || '';
+    const price = parsePrice(text);
+    if (price !== null) return price;
+  }
+  
+  // Fallback: try the styled price line
+  const priceLine = cardElement.querySelector('.PropertyCardWrapper__StyledPriceLine-srp-8-109-3__sc-16e8gqd-1');
+  if (priceLine) {
+    const text = priceLine.textContent || '';
+    const price = parsePrice(text);
+    if (price !== null) return price;
+  }
+  
+  return null;
+}
+
+/**
+ * Extract property data from a Zillow card element
+ */
+export function extractPropertyDataFromZillowCard(cardElement: HTMLElement): {
+  address: string | null;
+  bedrooms: number | null;
+  price: number | null;
+} {
+  return {
+    address: extractAddressFromZillowCard(cardElement),
+    bedrooms: extractBedroomsFromZillowCard(cardElement),
+    price: extractPriceFromZillowCard(cardElement),
+  };
+}
+
+/**
+ * Extract address from Zillow expanded view
+ */
+export function extractAddressFromZillowExpanded(container: HTMLElement): string | null {
+  // Try multiple selectors for AddressWrapper (class names may vary)
+  const addressWrappers = [
+    container.querySelector('.styles__AddressWrapper-fshdp-8-112-0__sc-13x5vko-0'),
+    container.querySelector('[class*="AddressWrapper"]'),
+    container.querySelector('[class*="address-wrapper"]'),
+  ].filter(Boolean) as HTMLElement[];
+  
+  for (const addressWrapper of addressWrappers) {
+    const h1 = addressWrapper.querySelector('h1');
+    if (h1) {
+      const text = h1.textContent?.trim();
+      if (text && text.length > 5) {
+        return text;
+      }
+    }
+  }
+  
+  // Fallback: try any h1 with address-like text
+  const h1Elements = container.querySelectorAll('h1');
+  for (const h1 of Array.from(h1Elements)) {
+    const text = h1.textContent?.trim();
+    if (text && text.length > 5 && text.includes(',')) {
+      return text;
+    }
+  }
+  return null;
+}
+
+/**
+ * Extract bedrooms from Zillow expanded view
+ */
+export function extractBedroomsFromZillowExpanded(container: HTMLElement): number | null {
+  // Bedrooms are in [data-testid="bed-bath-sqft-facts"] > first [data-testid="bed-bath-sqft-fact-container"]
+  const factsContainer = container.querySelector('[data-testid="bed-bath-sqft-facts"]');
+  if (factsContainer) {
+    const firstFact = factsContainer.querySelector('[data-testid="bed-bath-sqft-fact-container"]');
+    if (firstFact) {
+      // The value is in a span with class containing "StyledValueText"
+      const valueSpan = firstFact.querySelector('span[class*="StyledValueText"]');
+      if (valueSpan) {
+        const text = valueSpan.textContent?.trim();
+        if (text) {
+          // Check for "—" or other non-numeric indicators
+          if (text.includes('—') || text.toLowerCase().includes('n/a')) {
+            return null;
+          }
+          const count = parseInt(text, 10);
+          if (!isNaN(count) && count >= 0 && count <= 8) {
+            return count;
+          }
+        }
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Extract price from Zillow expanded view
+ */
+export function extractPriceFromZillowExpanded(container: HTMLElement): number | null {
+  // Price is in [data-testid="price"]
+  const priceElement = container.querySelector('[data-testid="price"]');
+  if (priceElement) {
+    const text = priceElement.textContent || '';
+    const price = parsePrice(text);
+    if (price !== null) return price;
+  }
+  return null;
+}
+
+/**
+ * Extract property data from Zillow expanded view
+ */
+export function extractPropertyDataFromZillowExpanded(container: HTMLElement): {
+  address: string | null;
+  bedrooms: number | null;
+  price: number | null;
+} {
+  return {
+    address: extractAddressFromZillowExpanded(container),
+    bedrooms: extractBedroomsFromZillowExpanded(container),
+    price: extractPriceFromZillowExpanded(container),
+  };
+}
+

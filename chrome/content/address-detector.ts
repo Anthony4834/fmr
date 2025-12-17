@@ -31,16 +31,18 @@ function isDetailPage(): boolean {
 export function extractAddress(): string | null {
   const site = detectSite();
   const isDetail = isDetailPage();
-  console.log('[FMR Extension] Detected site:', site, 'isDetail:', isDetail);
   
   let selectors: string[] = [];
   
   if (site === 'zillow') {
     if (isDetail) {
       selectors = [
+        '[data-testid="home-info"] h1',
         'h1[data-testid="address"]',
         'h1.property-address',
         '[data-testid="zpid-address"]',
+        '[data-testid="home-info"] .Text-c11n-8-112-0__sc-aiai24-0',
+        'h1.Text-c11n-8-112-0__sc-aiai24-0',
       ];
     } else {
       selectors = [
@@ -154,3 +156,4 @@ export function extractZipFromAddress(address: string): string | null {
   
   return null;
 }
+

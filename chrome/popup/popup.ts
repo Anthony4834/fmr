@@ -29,10 +29,10 @@ async function init() {
     prefs.propertyTaxRateAnnualPct !== null ? String(prefs.propertyTaxRateAnnualPct) : '';
   (document.getElementById('mortgage-rate') as HTMLInputElement).value = 
     prefs.mortgageRateAnnualPct !== null ? String(prefs.mortgageRateAnnualPct) : '';
-  (document.getElementById('show-badge-all-pages') as HTMLInputElement).checked = 
-    prefs.showBadgeOnAllPages;
-  (document.getElementById('badge-position') as HTMLSelectElement).value = 
-    prefs.badgePosition;
+  (document.getElementById('enable-redfin') as HTMLInputElement).checked = 
+    prefs.enabledSites?.redfin !== false;
+  (document.getElementById('enable-zillow') as HTMLInputElement).checked = 
+    prefs.enabledSites?.zillow !== false;
   
   // Show/hide conditional fields
   updateConditionalFields();
@@ -103,8 +103,10 @@ async function saveFormData() {
     mortgageRateAnnualPct: (document.getElementById('override-mortgage-rate') as HTMLInputElement).checked
       ? parseFloat((document.getElementById('mortgage-rate') as HTMLInputElement).value) || null
       : null,
-    showBadgeOnAllPages: (document.getElementById('show-badge-all-pages') as HTMLInputElement).checked,
-    badgePosition: (document.getElementById('badge-position') as HTMLSelectElement).value as 'near-address' | 'top-right' | 'bottom-right',
+    enabledSites: {
+      redfin: (document.getElementById('enable-redfin') as HTMLInputElement).checked,
+      zillow: (document.getElementById('enable-zillow') as HTMLInputElement).checked,
+    },
   };
   
   await savePreferences(prefs);
@@ -134,3 +136,4 @@ if (document.readyState === 'loading') {
 } else {
   init();
 }
+

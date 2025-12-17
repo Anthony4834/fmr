@@ -33,9 +33,11 @@ export interface ExtensionPreferences {
   // Custom line items for additional expenses
   customLineItems: CustomLineItem[];          // Default: []
 
-  // Display preferences
-  showBadgeOnAllPages: boolean;               // Default: true
-  badgePosition: 'near-address' | 'top-right' | 'bottom-right'; // Default: 'near-address'
+  // Website selection
+  enabledSites: {
+    redfin: boolean;                          // Default: true
+    zillow: boolean;                         // Default: true
+  };
 }
 
 export interface DetectedProperty {
@@ -64,6 +66,9 @@ export const DEFAULT_PREFERENCES: ExtensionPreferences = {
   propertyTaxRateAnnualPct: null,
   mortgageRateAnnualPct: null,
   customLineItems: [],
-  showBadgeOnAllPages: true,
-  badgePosition: 'near-address',
+  enabledSites: {
+    redfin: true,
+    zillow: true,
+  },
 };
+
