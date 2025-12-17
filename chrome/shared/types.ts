@@ -1,27 +1,38 @@
 // Shared types for the extension
 // These can reference types from the main app lib/types.ts
 
+export interface CustomLineItem {
+  id: string;
+  label: string;
+  method: 'percent' | 'amount';
+  percentOf?: 'purchasePrice' | 'rent' | 'downPayment'; // Only used if method is 'percent'
+  value: number;
+}
+
 export interface ExtensionPreferences {
   // Auto-detection overrides (used if detection fails or user prefers manual)
   bedrooms: number | null;                    // Default: null (auto-detect), fallback: 3
   purchasePrice: number | null;               // Default: null (auto-detect)
-  
+
   // Financial parameters (defaults used if auto-detected values not available)
   downPaymentPercent: number;                 // Default: 20
   insuranceMonthly: number;                   // Default: 100
   hoaMonthly: number;                         // Default: 0
-  
+
   // Property management
   propertyManagementMode: 'percent' | 'amount';
   propertyManagementPercent: number;          // Default: 10
   propertyManagementAmount: number;           // Default: 0
-  
+
   // Rate overrides (if true, use manual values instead of API-fetched)
   overrideTaxRate: boolean;                   // Default: false
   overrideMortgageRate: boolean;              // Default: false
   propertyTaxRateAnnualPct: number | null;    // Used if overrideTaxRate is true
   mortgageRateAnnualPct: number | null;       // Used if overrideMortgageRate is true
-  
+
+  // Custom line items for additional expenses
+  customLineItems: CustomLineItem[];          // Default: []
+
   // Display preferences
   showBadgeOnAllPages: boolean;               // Default: true
   badgePosition: 'near-address' | 'top-right' | 'bottom-right'; // Default: 'near-address'
@@ -52,6 +63,7 @@ export const DEFAULT_PREFERENCES: ExtensionPreferences = {
   overrideMortgageRate: false,
   propertyTaxRateAnnualPct: null,
   mortgageRateAnnualPct: null,
+  customLineItems: [],
   showBadgeOnAllPages: true,
   badgePosition: 'near-address',
 };

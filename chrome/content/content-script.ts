@@ -109,6 +109,7 @@ async function calculateCashFlow(
         percent: preferences.downPaymentPercent,
       },
       termMonths: 360,
+      customLineItems: preferences.customLineItems || [],
     });
     
     return result?.monthlyCashFlow ?? null;
@@ -223,13 +224,16 @@ async function processPage() {
 /**
  * Open mini view modal
  */
-function openMiniView(address: string, zipCode: string) {
+async function openMiniView(address: string, zipCode: string) {
   // Remove existing mini view if any
   const existingOverlay = document.querySelector('.fmr-mini-view-overlay');
   if (existingOverlay) {
     existingOverlay.remove();
   }
-  
+
+  // Get user preferences to pass to the main app
+  const preferences = await getPreferences();
+
   // Create overlay
   const overlay = document.createElement('div');
   overlay.className = 'fmr-mini-view-overlay';
@@ -242,20 +246,21 @@ function openMiniView(address: string, zipCode: string) {
     background: rgba(0, 0, 0, 0.5);
     z-index: 9999;
   `;
-  
+
   // Create mini view
   miniViewContainer = createMiniViewElement({
     address,
     zipCode,
+    preferences,
     onClose: () => {
       overlay.remove();
       miniViewContainer = null;
     },
   });
-  
+
   // Append to overlay
   overlay.appendChild(miniViewContainer);
-  
+
   // Close on overlay click
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) {
@@ -263,7 +268,7 @@ function openMiniView(address: string, zipCode: string) {
       miniViewContainer = null;
     }
   });
-  
+
   // Append to document
   document.body.appendChild(overlay);
 }

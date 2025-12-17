@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type { FMRResult } from '@/lib/types';
-import { computeIdealPurchasePrice, computeCashFlow, computeMaxPriceForCashFlow, type DownPaymentInput } from '@/lib/investment';
+import { computeIdealPurchasePrice, computeCashFlow, computeMaxPriceForCashFlow, type DownPaymentInput, type CustomLineItem } from '@/lib/investment';
 import type { IdealPurchasePriceResult } from '@/lib/investment';
 
 type MarketParams = {
@@ -191,17 +191,63 @@ function marketQueryForData(data: FMRResult): { zip?: string; county?: string; s
   return {};
 }
 
-export default function IdealPurchasePriceCard({ data }: { data: FMRResult | null }) {
+type ExtensionConfig = {
+  downPaymentPercent: number;
+  insuranceMonthly: number;
+  hoaMonthly: number;
+  propertyManagementMode: 'percent' | 'amount';
+  propertyManagementPercent: number;
+  propertyManagementAmount: number;
+  overrideTaxRate: boolean;
+  overrideMortgageRate: boolean;
+  propertyTaxRateAnnualPct: number | null;
+  mortgageRateAnnualPct: number | null;
+  customLineItems: CustomLineItem[];
+};
+
+export default function IdealPurchasePriceCard({ 
+  data, 
+  extensionConfig 
+}: { 
+  data: FMRResult | null;
+  extensionConfig?: ExtensionConfig | null;
+}) {
   const [prefs, setPrefs] = useState<PersistedPrefs>(DEFAULT_PREFS);
   const [prefsLoaded, setPrefsLoaded] = useState(false);
   const [market, setMarket] = useState<MarketParams | null>(null);
   const [marketError, setMarketError] = useState<string | null>(null);
   const [marketLoading, setMarketLoading] = useState(false);
   const [detailsExpanded, setDetailsExpanded] = useState(false);
+  const [customLineItems, setCustomLineItems] = useState<CustomLineItem[]>([]);
 
   useEffect(() => {
-    setPrefs(safeParsePrefs());
-    setPrefsLoaded(true);
+    if (extensionConfig) {
+      // When extension config is present, pre-populate fields and force cash flow mode
+      setPrefs({
+        mode: 'cashflow', // Force cash flow mode
+        purchasePrice: '200000', // Default, will be editable
+        desiredCashFlow: '200',
+        bedrooms: 2, // Default, will be editable
+        cashOnCashAnnualPct: '10',
+        downPaymentMode: 'percent',
+        downPaymentPercent: String(extensionConfig.downPaymentPercent),
+        downPaymentAmount: '50000',
+        insuranceMonthly: String(extensionConfig.insuranceMonthly),
+        hoaMonthly: String(extensionConfig.hoaMonthly),
+        propertyManagementMode: extensionConfig.propertyManagementMode,
+        propertyManagementPercent: String(extensionConfig.propertyManagementPercent),
+        propertyManagementAmount: String(extensionConfig.propertyManagementAmount),
+        overrideTaxRate: extensionConfig.overrideTaxRate,
+        overrideMortgageRate: extensionConfig.overrideMortgageRate,
+        taxRateAnnualPct: extensionConfig.propertyTaxRateAnnualPct !== null ? String(extensionConfig.propertyTaxRateAnnualPct) : '1.2',
+        mortgageRateAnnualPct: extensionConfig.mortgageRateAnnualPct !== null ? String(extensionConfig.mortgageRateAnnualPct) : '6.5',
+      });
+      setCustomLineItems(extensionConfig.customLineItems || []);
+      setPrefsLoaded(true);
+    } else {
+      setPrefs(safeParsePrefs());
+      setPrefsLoaded(true);
+    }
     // Load details expanded state
     if (typeof window !== 'undefined') {
       try {
@@ -213,7 +259,7 @@ export default function IdealPurchasePriceCard({ data }: { data: FMRResult | nul
         // ignore
       }
     }
-  }, []);
+  }, [extensionConfig]);
 
   useEffect(() => {
     if (!data || !canRenderForData(data)) return;
@@ -312,6 +358,7 @@ export default function IdealPurchasePriceCard({ data }: { data: FMRResult | nul
         propertyManagementMonthly: propertyManagementCost,
         downPayment,
         termMonths: 360,
+        customLineItems: extensionConfig ? customLineItems : undefined,
       });
     } else {
       // Calculate max purchase price given desired cash flow
@@ -333,7 +380,7 @@ export default function IdealPurchasePriceCard({ data }: { data: FMRResult | nul
         termMonths: 360,
       });
     }
-  }, [data, rentMonthly, taxRateAnnualPct, mortgageRateAnnualPct, prefs, downPayment, marketLoading, propertyManagementCost]);
+  }, [data, rentMonthly, taxRateAnnualPct, mortgageRateAnnualPct, prefs, downPayment, marketLoading, propertyManagementCost, extensionConfig, customLineItems]);
 
   const downPaymentPctForDisplay = parseNumberOrZero(prefs.downPaymentPercent);
   const purchasePriceForCalc = prefs.mode === 'cashflow' 
@@ -352,20 +399,22 @@ export default function IdealPurchasePriceCard({ data }: { data: FMRResult | nul
         <p className="text-xs text-[#737373]">Based on HUD rent + your assumptions</p>
       </div>
 
-      {/* Mode selector */}
-      <div className="mb-4">
-        <label className="block">
-          <div className="text-xs font-semibold text-[#0a0a0a] mb-1">Calculation mode</div>
-          <select
-            value={prefs.mode}
-            onChange={(e) => setPrefs((p) => ({ ...p, mode: e.target.value as 'cashflow' | 'maxprice' }))}
-            className="w-full px-3 py-2 rounded-lg border border-[#e5e5e5] bg-white text-sm"
-          >
-            <option value="cashflow">Calculate Cash Flow</option>
-            <option value="maxprice">Calculate Max Price</option>
-          </select>
-        </label>
-      </div>
+      {/* Mode selector - hidden when extension config is present */}
+      {!extensionConfig && (
+        <div className="mb-4">
+          <label className="block">
+            <div className="text-xs font-semibold text-[#0a0a0a] mb-1">Calculation mode</div>
+            <select
+              value={prefs.mode}
+              onChange={(e) => setPrefs((p) => ({ ...p, mode: e.target.value as 'cashflow' | 'maxprice' }))}
+              className="w-full px-3 py-2 rounded-lg border border-[#e5e5e5] bg-white text-sm"
+            >
+              <option value="cashflow">Calculate Cash Flow</option>
+              <option value="maxprice">Calculate Max Price</option>
+            </select>
+          </label>
+        </div>
+      )}
 
       {/* Output */}
       <div className="rounded-lg border border-[#e5e5e5] bg-[#fafafa] p-3 sm:p-4">
@@ -534,7 +583,7 @@ export default function IdealPurchasePriceCard({ data }: { data: FMRResult | nul
                 className="w-full px-3 py-2 rounded-lg border border-[#e5e5e5] bg-white text-sm tabular-nums"
               />
             </label>
-          ) : (
+          ) : extensionConfig ? null : (
             <label className="block">
               <div className="text-xs font-semibold text-[#0a0a0a] mb-1">Cash flow</div>
               <input
@@ -646,6 +695,42 @@ export default function IdealPurchasePriceCard({ data }: { data: FMRResult | nul
             </label>
           )}
         </div>
+
+        {/* Custom Line Items - only shown when extension config is present */}
+        {extensionConfig && customLineItems.length > 0 && (
+          <div className="pt-2 border-t border-[#e5e5e5] space-y-2">
+            <div className="text-xs font-semibold text-[#0a0a0a] mb-2">Custom Expenses</div>
+            {customLineItems.map((item) => {
+              const itemValue = item.method === 'amount' 
+                ? item.value 
+                : item.percentOf === 'purchasePrice' 
+                  ? (parseNumberOrZero(prefs.purchasePrice) * (item.value / 100))
+                  : item.percentOf === 'rent'
+                    ? (rentMonthlyRaw ? rentMonthlyRaw * (item.value / 100) : 0)
+                    : (downPaymentDollars * (item.value / 100));
+              
+              return (
+                <div key={item.id} className="flex items-center justify-between p-2 bg-[#fafafa] rounded border border-[#e5e5e5]">
+                  <div className="flex-1">
+                    <div className="text-xs font-medium text-[#0a0a0a]">{item.label}</div>
+                    <div className="text-xs text-[#737373]">
+                      {item.method === 'amount' 
+                        ? `${formatCurrency(item.value)}/month`
+                        : `${item.value}% of ${
+                            item.percentOf === 'purchasePrice' ? 'Purchase Price' :
+                            item.percentOf === 'rent' ? 'Monthly Rent' :
+                            'Down Payment'
+                          }`}
+                    </div>
+                  </div>
+                  <div className="text-xs font-semibold text-[#525252] tabular-nums">
+                    {formatCurrency(itemValue)}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         <div className="pt-2 border-t border-[#e5e5e5] space-y-2">
           <div className="flex items-center justify-between gap-2">

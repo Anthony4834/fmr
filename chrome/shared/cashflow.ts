@@ -1,5 +1,7 @@
 // Cash flow calculation logic (replicated from lib/investment.ts)
 
+import { CustomLineItem } from './types';
+
 export interface DownPaymentInput {
   mode: 'percent' | 'amount';
   percent?: number;
@@ -17,6 +19,7 @@ export interface CashFlowInputs {
   propertyManagementMonthly?: number; // Property management fee
   downPayment: DownPaymentInput;
   termMonths?: number; // default 360
+  customLineItems?: CustomLineItem[]; // Additional custom expenses
 }
 
 export interface CashFlowResult {
@@ -97,10 +100,28 @@ export function computeCashFlow(input: CashFlowInputs): CashFlowResult | null {
   const monthlyTaxes = t * P;
   const monthlyExpenses = I + H + monthlyTaxes + PM;
   const netBeforeDebt = R - monthlyExpenses;
-  const monthlyCashFlow = netBeforeDebt - monthlyMortgagePayment;
-  
+
+  // Calculate custom line items
+  let customExpensesMonthly = 0;
+  if (input.customLineItems && input.customLineItems.length > 0) {
+    for (const item of input.customLineItems) {
+      if (item.method === 'amount') {
+        customExpensesMonthly += item.value;
+      } else if (item.method === 'percent' && item.percentOf) {
+        const baseValue =
+          item.percentOf === 'purchasePrice' ? P :
+          item.percentOf === 'rent' ? R :
+          item.percentOf === 'downPayment' ? (P - L) :
+          0;
+        customExpensesMonthly += baseValue * (item.value / 100);
+      }
+    }
+  }
+
+  const monthlyCashFlow = netBeforeDebt - monthlyMortgagePayment - customExpensesMonthly;
+
   if (bedrooms > 4) notes.push('Using HUD 5+ bedroom rent scaling (+15% per bedroom above 4BR).');
-  
+
   return {
     monthlyCashFlow,
     loanAmount: L,

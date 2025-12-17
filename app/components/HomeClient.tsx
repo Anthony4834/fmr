@@ -105,6 +105,7 @@ export default function HomeClient(props: {
   initialData?: FMRResult | null;
   initialError?: string | null;
   initialState?: string | null;
+  extensionConfig?: string;
 }) {
   const router = useRouter();
   const mainCardRef = useRef<HTMLDivElement | null>(null);
@@ -113,6 +114,45 @@ export default function HomeClient(props: {
   const drilldownHistoryCacheRef = useRef<Map<string, any>>(new Map());
   const addressAbortRef = useRef<AbortController | null>(null);
   const addressReqSeqRef = useRef(0);
+
+  // Parse and validate extension config from URL params
+  const [parsedExtensionConfig, setParsedExtensionConfig] = useState<any>(null);
+
+  useEffect(() => {
+    if (props.extensionConfig) {
+      try {
+        // Decode from base64
+        const configJson = atob(decodeURIComponent(props.extensionConfig));
+        const config = JSON.parse(configJson);
+
+        // Validate and sanitize config
+        const validatedConfig = {
+          downPaymentPercent: typeof config.downPaymentPercent === 'number' && config.downPaymentPercent >= 0 && config.downPaymentPercent <= 100 ? config.downPaymentPercent : 20,
+          insuranceMonthly: typeof config.insuranceMonthly === 'number' && config.insuranceMonthly >= 0 ? config.insuranceMonthly : 100,
+          hoaMonthly: typeof config.hoaMonthly === 'number' && config.hoaMonthly >= 0 ? config.hoaMonthly : 0,
+          propertyManagementMode: config.propertyManagementMode === 'percent' || config.propertyManagementMode === 'amount' ? config.propertyManagementMode : 'percent',
+          propertyManagementPercent: typeof config.propertyManagementPercent === 'number' && config.propertyManagementPercent >= 0 && config.propertyManagementPercent <= 100 ? config.propertyManagementPercent : 10,
+          propertyManagementAmount: typeof config.propertyManagementAmount === 'number' && config.propertyManagementAmount >= 0 ? config.propertyManagementAmount : 0,
+          overrideTaxRate: typeof config.overrideTaxRate === 'boolean' ? config.overrideTaxRate : false,
+          overrideMortgageRate: typeof config.overrideMortgageRate === 'boolean' ? config.overrideMortgageRate : false,
+          propertyTaxRateAnnualPct: typeof config.propertyTaxRateAnnualPct === 'number' && config.propertyTaxRateAnnualPct >= 0 ? config.propertyTaxRateAnnualPct : null,
+          mortgageRateAnnualPct: typeof config.mortgageRateAnnualPct === 'number' && config.mortgageRateAnnualPct >= 0 ? config.mortgageRateAnnualPct : null,
+          customLineItems: Array.isArray(config.customLineItems) ? config.customLineItems.map((item: any) => ({
+            id: String(item.id || Date.now()),
+            label: String(item.label || 'Custom Expense'),
+            method: item.method === 'percent' || item.method === 'amount' ? item.method : 'amount',
+            percentOf: item.percentOf === 'purchasePrice' || item.percentOf === 'rent' || item.percentOf === 'downPayment' ? item.percentOf : 'purchasePrice',
+            value: typeof item.value === 'number' && item.value >= 0 ? item.value : 0,
+          })) : [],
+        };
+
+        setParsedExtensionConfig(validatedConfig);
+      } catch (error) {
+        console.error('Failed to parse extension config:', error);
+        setParsedExtensionConfig(null);
+      }
+    }
+  }, [props.extensionConfig]);
 
   const computeInitial = () => {
     const q = props.initialQuery?.trim() || '';
@@ -592,7 +632,7 @@ export default function HomeClient(props: {
               <div className="w-full lg:w-[420px] flex-shrink-0 lg:sticky lg:top-8 lg:self-start">
                 <div className="flex flex-col gap-4 sm:gap-6">
                   {/* Ideal Purchase Price Card */}
-                  <IdealPurchasePriceCard data={viewFmrData} />
+                  <IdealPurchasePriceCard data={viewFmrData} extensionConfig={parsedExtensionConfig} />
 
                   {/* ZIP Code Ranking Card (hide when drilled into a ZIP) */}
                   {!drilldownZip && (zipRankings && zipRankings.length > 0 || zipScoresLoading) && (

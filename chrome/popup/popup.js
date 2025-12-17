@@ -150,8 +150,175 @@ function showMessage(message) {
   setTimeout(() => msg.remove(), 2000);
 }
 
+
+// Custom Line Items Management
+let currentEditingItemId = null;
+let customLineItems = [];
+
+function renderCustomItems() {
+  const container = document.getElementById('custom-items-list');
+  if (!container) return;
+
+  if (customLineItems.length === 0) {
+    container.innerHTML = '<p style="font-size: 12px; color: #737373; text-align: center; padding: 12px 0;">No custom expenses added yet</p>';
+    return;
+  }
+
+  container.innerHTML = customLineItems.map(item => {
+    let details = '';
+    if (item.method === 'amount') {
+      details = `$${item.value.toFixed(2)}/month`;
+    } else {
+      const percentOfLabel = 
+        item.percentOf === 'purchasePrice' ? 'Purchase Price' :
+        item.percentOf === 'rent' ? 'Monthly Rent' :
+        item.percentOf === 'downPayment' ? 'Down Payment' : '';
+      details = `${item.value}% of ${percentOfLabel}`;
+    }
+
+    return `
+      <div class="custom-item">
+        <div class="custom-item-info">
+          <div class="custom-item-label">${item.label}</div>
+          <div class="custom-item-details">${details}</div>
+        </div>
+        <div class="custom-item-actions">
+          <button type="button" class="icon-btn edit" data-id="${item.id}">Edit</button>
+          <button type="button" class="icon-btn delete" data-id="${item.id}">Delete</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Attach event listeners
+  container.querySelectorAll('.edit').forEach(btn => {
+    btn.addEventListener('click', () => editCustomItem(btn.dataset.id));
+  });
+  container.querySelectorAll('.delete').forEach(btn => {
+    btn.addEventListener('click', () => deleteCustomItem(btn.dataset.id));
+  });
+}
+
+function openCustomItemModal(itemId = null) {
+  const modal = document.getElementById('custom-item-modal');
+  const form = document.getElementById('custom-item-form');
+  const titleEl = document.getElementById('modal-title');
+
+  currentEditingItemId = itemId;
+
+  if (itemId) {
+    titleEl.textContent = 'Edit Custom Expense';
+    const item = customLineItems.find(i => i.id === itemId);
+    if (item) {
+      document.getElementById('custom-item-label').value = item.label;
+      document.getElementById('custom-item-method').value = item.method;
+      document.getElementById('custom-item-value').value = item.value;
+      if (item.method === 'percent') {
+        document.getElementById('custom-item-percent-of').value = item.percentOf || 'purchasePrice';
+      }
+      updateCustomItemMethodUI();
+    }
+  } else {
+    titleEl.textContent = 'Add Custom Expense';
+    form.reset();
+    updateCustomItemMethodUI();
+  }
+
+  modal.style.display = 'flex';
+}
+
+function closeCustomItemModal() {
+  document.getElementById('custom-item-modal').style.display = 'none';
+  document.getElementById('custom-item-form').reset();
+  currentEditingItemId = null;
+}
+
+function updateCustomItemMethodUI() {
+  const method = document.getElementById('custom-item-method').value;
+  const percentOfGroup = document.getElementById('custom-item-percent-of-group');
+  const valueLabel = document.getElementById('custom-item-value-label');
+
+  if (method === 'percent') {
+    percentOfGroup.style.display = 'block';
+    valueLabel.textContent = 'Percentage (%)';
+  } else {
+    percentOfGroup.style.display = 'none';
+    valueLabel.textContent = 'Amount ($)';
+  }
+}
+
+function saveCustomItem(e) {
+  e.preventDefault();
+
+  const label = document.getElementById('custom-item-label').value;
+  const method = document.getElementById('custom-item-method').value;
+  const value = parseFloat(document.getElementById('custom-item-value').value);
+  const percentOf = method === 'percent' ? document.getElementById('custom-item-percent-of').value : undefined;
+
+  const newItem = {
+    id: currentEditingItemId || Date.now().toString(),
+    label,
+    method,
+    value,
+    percentOf,
+  };
+
+  if (currentEditingItemId) {
+    // Edit existing
+    const index = customLineItems.findIndex(i => i.id === currentEditingItemId);
+    if (index !== -1) {
+      customLineItems[index] = newItem;
+    }
+  } else {
+    // Add new
+    customLineItems.push(newItem);
+  }
+
+  // Save to storage
+  chrome.storage.sync.set({ customLineItems }, () => {
+    renderCustomItems();
+    closeCustomItemModal();
+    showMessage('Custom expense saved');
+  });
+}
+
+function editCustomItem(itemId) {
+  openCustomItemModal(itemId);
+}
+
+function deleteCustomItem(itemId) {
+  if (!confirm('Are you sure you want to delete this custom expense?')) {
+    return;
+  }
+
+  customLineItems = customLineItems.filter(i => i.id !== itemId);
+  chrome.storage.sync.set({ customLineItems }, () => {
+    renderCustomItems();
+    showMessage('Custom expense deleted');
+  });
+}
+
+// Initialize custom items event listeners
+function initCustomItems() {
+  document.getElementById('add-custom-item-btn')?.addEventListener('click', () => openCustomItemModal());
+  document.getElementById('modal-close-btn')?.addEventListener('click', closeCustomItemModal);
+  document.getElementById('modal-cancel-btn')?.addEventListener('click', closeCustomItemModal);
+  document.getElementById('custom-item-form')?.addEventListener('submit', saveCustomItem);
+  document.getElementById('custom-item-method')?.addEventListener('change', updateCustomItemMethodUI);
+
+  // Load custom items from storage
+  chrome.storage.sync.get(['customLineItems'], (items) => {
+    customLineItems = items.customLineItems || [];
+    renderCustomItems();
+  });
+}
+
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', init);
+  document.addEventListener('DOMContentLoaded', () => {
+    init();
+    initCustomItems();
+  });
 } else {
   init();
+  initCustomItems();
 }

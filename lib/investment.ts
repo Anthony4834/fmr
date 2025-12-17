@@ -2,6 +2,14 @@ export type DownPaymentInput =
   | { mode: 'percent'; percent: number }
   | { mode: 'amount'; amount: number };
 
+export type CustomLineItem = {
+  id: string;
+  label: string;
+  method: 'percent' | 'amount';
+  percentOf?: 'purchasePrice' | 'rent' | 'downPayment';
+  value: number;
+};
+
 export type IdealPurchasePriceInputs = {
   rentMonthly: number;
   bedrooms: number; // 0..8
@@ -25,6 +33,7 @@ export type MaxPriceInputs = {
   desiredCashFlowMonthly: number; // Desired monthly cash flow in dollars
   downPayment: DownPaymentInput;
   termMonths?: number; // default 360
+  customLineItems?: CustomLineItem[]; // Additional custom expenses
 };
 
 export type IdealPurchasePriceResult = {
@@ -46,6 +55,7 @@ export type CashFlowInputs = {
   propertyManagementMonthly?: number; // Property management fee
   downPayment: DownPaymentInput;
   termMonths?: number; // default 360
+  customLineItems?: CustomLineItem[]; // Additional custom expenses
 };
 
 export type CashFlowResult = {
@@ -244,10 +254,28 @@ export function computeCashFlow(input: CashFlowInputs): CashFlowResult | null {
   const monthlyTaxes = t * P;
   const monthlyExpenses = I + H + monthlyTaxes + PM;
   const netBeforeDebt = R - monthlyExpenses;
-  const monthlyCashFlow = netBeforeDebt - monthlyMortgagePayment;
-  
+
+  // Calculate custom line items
+  let customExpensesMonthly = 0;
+  if (input.customLineItems && input.customLineItems.length > 0) {
+    for (const item of input.customLineItems) {
+      if (item.method === 'amount') {
+        customExpensesMonthly += item.value;
+      } else if (item.method === 'percent' && item.percentOf) {
+        const baseValue =
+          item.percentOf === 'purchasePrice' ? P :
+          item.percentOf === 'rent' ? R :
+          item.percentOf === 'downPayment' ? (P - L) :
+          0;
+        customExpensesMonthly += baseValue * (item.value / 100);
+      }
+    }
+  }
+
+  const monthlyCashFlow = netBeforeDebt - monthlyMortgagePayment - customExpensesMonthly;
+
   if (bedrooms > 4) notes.push('Using HUD 5+ bedroom rent scaling (+15% per bedroom above 4BR).');
-  
+
   return {
     monthlyCashFlow,
     loanAmount: L,
@@ -293,29 +321,50 @@ export function computeMaxPriceForCashFlow(input: MaxPriceInputs): IdealPurchase
   const factor = paymentFactorPerDollarLoan(rm, n);
   if (!Number.isFinite(factor) || factor <= 0) return null;
   
-  // Cash flow = R - (Mortgage + Taxes + Insurance + HOA + PM)
-  // Cash flow = R - (factor*L + t*P + I + H + PM)
-  
+  // Cash flow = R - (Mortgage + Taxes + Insurance + HOA + PM + CustomItems)
+  // Cash flow = R - (factor*L + t*P + I + H + PM + CustomItems)
+
+  // Calculate custom line items that don't depend on P
+  let customFixed = 0;
+  let customRentPct = 0;
+  let customPricePct = 0;
+  let customDownPct = 0;
+
+  if (input.customLineItems && input.customLineItems.length > 0) {
+    for (const item of input.customLineItems) {
+      if (item.method === 'amount') {
+        customFixed += item.value;
+      } else if (item.method === 'percent' && item.percentOf) {
+        if (item.percentOf === 'rent') {
+          customRentPct += item.value;
+        } else if (item.percentOf === 'purchasePrice') {
+          customPricePct += item.value;
+        } else if (item.percentOf === 'downPayment') {
+          customDownPct += item.value;
+        }
+      }
+    }
+  }
+
   let P: number;
   let L: number;
-  
+
   if (input.downPayment.mode === 'percent') {
     const d = Number(input.downPayment.percent) / 100;
     if (!Number.isFinite(d) || d <= 0 || d >= 1) return null;
-    
+
     // L = (1-d)*P
-    // Cash flow = R - (factor*(1-d)*P + t*P + I + H + PM)
-    // Cash flow = R - P*(factor*(1-d) + t) - I - H - PM
-    // P*(factor*(1-d) + t) = R - I - H - PM - Cash flow
-    // P = (R - I - H - PM - Cash flow) / (factor*(1-d) + t)
-    const denom = factor * (1 - d) + t;
-    const numer = R - I - H - PM - desiredCashFlow;
-    
+    // Cash flow = R - (factor*(1-d)*P + t*P + I + H + PM + customFixed + R*customRentPct/100 + P*customPricePct/100 + d*P*customDownPct/100)
+    // Cash flow = R - P*(factor*(1-d) + t + customPricePct/100 + d*customDownPct/100) - I - H - PM - customFixed - R*customRentPct/100
+    // P*(factor*(1-d) + t + customPricePct/100 + d*customDownPct/100) = R - I - H - PM - customFixed - R*customRentPct/100 - Cash flow
+    const denom = factor * (1 - d) + t + (customPricePct / 100) + (d * customDownPct / 100);
+    const numer = R - I - H - PM - customFixed - (R * customRentPct / 100) - desiredCashFlow;
+
     if (denom <= 0 || numer <= 0) return null;
-    
+
     P = numer / denom;
     if (!Number.isFinite(P) || P <= 0) return null;
-    
+
     L = (1 - d) * P;
   } else {
     const D = Number(input.downPayment.amount);

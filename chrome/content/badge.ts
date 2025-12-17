@@ -44,14 +44,14 @@ export function createBadgeElement(props: BadgeProps): HTMLElement {
   } else {
     const isPositive = props.cashFlow >= 0;
     const color = isPositive ? '#16a34a' : '#dc2626';
-    const sign = isPositive ? '+' : '';
+    const sign = isPositive ? '+' : '-';
     const formatted = new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(Math.abs(props.cashFlow));
-    
+
     badge.innerHTML = `
       <span style="color: #737373; margin-right: 4px;">Cash Flow:</span>
       <span style="color: ${color}; font-weight: 600;">${sign}${formatted}/mo</span>
