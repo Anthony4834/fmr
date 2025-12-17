@@ -109,6 +109,7 @@ export default function HomeClient(props: {
 }) {
   const router = useRouter();
   const mainCardRef = useRef<HTMLDivElement | null>(null);
+  const calculatorRef = useRef<HTMLDivElement | null>(null);
   const [zipCardHeight, setZipCardHeight] = useState<number | null>(null);
   const trackedSearchKeyRef = useRef<string>('');
   const drilldownHistoryCacheRef = useRef<Map<string, any>>(new Map());
@@ -127,7 +128,9 @@ export default function HomeClient(props: {
 
         // Validate and sanitize config
         const validatedConfig = {
+          downPaymentMode: config.downPaymentMode === 'percent' || config.downPaymentMode === 'amount' ? config.downPaymentMode : 'percent',
           downPaymentPercent: typeof config.downPaymentPercent === 'number' && config.downPaymentPercent >= 0 && config.downPaymentPercent <= 100 ? config.downPaymentPercent : 20,
+          downPaymentAmount: typeof config.downPaymentAmount === 'number' && config.downPaymentAmount >= 0 ? config.downPaymentAmount : 0,
           insuranceMonthly: typeof config.insuranceMonthly === 'number' && config.insuranceMonthly >= 0 ? config.insuranceMonthly : 100,
           hoaMonthly: typeof config.hoaMonthly === 'number' && config.hoaMonthly >= 0 ? config.hoaMonthly : 0,
           propertyManagementMode: config.propertyManagementMode === 'percent' || config.propertyManagementMode === 'amount' ? config.propertyManagementMode : 'percent',
@@ -215,6 +218,15 @@ export default function HomeClient(props: {
   const [zipScoresLoading, setZipScoresLoading] = useState(false);
 
   const appliedKeyRef = useRef<string>('');
+
+  // Scroll to calculator when extension config is present
+  useEffect(() => {
+    if (parsedExtensionConfig && calculatorRef.current && searchStatus === 'success') {
+      setTimeout(() => {
+        calculatorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 300);
+    }
+  }, [parsedExtensionConfig, searchStatus]);
 
   // Apply server-provided initial state for SEO / direct loads and for client navigations
   // that update searchParams.
@@ -634,7 +646,9 @@ export default function HomeClient(props: {
               <div className="w-full lg:w-[420px] flex-shrink-0 lg:sticky lg:top-8 lg:self-start">
                 <div className="flex flex-col gap-4 sm:gap-6">
                   {/* Ideal Purchase Price Card */}
-                  <IdealPurchasePriceCard data={viewFmrData} extensionConfig={parsedExtensionConfig} />
+                  <div ref={calculatorRef}>
+                    <IdealPurchasePriceCard data={viewFmrData} extensionConfig={parsedExtensionConfig} />
+                  </div>
 
                   {/* ZIP Code Ranking Card (hide when drilled into a ZIP) */}
                   {!drilldownZip && (zipRankings && zipRankings.length > 0 || zipScoresLoading) && (

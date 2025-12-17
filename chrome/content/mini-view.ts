@@ -266,7 +266,9 @@ export function createMiniViewElement(props: MiniViewProps): HTMLElement {
 
   // Build config object to pass to main app
   const config = {
+    downPaymentMode: props.preferences.downPaymentMode,
     downPaymentPercent: props.preferences.downPaymentPercent,
+    downPaymentAmount: props.preferences.downPaymentAmount,
     insuranceMonthly: props.preferences.insuranceMonthly,
     hoaMonthly: props.preferences.hoaMonthly,
     propertyManagementMode: props.preferences.propertyManagementMode,

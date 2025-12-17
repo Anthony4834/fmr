@@ -192,7 +192,9 @@ function marketQueryForData(data: FMRResult): { zip?: string; county?: string; s
 }
 
 type ExtensionConfig = {
+  downPaymentMode: 'percent' | 'amount';
   downPaymentPercent: number;
+  downPaymentAmount: number;
   insuranceMonthly: number;
   hoaMonthly: number;
   propertyManagementMode: 'percent' | 'amount';
@@ -231,9 +233,9 @@ export default function IdealPurchasePriceCard({
         desiredCashFlow: '200',
         bedrooms: extensionConfig.bedrooms !== null ? extensionConfig.bedrooms : 2,
         cashOnCashAnnualPct: '10',
-        downPaymentMode: 'percent',
+        downPaymentMode: extensionConfig.downPaymentMode,
         downPaymentPercent: String(extensionConfig.downPaymentPercent),
-        downPaymentAmount: '50000',
+        downPaymentAmount: String(extensionConfig.downPaymentAmount),
         insuranceMonthly: String(extensionConfig.insuranceMonthly),
         hoaMonthly: String(extensionConfig.hoaMonthly),
         propertyManagementMode: extensionConfig.propertyManagementMode,
@@ -333,9 +335,8 @@ export default function IdealPurchasePriceCard({
   const mortgageRateAnnualPct = prefs.overrideMortgageRate ? savedMortgageRate : (market?.mortgageRateAnnualPct ?? savedMortgageRate);
 
   const downPayment: DownPaymentInput =
-    // If user chooses $-mode, per request we assume 20% down for the calculation.
     prefs.downPaymentMode === 'amount'
-      ? { mode: 'percent', percent: 20 }
+      ? { mode: 'amount', amount: parseNumberOrZero(prefs.downPaymentAmount) }
       : { mode: 'percent', percent: parseNumberOrZero(prefs.downPaymentPercent) };
 
   const result = useMemo(() => {
