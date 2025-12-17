@@ -66,6 +66,7 @@ function safeParsePrefs(): PersistedPrefs {
     // Migrate numeric -> string if needed
     const toStr = (v: any, fallback: string) => (typeof v === 'string' ? v : v === null || v === undefined ? fallback : String(v));
     merged.cashOnCashAnnualPct = toStr(merged.cashOnCashAnnualPct, DEFAULT_PREFS.cashOnCashAnnualPct);
+    merged.downPaymentMode = merged.downPaymentMode === 'amount' || merged.downPaymentMode === 'percent' ? merged.downPaymentMode : DEFAULT_PREFS.downPaymentMode;
     merged.downPaymentPercent = toStr(merged.downPaymentPercent, DEFAULT_PREFS.downPaymentPercent);
     merged.downPaymentAmount = toStr(merged.downPaymentAmount, DEFAULT_PREFS.downPaymentAmount);
     merged.insuranceMonthly = toStr(merged.insuranceMonthly, DEFAULT_PREFS.insuranceMonthly);
@@ -227,14 +228,27 @@ export default function IdealPurchasePriceCard({
   useEffect(() => {
     if (extensionConfig) {
       // When extension config is present, pre-populate fields and force cash flow mode
-      setPrefs({
+      const purchasePrice = extensionConfig.purchasePrice !== null ? extensionConfig.purchasePrice : 200000;
+      const purchasePriceStr = String(Math.round(purchasePrice));
+      
+      // Calculate downPaymentPercent from amount if mode is 'amount', otherwise use the provided percent
+      let downPaymentPercentStr: string;
+      if (extensionConfig.downPaymentMode === 'amount') {
+        // Calculate what the percent would be based on purchase price
+        const calculatedPercent = purchasePrice > 0 ? (extensionConfig.downPaymentAmount / purchasePrice) * 100 : 0;
+        downPaymentPercentStr = String(Math.max(0, Math.min(100, calculatedPercent)));
+      } else {
+        downPaymentPercentStr = String(extensionConfig.downPaymentPercent);
+      }
+      
+      const newPrefs: PersistedPrefs = {
         mode: 'cashflow', // Force cash flow mode
-        purchasePrice: extensionConfig.purchasePrice !== null ? String(Math.round(extensionConfig.purchasePrice)) : '200000',
+        purchasePrice: purchasePriceStr,
         desiredCashFlow: '200',
         bedrooms: extensionConfig.bedrooms !== null ? extensionConfig.bedrooms : 2,
         cashOnCashAnnualPct: '10',
         downPaymentMode: extensionConfig.downPaymentMode,
-        downPaymentPercent: String(extensionConfig.downPaymentPercent),
+        downPaymentPercent: downPaymentPercentStr,
         downPaymentAmount: String(extensionConfig.downPaymentAmount),
         insuranceMonthly: String(extensionConfig.insuranceMonthly),
         hoaMonthly: String(extensionConfig.hoaMonthly),
@@ -245,9 +259,14 @@ export default function IdealPurchasePriceCard({
         overrideMortgageRate: extensionConfig.overrideMortgageRate,
         taxRateAnnualPct: extensionConfig.propertyTaxRateAnnualPct !== null ? String(extensionConfig.propertyTaxRateAnnualPct) : '1.2',
         mortgageRateAnnualPct: extensionConfig.mortgageRateAnnualPct !== null ? String(extensionConfig.mortgageRateAnnualPct) : '6.5',
-      });
+      };
+      
+      setPrefs(newPrefs);
       setCustomLineItems(extensionConfig.customLineItems || []);
       setPrefsLoaded(true);
+      
+      // Immediately persist to localStorage when extension config is applied
+      persistPrefs(newPrefs);
     } else {
       setPrefs(safeParsePrefs());
       setPrefsLoaded(true);

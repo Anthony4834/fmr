@@ -144,7 +144,7 @@ export function computeIdealPurchasePrice(input: IdealPurchasePriceInputs): Idea
   // => P = k*(R - I - H) / [factor*(1-d) + k*t]
   if (input.downPayment.mode === 'percent') {
     const d = (Number(input.downPayment.percent) / 100);
-    if (!Number.isFinite(d) || d <= 0 || d >= 1) return null;
+    if (!Number.isFinite(d) || d < 0 || d >= 1) return null;
     const denom = factor * (1 - d) + (k * t);
     const numer = k * (R - I - H);
     if (denom <= 0 || numer <= 0) return null;
@@ -175,7 +175,7 @@ export function computeIdealPurchasePrice(input: IdealPurchasePriceInputs): Idea
   // => [factor + k*t] * P = k*(R - I - H) + factor*D
   // => P = [k*(R - I - H) + factor*D] / [factor + k*t]
   const D = Number(input.downPayment.amount);
-  if (!Number.isFinite(D) || D <= 0) return null;
+  if (!Number.isFinite(D) || D < 0) return null;
 
   const numer = (k * (R - I - H)) + (factor * D);
   const denom = factor + (k * t);
@@ -239,11 +239,11 @@ export function computeCashFlow(input: CashFlowInputs): CashFlowResult | null {
   let L: number;
   if (input.downPayment.mode === 'percent') {
     const d = Number(input.downPayment.percent) / 100;
-    if (!Number.isFinite(d) || d <= 0 || d >= 1) return null;
+    if (!Number.isFinite(d) || d < 0 || d >= 1) return null;
     L = (1 - d) * P;
   } else {
     const D = Number(input.downPayment.amount);
-    if (!Number.isFinite(D) || D <= 0 || D >= P) return null;
+    if (!Number.isFinite(D) || D < 0 || D >= P) return null;
     L = P - D;
   }
   
@@ -351,7 +351,7 @@ export function computeMaxPriceForCashFlow(input: MaxPriceInputs): IdealPurchase
 
   if (input.downPayment.mode === 'percent') {
     const d = Number(input.downPayment.percent) / 100;
-    if (!Number.isFinite(d) || d <= 0 || d >= 1) return null;
+    if (!Number.isFinite(d) || d < 0 || d >= 1) return null;
 
     // L = (1-d)*P
     // Cash flow = R - (factor*(1-d)*P + t*P + I + H + PM + customFixed + R*customRentPct/100 + P*customPricePct/100 + d*P*customDownPct/100)
@@ -368,7 +368,7 @@ export function computeMaxPriceForCashFlow(input: MaxPriceInputs): IdealPurchase
     L = (1 - d) * P;
   } else {
     const D = Number(input.downPayment.amount);
-    if (!Number.isFinite(D) || D <= 0) return null;
+    if (!Number.isFinite(D) || D < 0) return null;
     
     // L = P - D
     // Cash flow = R - (factor*(P-D) + t*P + I + H + PM)
