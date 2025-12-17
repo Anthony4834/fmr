@@ -15,7 +15,9 @@ export interface ExtensionPreferences {
   purchasePrice: number | null;               // Default: null (auto-detect)
 
   // Financial parameters (defaults used if auto-detected values not available)
+  downPaymentMode: 'percent' | 'amount';
   downPaymentPercent: number;                 // Default: 20
+  downPaymentAmount: number;                  // Default: 0
   insuranceMonthly: number;                   // Default: 100
   hoaMonthly: number;                         // Default: 0
 
@@ -55,7 +57,9 @@ export interface MarketParams {
 export const DEFAULT_PREFERENCES: ExtensionPreferences = {
   bedrooms: null,
   purchasePrice: null,
+  downPaymentMode: 'percent',
   downPaymentPercent: 20,
+  downPaymentAmount: 0,
   insuranceMonthly: 100,
   hoaMonthly: 0,
   propertyManagementMode: 'percent',

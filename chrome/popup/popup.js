@@ -6,7 +6,9 @@
 const DEFAULT_PREFERENCES = {
   bedrooms: null,
   purchasePrice: null,
+  downPaymentMode: 'percent',
   downPaymentPercent: 20,
+  downPaymentAmount: 0,
   insuranceMonthly: 100,
   hoaMonthly: 0,
   propertyManagementMode: 'percent',
@@ -16,6 +18,7 @@ const DEFAULT_PREFERENCES = {
   overrideMortgageRate: false,
   propertyTaxRateAnnualPct: null,
   mortgageRateAnnualPct: null,
+  customLineItems: [],
   enabledSites: {
     redfin: true,
     zillow: true,
@@ -48,9 +51,11 @@ async function resetPreferences() {
 
 async function init() {
   const prefs = await getPreferences();
-  
+
   // Populate form fields
+  document.getElementById('dp-mode').value = prefs.downPaymentMode || 'percent';
   document.getElementById('down-payment-percent').value = String(prefs.downPaymentPercent);
+  document.getElementById('down-payment-amount').value = String(prefs.downPaymentAmount || 0);
   document.getElementById('insurance-monthly').value = String(prefs.insuranceMonthly);
   document.getElementById('hoa-monthly').value = String(prefs.hoaMonthly);
   document.getElementById('pm-mode').value = prefs.propertyManagementMode;
@@ -62,16 +67,26 @@ async function init() {
   document.getElementById('mortgage-rate').value = prefs.mortgageRateAnnualPct !== null ? String(prefs.mortgageRateAnnualPct) : '';
   document.getElementById('enable-redfin').checked = prefs.enabledSites?.redfin !== false;
   document.getElementById('enable-zillow').checked = prefs.enabledSites?.zillow !== false;
-  
+
   updateConditionalFields();
-  
+
+  // Scroll to override section if overrides are active
+  if (prefs.overrideTaxRate || prefs.overrideMortgageRate) {
+    setTimeout(() => {
+      const overrideSection = document.querySelector('.section.card:has(#override-tax-rate)');
+      if (overrideSection) {
+        overrideSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 100);
+  }
+
   const form = document.getElementById('settings-form');
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     await saveFormData();
     showMessage('Settings saved!');
   });
-  
+
   const resetBtn = document.getElementById('reset-btn');
   resetBtn.addEventListener('click', async () => {
     if (confirm('Reset all settings to defaults?')) {
@@ -79,10 +94,13 @@ async function init() {
       location.reload();
     }
   });
-  
+
+  const dpMode = document.getElementById('dp-mode');
+  dpMode.addEventListener('change', updateConditionalFields);
+
   const pmMode = document.getElementById('pm-mode');
   pmMode.addEventListener('change', updateConditionalFields);
-  
+
   const overrideTax = document.getElementById('override-tax-rate');
   const overrideMortgage = document.getElementById('override-mortgage-rate');
   overrideTax.addEventListener('change', updateConditionalFields);
@@ -90,10 +108,22 @@ async function init() {
 }
 
 function updateConditionalFields() {
+  const dpMode = document.getElementById('dp-mode').value;
+  const dpPercentGroup = document.getElementById('dp-percent-group');
+  const dpAmountGroup = document.getElementById('dp-amount-group');
+
+  if (dpMode === 'percent') {
+    dpPercentGroup.style.display = 'block';
+    dpAmountGroup.style.display = 'none';
+  } else {
+    dpPercentGroup.style.display = 'none';
+    dpAmountGroup.style.display = 'block';
+  }
+
   const pmMode = document.getElementById('pm-mode').value;
   const pmPercentGroup = document.getElementById('pm-percent-group');
   const pmAmountGroup = document.getElementById('pm-amount-group');
-  
+
   if (pmMode === 'percent') {
     pmPercentGroup.style.display = 'block';
     pmAmountGroup.style.display = 'none';
@@ -101,19 +131,21 @@ function updateConditionalFields() {
     pmPercentGroup.style.display = 'none';
     pmAmountGroup.style.display = 'block';
   }
-  
+
   const overrideTax = document.getElementById('override-tax-rate').checked;
   const overrideMortgage = document.getElementById('override-mortgage-rate').checked;
   const taxRateGroup = document.getElementById('tax-rate-group');
   const mortgageRateGroup = document.getElementById('mortgage-rate-group');
-  
+
   taxRateGroup.style.display = overrideTax ? 'block' : 'none';
   mortgageRateGroup.style.display = overrideMortgage ? 'block' : 'none';
 }
 
 async function saveFormData() {
   const prefs = {
+    downPaymentMode: document.getElementById('dp-mode').value,
     downPaymentPercent: parseFloat(document.getElementById('down-payment-percent').value) || DEFAULT_PREFERENCES.downPaymentPercent,
+    downPaymentAmount: parseFloat(document.getElementById('down-payment-amount').value) || DEFAULT_PREFERENCES.downPaymentAmount,
     insuranceMonthly: parseFloat(document.getElementById('insurance-monthly').value) || DEFAULT_PREFERENCES.insuranceMonthly,
     hoaMonthly: parseFloat(document.getElementById('hoa-monthly').value) || DEFAULT_PREFERENCES.hoaMonthly,
     propertyManagementMode: document.getElementById('pm-mode').value,
@@ -132,7 +164,7 @@ async function saveFormData() {
       zillow: document.getElementById('enable-zillow').checked,
     },
   };
-  
+
   await savePreferences(prefs);
 }
 

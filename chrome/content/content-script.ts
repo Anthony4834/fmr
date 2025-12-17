@@ -176,8 +176,9 @@ async function calculateCashFlow(
       hoaMonthly: preferences.hoaMonthly,
       propertyManagementMonthly,
       downPayment: {
-        mode: 'percent',
+        mode: preferences.downPaymentMode || 'percent',
         percent: preferences.downPaymentPercent,
+        amount: preferences.downPaymentAmount,
       },
       termMonths: 360,
       customLineItems: preferences.customLineItems || [],
