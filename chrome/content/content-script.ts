@@ -136,7 +136,9 @@ async function injectBadge(addressElement: HTMLElement, cashFlow: number | null,
       // Open mini view
       const zipCode = extractZipFromAddress(address);
       if (zipCode) {
-        openMiniView(address, zipCode);
+        // Get property data to pass purchase price and bedrooms
+        const propertyData = extractPropertyData();
+        openMiniView(address, zipCode, propertyData.price, propertyData.bedrooms);
       }
     },
   });
@@ -224,7 +226,7 @@ async function processPage() {
 /**
  * Open mini view modal
  */
-async function openMiniView(address: string, zipCode: string) {
+async function openMiniView(address: string, zipCode: string, purchasePrice: number | null, bedrooms: number | null) {
   // Remove existing mini view if any
   const existingOverlay = document.querySelector('.fmr-mini-view-overlay');
   if (existingOverlay) {
@@ -252,6 +254,8 @@ async function openMiniView(address: string, zipCode: string) {
     address,
     zipCode,
     preferences,
+    purchasePrice,
+    bedrooms,
     onClose: () => {
       overlay.remove();
       miniViewContainer = null;

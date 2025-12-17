@@ -144,6 +144,8 @@ export default function HomeClient(props: {
             percentOf: item.percentOf === 'purchasePrice' || item.percentOf === 'rent' || item.percentOf === 'downPayment' ? item.percentOf : 'purchasePrice',
             value: typeof item.value === 'number' && item.value >= 0 ? item.value : 0,
           })) : [],
+          purchasePrice: typeof config.purchasePrice === 'number' && config.purchasePrice > 0 ? config.purchasePrice : null,
+          bedrooms: typeof config.bedrooms === 'number' && config.bedrooms >= 0 && config.bedrooms <= 8 ? config.bedrooms : null,
         };
 
         setParsedExtensionConfig(validatedConfig);

@@ -7,6 +7,8 @@ export interface MiniViewProps {
   address: string;
   zipCode: string;
   preferences: ExtensionPreferences;
+  purchasePrice: number | null;
+  bedrooms: number | null;
   onClose: () => void;
 }
 
@@ -105,6 +107,8 @@ export function createMiniViewElement(props: MiniViewProps): HTMLElement {
     propertyTaxRateAnnualPct: props.preferences.propertyTaxRateAnnualPct,
     mortgageRateAnnualPct: props.preferences.mortgageRateAnnualPct,
     customLineItems: props.preferences.customLineItems || [],
+    purchasePrice: props.purchasePrice,
+    bedrooms: props.bedrooms,
   };
 
   // Serialize config to base64 to avoid URL encoding issues

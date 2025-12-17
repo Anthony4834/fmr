@@ -203,6 +203,8 @@ type ExtensionConfig = {
   propertyTaxRateAnnualPct: number | null;
   mortgageRateAnnualPct: number | null;
   customLineItems: CustomLineItem[];
+  purchasePrice: number | null;
+  bedrooms: number | null;
 };
 
 export default function IdealPurchasePriceCard({ 
@@ -225,9 +227,9 @@ export default function IdealPurchasePriceCard({
       // When extension config is present, pre-populate fields and force cash flow mode
       setPrefs({
         mode: 'cashflow', // Force cash flow mode
-        purchasePrice: '200000', // Default, will be editable
+        purchasePrice: extensionConfig.purchasePrice !== null ? String(Math.round(extensionConfig.purchasePrice)) : '200000',
         desiredCashFlow: '200',
-        bedrooms: 2, // Default, will be editable
+        bedrooms: extensionConfig.bedrooms !== null ? extensionConfig.bedrooms : 2,
         cashOnCashAnnualPct: '10',
         downPaymentMode: 'percent',
         downPaymentPercent: String(extensionConfig.downPaymentPercent),
@@ -473,7 +475,24 @@ export default function IdealPurchasePriceCard({
             <div className="font-medium tabular-nums">
               {result 
                 ? (prefs.mode === 'cashflow' && 'monthlyExpenses' in result
-                    ? formatCurrency((result as any).monthlyExpenses)
+                    ? (() => {
+                        const baseExpenses = (result as any).monthlyExpenses;
+                        // Add custom expenses if present
+                        if (extensionConfig && customLineItems.length > 0) {
+                          const customTotal = customLineItems.reduce((sum, item) => {
+                            const itemValue = item.method === 'amount' 
+                              ? item.value 
+                              : item.percentOf === 'purchasePrice' 
+                                ? (parseNumberOrZero(prefs.purchasePrice) * (item.value / 100))
+                                : item.percentOf === 'rent'
+                                  ? (rentMonthlyRaw ? rentMonthlyRaw * (item.value / 100) : 0)
+                                  : (downPaymentDollars * (item.value / 100));
+                            return sum + itemValue;
+                          }, 0);
+                          return formatCurrency(baseExpenses + customTotal);
+                        }
+                        return formatCurrency(baseExpenses);
+                      })()
                     : result && 'purchasePrice' in result
                     ? formatCurrency(
                         parseNumberOrZero(prefs.insuranceMonthly) +
@@ -539,6 +558,25 @@ export default function IdealPurchasePriceCard({
                   {marketLoading && !prefs.overrideMortgageRate ? 'Loading…' : formatPct(mortgageRateAnnualPct)}
                 </div>
               </div>
+              {/* Custom expenses */}
+              {extensionConfig && customLineItems.length > 0 && customLineItems.map((item) => {
+                const itemValue = item.method === 'amount' 
+                  ? item.value 
+                  : item.percentOf === 'purchasePrice' 
+                    ? (parseNumberOrZero(prefs.purchasePrice) * (item.value / 100))
+                    : item.percentOf === 'rent'
+                      ? (rentMonthlyRaw ? rentMonthlyRaw * (item.value / 100) : 0)
+                      : (downPaymentDollars * (item.value / 100));
+                
+                return (
+                  <div key={item.id}>
+                    <div className="text-[#737373]">{item.label}</div>
+                    <div className="font-medium tabular-nums">
+                      {formatCurrency(itemValue)}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

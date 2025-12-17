@@ -118,8 +118,39 @@ export function extractAddress(): string | null {
 
 /**
  * Extract zip code from address string
+ * Prefers ZIP codes that appear at the end or after a state abbreviation
  */
 export function extractZipFromAddress(address: string): string | null {
-  const zipMatch = address.match(/\b(\d{5})\b/);
-  return zipMatch ? zipMatch[1] : null;
+  if (!address) return null;
+  
+  // Pattern 1: ZIP code at the end of the string (most common)
+  // Matches: "..., MI 48184" or "...48184"
+  const endZipMatch = address.match(/\b(\d{5})\s*$/);
+  if (endZipMatch) {
+    return endZipMatch[1];
+  }
+  
+  // Pattern 2: ZIP code after a state abbreviation (2 letters)
+  // Matches: "..., MI 48184" or "..., CA 90210"
+  const stateZipMatch = address.match(/\b([A-Z]{2})\s+(\d{5})\b/);
+  if (stateZipMatch) {
+    return stateZipMatch[2];
+  }
+  
+  // Pattern 3: ZIP code after a comma (likely at the end of address line)
+  // Matches: "..., 48184" or "..., Wayne, MI 48184"
+  const commaZipMatch = address.match(/,\s*(\d{5})\b/);
+  if (commaZipMatch) {
+    return commaZipMatch[1];
+  }
+  
+  // Pattern 4: Find all 5-digit numbers and prefer the last one
+  // (ZIP codes typically appear after street numbers)
+  const allZips = Array.from(address.matchAll(/\b(\d{5})\b/g));
+  if (allZips.length > 0) {
+    // Return the last match (most likely to be the ZIP code)
+    return allZips[allZips.length - 1][1];
+  }
+  
+  return null;
 }
