@@ -43,6 +43,56 @@ function getColorForScore(score: number | null): string {
 const countyGeoUrl = 'https://cdn.jsdelivr.net/npm/us-atlas@3/counties-10m.json';
 const stateGeoUrl = 'https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json';
 
+function getStateCode(geo: any): string {
+  const props = geo?.properties || {};
+
+  // Try common property names for state abbreviation
+  const abbrevCandidates = [
+    props.abbrev,
+    props.abbreviation,
+    props.state,
+    props.stateCode,
+    props.code,
+    props.STUSPS,
+    props.STUSAB,
+  ].filter(Boolean);
+
+  for (const candidate of abbrevCandidates) {
+    const code = String(candidate).toUpperCase().trim();
+    if (code.length === 2 && /^[A-Z]{2}$/.test(code)) {
+      const isValidState = STATES.some(s => s.code === code);
+      if (isValidState) {
+        return code;
+      }
+    }
+  }
+
+  // Try matching by state name
+  if (props.name) {
+    const stateName = String(props.name).trim();
+    const stateMatch = STATES.find(s =>
+      s.name === stateName ||
+      s.name.toLowerCase() === stateName.toLowerCase()
+    );
+    if (stateMatch) {
+      return stateMatch.code;
+    }
+  }
+
+  // Last resort: try geo.id if it looks like a state code
+  if (geo?.id) {
+    const idStr = String(geo.id).trim().toUpperCase();
+    if (idStr.length === 2 && /^[A-Z]{2}$/.test(idStr)) {
+      const isValidState = STATES.some(s => s.code === idStr);
+      if (isValidState) {
+        return idStr;
+      }
+    }
+  }
+
+  return '';
+}
+
 export default function USStateMap({ year }: USStateMapProps) {
   const router = useRouter();
   const [mapLevel, setMapLevel] = useState<MapLevel>('county');
@@ -218,117 +268,141 @@ export default function USStateMap({ year }: USStateMapProps) {
           className="w-full h-full"
           style={{ width: '100%', height: '100%' }}
         >
+          {/* Separate fill and stroke layers to prevent border overlap issues */}
           <Geographies geography={mapLevel === 'county' ? countyGeoUrl : stateGeoUrl}>
-            {({ geographies }: { geographies: any[] }) =>
-              geographies.map((geo: any) => {
-                if (mapLevel === 'county') {
-                  // ✅ For us-atlas counties, FIPS is geo.id
-                  const fips =
-                    geo?.id !== undefined && geo?.id !== null
-                      ? String(geo.id).padStart(5, '0')
-                      : '';
+            {({ geographies }: { geographies: any[] }) => (
+              <>
+                {/* First layer: fills only */}
+                {geographies.map((geo: any) => {
+                  if (mapLevel === 'county') {
+                    const fips =
+                      geo?.id !== undefined && geo?.id !== null
+                        ? String(geo.id).padStart(5, '0')
+                        : '';
+                    const county = fips ? countyScoreMap.get(fips) : undefined;
+                    const scoreValue = county?.medianScore ?? county?.avgScore ?? null;
+                    const fillColor = getColorForScore(scoreValue);
 
-                  const county = fips ? countyScoreMap.get(fips) : undefined;
-                  const scoreValue = county?.medianScore ?? county?.avgScore ?? null;
-                  const fillColor = getColorForScore(scoreValue);
-                  const isHovered = hoveredCounty === fips;
-
-                  return (
-                    <Geography
-                      key={geo.rsmKey}
-                      geography={geo}
-                      fill={fillColor}
-                      stroke={isHovered ? '#0a0a0a' : '#ffffff'}
-                      strokeWidth={isHovered ? 2 : 0.5}
-                      style={{
-                        default: { outline: 'none' },
-                        hover: { outline: 'none', cursor: county ? 'pointer' : 'default' },
-                        pressed: { outline: 'none' },
-                      }}
-                      onMouseEnter={() => fips && setHoveredCounty(fips)}
-                      onMouseLeave={() => setHoveredCounty(null)}
-                      onClick={() => county && fips && handleCountyClick(fips)}
-                      opacity={1}
-                    />
-                  );
-                } else {
-                  // For states, use state code (2-letter abbreviation)
-                  // us-atlas states-10m.json structure varies, try multiple approaches
-                  let stateCode = '';
-                  
-                  const props = geo?.properties || {};
-                  
-                  // Try common property names for state abbreviation
-                  const abbrevCandidates = [
-                    props.abbrev,
-                    props.abbreviation,
-                    props.state,
-                    props.stateCode,
-                    props.code,
-                    props.STUSPS, // US Census property
-                    props.STUSAB, // Alternative Census property
-                  ].filter(Boolean);
-                  
-                  for (const candidate of abbrevCandidates) {
-                    const code = String(candidate).toUpperCase().trim();
-                    if (code.length === 2 && /^[A-Z]{2}$/.test(code)) {
-                      const isValidState = STATES.some(s => s.code === code);
-                      if (isValidState) {
-                        stateCode = code;
-                        break;
-                      }
-    }
-                  }
-                  
-                  // If no abbreviation found, try matching by state name
-                  if (!stateCode && props.name) {
-                    const stateName = String(props.name).trim();
-                    const stateMatch = STATES.find(s => 
-                      s.name === stateName || 
-                      s.name.toLowerCase() === stateName.toLowerCase()
+                    return (
+                      <Geography
+                        key={`fill-${geo.rsmKey}`}
+                        geography={geo}
+                        fill={fillColor}
+                        stroke="none"
+                        style={{
+                          default: { outline: 'none' },
+                          hover: { outline: 'none', cursor: county ? 'pointer' : 'default' },
+                          pressed: { outline: 'none' },
+                        }}
+                        onMouseEnter={() => fips && setHoveredCounty(fips)}
+                        onMouseLeave={() => setHoveredCounty(null)}
+                        onClick={() => county && fips && handleCountyClick(fips)}
+                      />
                     );
-                    if (stateMatch) {
-                      stateCode = stateMatch.code;
-                    }
-                  }
-                  
-                  // Last resort: try geo.id if it looks like a state code
-                  if (!stateCode && geo?.id) {
-                    const idStr = String(geo.id).trim().toUpperCase();
-                    if (idStr.length === 2 && /^[A-Z]{2}$/.test(idStr)) {
-                      const isValidState = STATES.some(s => s.code === idStr);
-                      if (isValidState) {
-                        stateCode = idStr;
-                      }
-                    }
-                  }
-                  
-                  const state = stateCode ? stateScoreMap.get(stateCode) : undefined;
-                  const scoreValue = state?.medianScore ?? state?.avgScore ?? null;
-                  const fillColor = getColorForScore(scoreValue);
-                  const isHovered = hoveredState === stateCode;
+                  } else {
+                    const stateCode = getStateCode(geo);
+                    const state = stateCode ? stateScoreMap.get(stateCode) : undefined;
+                    const scoreValue = state?.medianScore ?? state?.avgScore ?? null;
+                    const fillColor = getColorForScore(scoreValue);
 
-                  return (
-                    <Geography
-                      key={geo.rsmKey}
-                      geography={geo}
-                      fill={fillColor}
-                      stroke={isHovered ? '#0a0a0a' : '#ffffff'}
-                      strokeWidth={isHovered ? 2 : 0.5}
-                      style={{
-                        default: { outline: 'none' },
-                        hover: { outline: 'none', cursor: state ? 'pointer' : 'default' },
-                        pressed: { outline: 'none' },
-                      }}
-                      onMouseEnter={() => stateCode && setHoveredState(stateCode)}
-                      onMouseLeave={() => setHoveredState(null)}
-                      onClick={() => state && stateCode && handleStateClick(stateCode)}
-                      opacity={1}
-                    />
-                  );
-                }
-              })
-            }
+                    return (
+                      <Geography
+                        key={`fill-${geo.rsmKey}`}
+                        geography={geo}
+                        fill={fillColor}
+                        stroke="none"
+                        style={{
+                          default: { outline: 'none' },
+                          hover: { outline: 'none', cursor: state ? 'pointer' : 'default' },
+                          pressed: { outline: 'none' },
+                        }}
+                        onMouseEnter={() => stateCode && setHoveredState(stateCode)}
+                        onMouseLeave={() => setHoveredState(null)}
+                        onClick={() => state && stateCode && handleStateClick(stateCode)}
+                      />
+                    );
+                  }
+                })}
+                {/* Second layer: strokes only - render white strokes first, then black on top */}
+                {(() => {
+                  // Sort geographies: red (white stroke) first, then green (black stroke)
+                  const sortedGeos = [...geographies].sort((a, b) => {
+                    const getIsRed = (geo: any) => {
+                      if (mapLevel === 'county') {
+                        const fips = geo?.id !== undefined && geo?.id !== null
+                          ? String(geo.id).padStart(5, '0')
+                          : '';
+                        const county = fips ? countyScoreMap.get(fips) : undefined;
+                        const scoreValue = county?.medianScore ?? county?.avgScore ?? null;
+                        return getColorForScore(scoreValue) === '#fca5a5';
+                      } else {
+                        const stateCode = getStateCode(geo);
+                        const state = stateCode ? stateScoreMap.get(stateCode) : undefined;
+                        const scoreValue = state?.medianScore ?? state?.avgScore ?? null;
+                        return getColorForScore(scoreValue) === '#fca5a5';
+                      }
+                    };
+                    const aIsRed = getIsRed(a);
+                    const bIsRed = getIsRed(b);
+                    // Red (white stroke) first, green (black stroke) last
+                    if (aIsRed && !bIsRed) return -1;
+                    if (!aIsRed && bIsRed) return 1;
+                    return 0;
+                  });
+
+                  return sortedGeos.map((geo: any) => {
+                    if (mapLevel === 'county') {
+                      const fips =
+                        geo?.id !== undefined && geo?.id !== null
+                          ? String(geo.id).padStart(5, '0')
+                          : '';
+                      const county = fips ? countyScoreMap.get(fips) : undefined;
+                      const scoreValue = county?.medianScore ?? county?.avgScore ?? null;
+                      const fillColor = getColorForScore(scoreValue);
+                      const isHovered = hoveredCounty === fips;
+                      const isRed = fillColor === '#fca5a5';
+
+                      return (
+                        <Geography
+                          key={`stroke-${geo.rsmKey}`}
+                          geography={geo}
+                          fill="none"
+                          stroke={isHovered ? '#0a0a0a' : (isRed ? '#ffffff' : '#525252')}
+                          strokeWidth={isHovered ? 1.5 : 0.3}
+                          style={{
+                            default: { outline: 'none', pointerEvents: 'none' },
+                            hover: { outline: 'none', pointerEvents: 'none' },
+                            pressed: { outline: 'none', pointerEvents: 'none' },
+                          }}
+                        />
+                      );
+                    } else {
+                      const stateCode = getStateCode(geo);
+                      const state = stateCode ? stateScoreMap.get(stateCode) : undefined;
+                      const scoreValue = state?.medianScore ?? state?.avgScore ?? null;
+                      const fillColor = getColorForScore(scoreValue);
+                      const isHovered = hoveredState === stateCode;
+                      const isRed = fillColor === '#fca5a5';
+
+                      return (
+                        <Geography
+                          key={`stroke-${geo.rsmKey}`}
+                          geography={geo}
+                          fill="none"
+                          stroke={isHovered ? '#0a0a0a' : (isRed ? '#ffffff' : '#525252')}
+                          strokeWidth={isHovered ? 1.5 : 0.3}
+                          style={{
+                            default: { outline: 'none', pointerEvents: 'none' },
+                            hover: { outline: 'none', pointerEvents: 'none' },
+                            pressed: { outline: 'none', pointerEvents: 'none' },
+                          }}
+                        />
+                      );
+                    }
+                  });
+                })()}
+              </>
+            )}
           </Geographies>
         </ComposableMap>
 
