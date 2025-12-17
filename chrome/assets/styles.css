@@ -1,0 +1,86 @@
+/* Extension styles matching main app theme */
+
+.fmr-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  margin-left: 8px;
+  background: #fafafa;
+  border: 1px solid #e5e5e5;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.fmr-badge:hover {
+  background-color: #f5f5f5;
+}
+
+/* Mini view styles */
+.fmr-mini-view {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  z-index: 10000;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.fmr-mini-view-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 9999;
+}
+
+.fmr-mini-view-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.fmr-mini-view-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #0a0a0a;
+}
+
+.fmr-mini-view-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #737373;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.fmr-mini-view-close:hover {
+  background: #fafafa;
+  color: #0a0a0a;
+}
+
+.fmr-mini-view-content {
+  padding: 16px;
+}

@@ -94,6 +94,7 @@ export async function GET(req: NextRequest) {
 
     if (cityParam && stateParam) {
       // Aggregate scores for all ZIPs in the city
+      // Filter to latest data versions for consistency
       const result = await sql.query(
         `
         WITH city_zips AS (
@@ -101,20 +102,47 @@ export async function GET(req: NextRequest) {
           FROM zip_city_mapping
           WHERE city_name ILIKE $1
             AND state_code = $2
+        ),
+        city_data AS (
+          SELECT
+            COALESCE(isc.score_with_demand, isc.score) as score,
+            isc.net_yield,
+            isc.property_value,
+            isc.tax_rate,
+            isc.annual_rent,
+            isc.rent_to_price_ratio,
+            isc.zhvi_month,
+            isc.acs_vintage
+          FROM investment_score isc
+          INNER JOIN city_zips cz ON cz.zip_code = isc.zip_code
+          WHERE isc.fmr_year = $3
+            AND isc.data_sufficient = true
+        ),
+        latest_versions AS (
+          SELECT
+            MAX(zhvi_month) as latest_zhvi_month,
+            MAX(acs_vintage) as latest_acs_vintage
+          FROM city_data
         )
-        SELECT 
+        SELECT
           COUNT(*) as zip_count,
-          AVG(COALESCE(isc.score_with_demand, isc.score)) as avg_score,
-          PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY COALESCE(isc.score_with_demand, isc.score)) as median_score,
-          AVG(isc.net_yield) as avg_yield,
-          AVG(isc.property_value) as avg_property_value,
-          AVG(isc.tax_rate) as avg_tax_rate,
-          AVG(isc.annual_rent) as avg_annual_rent,
-          AVG(isc.rent_to_price_ratio) as avg_rent_to_price_ratio
-        FROM investment_score isc
-        INNER JOIN city_zips cz ON cz.zip_code = isc.zip_code
-        WHERE isc.fmr_year = $3
-          AND isc.data_sufficient = true
+          AVG(cd.score) as avg_score,
+          PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY cd.score) as median_score,
+          AVG(cd.net_yield) as avg_yield,
+          AVG(cd.property_value) as avg_property_value,
+          AVG(cd.tax_rate) as avg_tax_rate,
+          AVG(cd.annual_rent) as avg_annual_rent,
+          AVG(cd.rent_to_price_ratio) as avg_rent_to_price_ratio
+        FROM city_data cd
+        CROSS JOIN latest_versions lv
+        WHERE (
+          (lv.latest_zhvi_month IS NULL AND cd.zhvi_month IS NULL) OR
+          (lv.latest_zhvi_month IS NOT NULL AND cd.zhvi_month = lv.latest_zhvi_month)
+        )
+        AND (
+          (lv.latest_acs_vintage IS NULL AND cd.acs_vintage IS NULL) OR
+          (lv.latest_acs_vintage IS NOT NULL AND cd.acs_vintage = lv.latest_acs_vintage)
+        )
         `,
         [cityParam, stateParam.toUpperCase(), year]
       );
@@ -170,25 +198,53 @@ export async function GET(req: NextRequest) {
 
       // Aggregate scores for all ZIPs in the county
       // Use county_fips if available (more precise), otherwise fall back to county_name matching
+      // Filter to latest data versions to match state-counties endpoint behavior
       let result;
       if (fipsLookup.rows.length > 0 && fipsLookup.rows[0]?.county_fips) {
         const countyFips = String(fipsLookup.rows[0].county_fips).padStart(5, '0');
         result = await sql.query(
           `
-          SELECT 
+          WITH county_data AS (
+            SELECT
+              COALESCE(score_with_demand, score) as score,
+              net_yield,
+              property_value,
+              tax_rate,
+              annual_rent,
+              rent_to_price_ratio,
+              zhvi_month,
+              acs_vintage
+            FROM investment_score
+            WHERE county_fips = $1
+              AND state_code = $2
+              AND fmr_year = $3
+              AND data_sufficient = true
+          ),
+          latest_versions AS (
+            SELECT
+              MAX(zhvi_month) as latest_zhvi_month,
+              MAX(acs_vintage) as latest_acs_vintage
+            FROM county_data
+          )
+          SELECT
             COUNT(*) as zip_count,
-            AVG(COALESCE(score_with_demand, score)) as avg_score,
-            PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY COALESCE(score_with_demand, score)) as median_score,
-            AVG(net_yield) as avg_yield,
-            AVG(property_value) as avg_property_value,
-            AVG(tax_rate) as avg_tax_rate,
-            AVG(annual_rent) as avg_annual_rent,
-            AVG(rent_to_price_ratio) as avg_rent_to_price_ratio
-          FROM investment_score
-          WHERE county_fips = $1
-            AND state_code = $2
-            AND fmr_year = $3
-            AND data_sufficient = true
+            AVG(cd.score) as avg_score,
+            PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY cd.score) as median_score,
+            AVG(cd.net_yield) as avg_yield,
+            AVG(cd.property_value) as avg_property_value,
+            AVG(cd.tax_rate) as avg_tax_rate,
+            AVG(cd.annual_rent) as avg_annual_rent,
+            AVG(cd.rent_to_price_ratio) as avg_rent_to_price_ratio
+          FROM county_data cd
+          CROSS JOIN latest_versions lv
+          WHERE (
+            (lv.latest_zhvi_month IS NULL AND cd.zhvi_month IS NULL) OR
+            (lv.latest_zhvi_month IS NOT NULL AND cd.zhvi_month = lv.latest_zhvi_month)
+          )
+          AND (
+            (lv.latest_acs_vintage IS NULL AND cd.acs_vintage IS NULL) OR
+            (lv.latest_acs_vintage IS NOT NULL AND cd.acs_vintage = lv.latest_acs_vintage)
+          )
           `,
           [countyFips, stateParam.toUpperCase(), year]
         );
@@ -196,20 +252,47 @@ export async function GET(req: NextRequest) {
         // Fallback to county_name matching if FIPS not found
         result = await sql.query(
           `
-          SELECT 
+          WITH county_data AS (
+            SELECT
+              COALESCE(score_with_demand, score) as score,
+              net_yield,
+              property_value,
+              tax_rate,
+              annual_rent,
+              rent_to_price_ratio,
+              zhvi_month,
+              acs_vintage
+            FROM investment_score
+            WHERE (county_name ILIKE $1 OR county_name ILIKE $2)
+              AND state_code = $3
+              AND fmr_year = $4
+              AND data_sufficient = true
+          ),
+          latest_versions AS (
+            SELECT
+              MAX(zhvi_month) as latest_zhvi_month,
+              MAX(acs_vintage) as latest_acs_vintage
+            FROM county_data
+          )
+          SELECT
             COUNT(*) as zip_count,
-            AVG(COALESCE(score_with_demand, score)) as avg_score,
-            PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY COALESCE(score_with_demand, score)) as median_score,
-            AVG(net_yield) as avg_yield,
-            AVG(property_value) as avg_property_value,
-            AVG(tax_rate) as avg_tax_rate,
-            AVG(annual_rent) as avg_annual_rent,
-            AVG(rent_to_price_ratio) as avg_rent_to_price_ratio
-          FROM investment_score
-          WHERE (county_name ILIKE $1 OR county_name ILIKE $2)
-            AND state_code = $3
-            AND fmr_year = $4
-            AND data_sufficient = true
+            AVG(cd.score) as avg_score,
+            PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY cd.score) as median_score,
+            AVG(cd.net_yield) as avg_yield,
+            AVG(cd.property_value) as avg_property_value,
+            AVG(cd.tax_rate) as avg_tax_rate,
+            AVG(cd.annual_rent) as avg_annual_rent,
+            AVG(cd.rent_to_price_ratio) as avg_rent_to_price_ratio
+          FROM county_data cd
+          CROSS JOIN latest_versions lv
+          WHERE (
+            (lv.latest_zhvi_month IS NULL AND cd.zhvi_month IS NULL) OR
+            (lv.latest_zhvi_month IS NOT NULL AND cd.zhvi_month = lv.latest_zhvi_month)
+          )
+          AND (
+            (lv.latest_acs_vintage IS NULL AND cd.acs_vintage IS NULL) OR
+            (lv.latest_acs_vintage IS NOT NULL AND cd.acs_vintage = lv.latest_acs_vintage)
+          )
           `,
           [`${normalizedCounty}%`, `${normalizedCounty} County%`, stateParam.toUpperCase(), year]
         );
@@ -248,21 +331,49 @@ export async function GET(req: NextRequest) {
 
     if (stateParam) {
       // Aggregate scores for all ZIPs in the state
+      // Filter to latest data versions for consistency
       const result = await sql.query(
         `
-        SELECT 
+        WITH state_data AS (
+          SELECT
+            COALESCE(score_with_demand, score) as score,
+            net_yield,
+            property_value,
+            tax_rate,
+            annual_rent,
+            rent_to_price_ratio,
+            zhvi_month,
+            acs_vintage
+          FROM investment_score
+          WHERE state_code = $1
+            AND fmr_year = $2
+            AND data_sufficient = true
+        ),
+        latest_versions AS (
+          SELECT
+            MAX(zhvi_month) as latest_zhvi_month,
+            MAX(acs_vintage) as latest_acs_vintage
+          FROM state_data
+        )
+        SELECT
           COUNT(*) as zip_count,
-          AVG(COALESCE(score_with_demand, score)) as avg_score,
-          PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY COALESCE(score_with_demand, score)) as median_score,
-          AVG(net_yield) as avg_yield,
-          AVG(property_value) as avg_property_value,
-          AVG(tax_rate) as avg_tax_rate,
-          AVG(annual_rent) as avg_annual_rent,
-          AVG(rent_to_price_ratio) as avg_rent_to_price_ratio
-        FROM investment_score
-        WHERE state_code = $1
-          AND fmr_year = $2
-          AND data_sufficient = true
+          AVG(sd.score) as avg_score,
+          PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY sd.score) as median_score,
+          AVG(sd.net_yield) as avg_yield,
+          AVG(sd.property_value) as avg_property_value,
+          AVG(sd.tax_rate) as avg_tax_rate,
+          AVG(sd.annual_rent) as avg_annual_rent,
+          AVG(sd.rent_to_price_ratio) as avg_rent_to_price_ratio
+        FROM state_data sd
+        CROSS JOIN latest_versions lv
+        WHERE (
+          (lv.latest_zhvi_month IS NULL AND sd.zhvi_month IS NULL) OR
+          (lv.latest_zhvi_month IS NOT NULL AND sd.zhvi_month = lv.latest_zhvi_month)
+        )
+        AND (
+          (lv.latest_acs_vintage IS NULL AND sd.acs_vintage IS NULL) OR
+          (lv.latest_acs_vintage IS NOT NULL AND sd.acs_vintage = lv.latest_acs_vintage)
+        )
         `,
         [stateParam.toUpperCase(), year]
       );

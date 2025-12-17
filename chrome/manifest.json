@@ -1,0 +1,70 @@
+{
+  "manifest_version": 3,
+  "name": "FMR.fyi Real Estate Assistant",
+  "version": "1.0.0",
+  "description": "View FMR data and cash flow calculations directly on real estate listings",
+  "permissions": [
+    "activeTab",
+    "storage"
+  ],
+  "host_permissions": [
+    "*://*.zillow.com/*",
+    "*://zillow.com/*",
+    "*://*.redfin.com/*",
+    "*://redfin.com/*",
+    "*://*.realtor.com/*",
+    "*://realtor.com/*",
+    "*://*.homes.com/*",
+    "*://homes.com/*",
+    "https://fmr.fyi/*"
+  ],
+  "background": {
+    "service_worker": "background/service-worker.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.zillow.com/*",
+        "*://zillow.com/*",
+        "*://*.redfin.com/*",
+        "*://redfin.com/*",
+        "*://*.realtor.com/*",
+        "*://realtor.com/*",
+        "*://*.homes.com/*",
+        "*://homes.com/*"
+      ],
+      "js": ["content/content-script.js"],
+      "css": ["assets/styles.css"],
+      "run_at": "document_end"
+    }
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "FMR.fyi Settings",
+    "default_icon": {
+      "16": "assets/icons/icon16.png",
+      "48": "assets/icons/icon48.png",
+      "128": "assets/icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "assets/icons/icon16.png",
+    "48": "assets/icons/icon48.png",
+    "128": "assets/icons/icon128.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["assets/*"],
+      "matches": [
+        "*://*.zillow.com/*",
+        "*://zillow.com/*",
+        "*://*.redfin.com/*",
+        "*://redfin.com/*",
+        "*://*.realtor.com/*",
+        "*://realtor.com/*",
+        "*://*.homes.com/*",
+        "*://homes.com/*"
+      ]
+    }
+  ]
+}

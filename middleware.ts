@@ -4,6 +4,29 @@ import type { NextRequest } from 'next/server';
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Handle CORS for API routes (allow Chrome extension requests)
+  if (pathname.startsWith('/api/')) {
+    // Handle preflight requests
+    if (request.method === 'OPTIONS') {
+      return new NextResponse(null, {
+        status: 200,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+          'Access-Control-Max-Age': '86400',
+        },
+      });
+    }
+
+    // Add CORS headers to all API responses
+    const response = NextResponse.next();
+    response.headers.set('Access-Control-Allow-Origin', '*');
+    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    return response;
+  }
+
   // Rewrite:
   // - /sitemaps/zips/0.xml -> /sitemaps/zips/0
   // - /sitemaps/cities/CA.xml -> /sitemaps/cities/CA
@@ -38,7 +61,7 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/sitemaps/zips/:path*', '/sitemaps/cities/:path*', '/sitemaps/counties/:path*'],
+  matcher: ['/api/:path*', '/sitemaps/zips/:path*', '/sitemaps/cities/:path*', '/sitemaps/counties/:path*'],
 };
 
 

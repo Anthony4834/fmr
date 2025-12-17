@@ -35,11 +35,11 @@ export async function GET(request: NextRequest) {
     const counties = await sql.query(
       `
       WITH all_county_data AS (
-        SELECT 
+        SELECT
           county_fips,
           state_code,
           county_name,
-          score,
+          COALESCE(score_with_demand, score) as score,
           zhvi_month,
           acs_vintage,
           computed_at
@@ -173,16 +173,49 @@ export async function GET(request: NextRequest) {
 
     const countyRows = Array.from(nameMap.values());
 
-    // Calculate state median score
-    const scores = countyRows.map(c => c.medianScore).filter((s): s is number => s !== null);
-    const sorted = [...scores].sort((a, b) => a - b);
-    const medianIndex = Math.floor(sorted.length / 2);
-    const stateMedianScore =
-      sorted.length % 2 === 0 && sorted.length > 0
-        ? (sorted[medianIndex - 1] + sorted[medianIndex]) / 2
-        : sorted.length > 0
-        ? sorted[medianIndex]
-        : null;
+    // Calculate state median score (median of ALL ZIPs in the state, not median of county medians)
+    // This ensures consistency with the USA map state-level scores
+    const stateMedianResult = await sql.query(
+      `
+      WITH all_state_data AS (
+        SELECT
+          COALESCE(score_with_demand, score) as score,
+          zhvi_month,
+          acs_vintage
+        FROM investment_score
+        WHERE state_code = $1
+          AND fmr_year = $2
+          AND data_sufficient = true
+      ),
+      latest_versions AS (
+        SELECT
+          MAX(zhvi_month) as latest_zhvi_month,
+          MAX(acs_vintage) as latest_acs_vintage
+        FROM all_state_data
+      ),
+      filtered_data AS (
+        SELECT
+          score
+        FROM all_state_data asd
+        CROSS JOIN latest_versions lv
+        WHERE (
+          (lv.latest_zhvi_month IS NULL AND asd.zhvi_month IS NULL) OR
+          (lv.latest_zhvi_month IS NOT NULL AND asd.zhvi_month = lv.latest_zhvi_month)
+        )
+        AND (
+          (lv.latest_acs_vintage IS NULL AND asd.acs_vintage IS NULL) OR
+          (lv.latest_acs_vintage IS NOT NULL AND asd.acs_vintage = lv.latest_acs_vintage)
+        )
+      )
+      SELECT
+        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY score) as median_score
+      FROM filtered_data
+      `,
+      [stateCode, year]
+    );
+    const stateMedianScore = stateMedianResult.rows[0]?.median_score
+      ? parseFloat(String(stateMedianResult.rows[0].median_score))
+      : null;
 
     // Add percent diff vs median and sort by highest score -> lowest score
     const rankings = countyRows

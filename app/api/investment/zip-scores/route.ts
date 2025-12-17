@@ -22,20 +22,65 @@ export async function GET(req: NextRequest) {
 
     if (countyParam && stateParam) {
       // Get investment scores for all ZIPs in the county
+      // Filter to latest data versions for consistency
       const result = await sql.query(
         `
-        SELECT 
-          zip_code,
-          PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY COALESCE(score_with_demand, score)) as median_score,
-          AVG(COALESCE(score_with_demand, score)) as avg_score,
-          COUNT(*) as bedroom_count
-        FROM investment_score
-        WHERE county_name ILIKE $1
-          AND state_code = $2
-          AND fmr_year = $3
-          AND data_sufficient = true
-        GROUP BY zip_code
-        ORDER BY median_score DESC NULLS LAST, avg_score DESC NULLS LAST
+        WITH county_data AS (
+          SELECT
+            zip_code,
+            COALESCE(score_with_demand, score) as score,
+            zhvi_month,
+            acs_vintage
+          FROM investment_score
+          WHERE county_name ILIKE $1
+            AND state_code = $2
+            AND fmr_year = $3
+            AND data_sufficient = true
+        ),
+        latest_versions AS (
+          SELECT
+            MAX(zhvi_month) as latest_zhvi_month,
+            MAX(acs_vintage) as latest_acs_vintage
+          FROM county_data
+        ),
+        filtered_data AS (
+          SELECT
+            zip_code,
+            score
+          FROM county_data cd
+          CROSS JOIN latest_versions lv
+          WHERE (
+            (lv.latest_zhvi_month IS NULL AND cd.zhvi_month IS NULL) OR
+            (lv.latest_zhvi_month IS NOT NULL AND cd.zhvi_month = lv.latest_zhvi_month)
+          )
+          AND (
+            (lv.latest_acs_vintage IS NULL AND cd.acs_vintage IS NULL) OR
+            (lv.latest_acs_vintage IS NOT NULL AND cd.acs_vintage = lv.latest_acs_vintage)
+          )
+        ),
+        zip_aggregates AS (
+          SELECT
+            zip_code,
+            PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY score) as median_score,
+            AVG(score) as avg_score,
+            COUNT(*) as bedroom_count
+          FROM filtered_data
+          GROUP BY zip_code
+        ),
+        area_median AS (
+          SELECT
+            PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY score) as area_median_score
+          FROM filtered_data
+        )
+        SELECT
+          za.zip_code,
+          za.median_score,
+          za.avg_score,
+          za.bedroom_count,
+          am.area_median_score
+        FROM zip_aggregates za
+        CROSS JOIN area_median am
+        ORDER BY za.median_score DESC NULLS LAST, za.avg_score DESC NULLS LAST
         `,
         [`%${countyParam}%`, stateParam.toUpperCase(), year]
       );
@@ -47,16 +92,10 @@ export async function GET(req: NextRequest) {
         bedroomCount: parseInt(row.bedroom_count) || 0,
       }));
 
-      // Calculate median score across all ZIPs
-      const scores = zipScores.map(z => z.medianScore ?? z.avgScore).filter((s): s is number => s !== null);
-      const sorted = [...scores].sort((a, b) => a - b);
-      const medianIndex = Math.floor(sorted.length / 2);
-      const areaMedianScore =
-        sorted.length % 2 === 0 && sorted.length > 0
-          ? (sorted[medianIndex - 1] + sorted[medianIndex]) / 2
-          : sorted.length > 0
-          ? sorted[medianIndex]
-          : null;
+      // Get area median score from the first row (same for all rows due to CROSS JOIN)
+      const areaMedianScore = result.rows.length > 0 && result.rows[0]?.area_median_score
+        ? parseFloat(String(result.rows[0].area_median_score))
+        : null;
 
       return NextResponse.json({
         found: true,
@@ -71,6 +110,7 @@ export async function GET(req: NextRequest) {
 
     if (cityParam && stateParam) {
       // Get investment scores for all ZIPs in the city
+      // Filter to latest data versions for consistency
       const result = await sql.query(
         `
         WITH city_zips AS (
@@ -78,18 +118,62 @@ export async function GET(req: NextRequest) {
           FROM zip_city_mapping
           WHERE city_name ILIKE $1
             AND state_code = $2
+        ),
+        city_data AS (
+          SELECT
+            isc.zip_code,
+            COALESCE(isc.score_with_demand, isc.score) as score,
+            isc.zhvi_month,
+            isc.acs_vintage
+          FROM investment_score isc
+          INNER JOIN city_zips cz ON cz.zip_code = isc.zip_code
+          WHERE isc.fmr_year = $3
+            AND isc.data_sufficient = true
+        ),
+        latest_versions AS (
+          SELECT
+            MAX(zhvi_month) as latest_zhvi_month,
+            MAX(acs_vintage) as latest_acs_vintage
+          FROM city_data
+        ),
+        filtered_data AS (
+          SELECT
+            zip_code,
+            score
+          FROM city_data cd
+          CROSS JOIN latest_versions lv
+          WHERE (
+            (lv.latest_zhvi_month IS NULL AND cd.zhvi_month IS NULL) OR
+            (lv.latest_zhvi_month IS NOT NULL AND cd.zhvi_month = lv.latest_zhvi_month)
+          )
+          AND (
+            (lv.latest_acs_vintage IS NULL AND cd.acs_vintage IS NULL) OR
+            (lv.latest_acs_vintage IS NOT NULL AND cd.acs_vintage = lv.latest_acs_vintage)
+          )
+        ),
+        zip_aggregates AS (
+          SELECT
+            zip_code,
+            PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY score) as median_score,
+            AVG(score) as avg_score,
+            COUNT(*) as bedroom_count
+          FROM filtered_data
+          GROUP BY zip_code
+        ),
+        area_median AS (
+          SELECT
+            PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY score) as area_median_score
+          FROM filtered_data
         )
-        SELECT 
-          isc.zip_code,
-          PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY COALESCE(isc.score_with_demand, isc.score)) as median_score,
-          AVG(COALESCE(isc.score_with_demand, isc.score)) as avg_score,
-          COUNT(*) as bedroom_count
-        FROM investment_score isc
-        INNER JOIN city_zips cz ON cz.zip_code = isc.zip_code
-        WHERE isc.fmr_year = $3
-          AND isc.data_sufficient = true
-        GROUP BY isc.zip_code
-        ORDER BY median_score DESC NULLS LAST, avg_score DESC NULLS LAST
+        SELECT
+          za.zip_code,
+          za.median_score,
+          za.avg_score,
+          za.bedroom_count,
+          am.area_median_score
+        FROM zip_aggregates za
+        CROSS JOIN area_median am
+        ORDER BY za.median_score DESC NULLS LAST, za.avg_score DESC NULLS LAST
         `,
         [cityParam, stateParam.toUpperCase(), year]
       );
@@ -101,16 +185,10 @@ export async function GET(req: NextRequest) {
         bedroomCount: parseInt(row.bedroom_count) || 0,
       }));
 
-      // Calculate median score across all ZIPs
-      const scores = zipScores.map(z => z.medianScore ?? z.avgScore).filter((s): s is number => s !== null);
-      const sorted = [...scores].sort((a, b) => a - b);
-      const medianIndex = Math.floor(sorted.length / 2);
-      const areaMedianScore =
-        sorted.length % 2 === 0 && sorted.length > 0
-          ? (sorted[medianIndex - 1] + sorted[medianIndex]) / 2
-          : sorted.length > 0
-          ? sorted[medianIndex]
-          : null;
+      // Get area median score from the first row (same for all rows due to CROSS JOIN)
+      const areaMedianScore = result.rows.length > 0 && result.rows[0]?.area_median_score
+        ? parseFloat(String(result.rows[0].area_median_score))
+        : null;
 
       return NextResponse.json({
         found: true,

@@ -31,21 +31,53 @@ export async function GET(request: NextRequest) {
 
     // Get county investment score data
     // Group only by FIPS and state_code to avoid duplicates from county_name variations
+    // Filter to latest data versions for consistency with other endpoints
     const counties = await sql.query(
       `
-      WITH county_scores AS (
-        SELECT 
+      WITH all_county_data AS (
+        SELECT
           county_fips,
           state_code,
-          PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY COALESCE(score_with_demand, score)) as median_score,
-          AVG(COALESCE(score_with_demand, score)) as avg_score,
-          COUNT(*) as zip_count
+          COALESCE(score_with_demand, score) as score,
+          zhvi_month,
+          acs_vintage
         FROM investment_score
         WHERE state_code = $1
           AND fmr_year = $2
           AND data_sufficient = true
           AND county_fips IS NOT NULL
           AND LENGTH(TRIM(county_fips)) = 5
+      ),
+      latest_versions AS (
+        SELECT
+          MAX(zhvi_month) as latest_zhvi_month,
+          MAX(acs_vintage) as latest_acs_vintage
+        FROM all_county_data
+      ),
+      filtered_data AS (
+        SELECT
+          county_fips,
+          state_code,
+          score
+        FROM all_county_data acd
+        CROSS JOIN latest_versions lv
+        WHERE (
+          (lv.latest_zhvi_month IS NULL AND acd.zhvi_month IS NULL) OR
+          (lv.latest_zhvi_month IS NOT NULL AND acd.zhvi_month = lv.latest_zhvi_month)
+        )
+        AND (
+          (lv.latest_acs_vintage IS NULL AND acd.acs_vintage IS NULL) OR
+          (lv.latest_acs_vintage IS NOT NULL AND acd.acs_vintage = lv.latest_acs_vintage)
+        )
+      ),
+      county_scores AS (
+        SELECT
+          county_fips,
+          state_code,
+          PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY score) as median_score,
+          AVG(score) as avg_score,
+          COUNT(*) as zip_count
+        FROM filtered_data
         GROUP BY county_fips, state_code
         HAVING COUNT(*) > 0
       ),
@@ -61,7 +93,7 @@ export async function GET(request: NextRequest) {
           AND LENGTH(TRIM(county_fips)) = 5
         ORDER BY county_fips, state_code, county_name
       )
-      SELECT 
+      SELECT
         cs.county_fips,
         COALESCE(cn.county_name, 'Unknown County') as county_name,
         cs.state_code,
