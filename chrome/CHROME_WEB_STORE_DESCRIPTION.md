@@ -11,7 +11,7 @@ View FMR data and cash flow calculations directly on real estate listings from Z
 
 ### 🎯 What It Does
 
-The extension automatically detects property information (address, price, bedrooms) from real estate listing pages and displays a smart badge showing the estimated monthly cash flow right next to each property. Click the badge to open a detailed analysis view with comprehensive FMR data, market parameters, and customizable financial calculations.
+The extension automatically detects property information (address, price, bedrooms, HOA fees) from real estate listing pages and displays a smart badge showing the estimated monthly cash flow right next to each property. Click the badge to open a detailed analysis view with comprehensive FMR data, market parameters, and customizable financial calculations.
 
 ### ✨ Key Features
 
@@ -20,6 +20,7 @@ The extension automatically detects property information (address, price, bedroo
 - Color-coded display (green for positive, red for negative cash flow)
 - Works seamlessly on list views, map views, and detail pages
 - Automatically updates as you browse new properties
+- Smart HOA detection with visual indicators when HOA data isn't available in list/map views
 
 **Comprehensive Financial Analysis**
 - Uses official HUD Fair Market Rent (FMR) and Small Area FMR (SAFMR) data
@@ -29,37 +30,42 @@ The extension automatically detects property information (address, price, bedroo
   - Insurance, HOA fees, and property management costs
   - Custom line items for additional expenses
 - Real-time market data including local tax rates and mortgage rates
+- Intelligent caching for fast performance without repeated API calls
 
 **Smart Property Detection**
-- Automatically extracts property address, price, and bedroom count
+- Automatically extracts property address, price, bedroom count, and HOA fees
 - Works across multiple listing sites: Zillow, Redfin, Realtor.com, and Homes.com
 - Handles both standard listings and expanded map views
 - Intelligent caching for fast performance
+- Detects when listings change and updates badges accordingly
 
-**Detailed Analysis View**
+**Detailed Analysis Modal**
 - Click any badge to open a comprehensive analysis modal
 - View complete FMR data by bedroom count (0-4+ bedrooms)
 - See market parameters including property tax rates and mortgage rates
 - Customize all financial parameters on the fly
 - Draggable, resizable modal that stays open while you browse
+- Embedded iframe showing full fmr.fyi ZIP page with all data
 
 **Fully Customizable**
-- Adjust down payment percentage
+- Adjust down payment percentage or fixed amount
 - Override tax rates and mortgage rates
 - Set property management fees (percentage or fixed amount)
 - Add custom expense line items
 - Configure default bedroom count and purchase price
 - Enable/disable specific real estate sites
+- All preferences sync across devices
 
 **Seamless Integration**
 - Non-intrusive badges that blend naturally with listing pages
 - Works on both list and map views
 - Automatically handles dynamic page updates (SPA navigation)
 - No impact on page load times or browsing experience
+- Smart handling of Zillow's expanded map cards and Redfin's dynamic views
 
 ### 🏠 Supported Sites
 
-- **Zillow** - List view, map view, and detail pages
+- **Zillow** - List view, map view, expanded map cards, and detail pages
 - **Redfin** - List view, map view, and detail pages  
 - **Realtor.com** - Detail pages
 - **Homes.com** - Detail pages
@@ -71,21 +77,25 @@ The extension automatically detects property information (address, price, bedroo
 - Compare multiple properties side-by-side with instant visibility
 - Make faster, data-driven investment decisions
 - Access official HUD FMR data without leaving your browsing flow
+- See accurate cash flow calculations including HOA fees when available
 
 **For Property Managers:**
 - Evaluate rental potential of properties instantly
 - Understand market rent expectations by bedroom count
 - Assess property viability before scheduling viewings
+- Get comprehensive financial breakdowns for client presentations
 
 **For Real Estate Professionals:**
 - Provide clients with instant financial analysis
 - Demonstrate property investment potential with official FMR data
 - Save time on manual calculations and data lookups
+- Show detailed breakdowns of all expenses and income
 
 **For Anyone Evaluating Properties:**
 - Understand the true cost of property ownership
-- See realistic rental income potential
-- Make informed decisions with government-backed rent data
+- See realistic rental income potential based on government-backed data
+- Make informed decisions with comprehensive financial analysis
+- Access detailed FMR data for any ZIP code instantly
 
 ### 🔒 Privacy & Data
 
@@ -93,6 +103,7 @@ The extension automatically detects property information (address, price, bedroo
 - FMR data fetched from official HUD sources via fmr.fyi API
 - No personal data collected or stored
 - Your browsing history and preferences remain private
+- Preferences stored locally and synced via Chrome sync (optional)
 
 ### 🚀 Getting Started
 
