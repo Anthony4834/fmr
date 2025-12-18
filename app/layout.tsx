@@ -10,7 +10,7 @@ const googleVerification = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION;
 export const metadata: Metadata = {
   title: "fmr.fyi - Fair Market Rent Data",
   description:
-    "Search Fair Market Rent data by address, city, ZIP code, or county. Find HUD FMR and SAFMR data instantly.",
+    "Search Fair Market Rent data by address, city, ZIP code, county, or parish. Find HUD FMR and SAFMR data instantly.",
   metadataBase: new URL("https://fmr.fyi"),
   verification: googleVerification ? { google: googleVerification } : undefined,
   icons: {
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "fmr.fyi - Fair Market Rent Data",
     description:
-      "Search Fair Market Rent data by address, city, ZIP code, or county. Find HUD FMR and SAFMR data instantly.",
+      "Search Fair Market Rent data by address, city, ZIP code, county, or parish. Find HUD FMR and SAFMR data instantly.",
     url: "https://fmr.fyi",
     siteName: "fmr.fyi",
     type: "website",
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     card: "summary",
     title: "fmr.fyi - Fair Market Rent Data",
     description:
-      "Search Fair Market Rent data by address, city, ZIP code, or county. Find HUD FMR and SAFMR data instantly.",
+      "Search Fair Market Rent data by address, city, ZIP code, county, or parish. Find HUD FMR and SAFMR data instantly.",
   },
 };
 

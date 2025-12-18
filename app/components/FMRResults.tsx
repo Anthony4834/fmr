@@ -10,6 +10,7 @@ import Tooltip from '@/app/components/Tooltip';
 import ScoreGauge from '@/app/components/ScoreGauge';
 import InvestorScoreInfoIcon from '@/app/components/InvestorScoreInfoIcon';
 import { buildCitySlug, buildCountySlug } from '@/lib/location-slugs';
+import { formatCountyName } from '@/lib/county-utils';
 
 interface FMRResultsProps {
   data: FMRResult | null;
@@ -220,9 +221,7 @@ export default function FMRResults({
     // For address queries, show the address with county/state info below
     if (dataNonNull.queriedType === 'address' && dataNonNull.queriedLocation) {
       if (dataNonNull.countyName) {
-        const countyDisplay = dataNonNull.countyName.includes('County') 
-          ? dataNonNull.countyName 
-          : `${dataNonNull.countyName} County`;
+        const countyDisplay = formatCountyName(dataNonNull.countyName, dataNonNull.stateCode);
         return `${countyDisplay}, ${dataNonNull.stateCode}`;
       }
       return dataNonNull.stateCode;
@@ -230,10 +229,8 @@ export default function FMRResults({
     
     // For other query types, show county/state as before
     if (dataNonNull.countyName) {
-      // Ensure county name includes "County" suffix if not already present
-      const countyDisplay = dataNonNull.countyName.includes('County') 
-        ? dataNonNull.countyName 
-        : `${dataNonNull.countyName} County`;
+      // Format county name with appropriate suffix (County or Parish for LA)
+      const countyDisplay = formatCountyName(dataNonNull.countyName, dataNonNull.stateCode);
       return `${countyDisplay}, ${dataNonNull.stateCode}`;
     }
     return `${dataNonNull.stateCode}`;
@@ -283,15 +280,16 @@ export default function FMRResults({
     if (dataNonNull.queriedType === 'county') {
       const countyName = dataNonNull.countyName || dataNonNull.areaName;
       if (!countyName) return null;
-      // Remove "County" suffix if present, format: lowercase, replace spaces with hyphens
-      const cleaned = countyName.replace(/\s+county$/i, '').trim();
+      // Remove "County" or "Parish" suffix if present, format: lowercase, replace spaces with hyphens
+      const cleaned = countyName.replace(/\s+(county|parish)$/i, '').trim();
       const formatted = cleaned
         .toLowerCase()
         .replace(/[^a-z0-9\s-]/g, '')
         .replace(/\s+/g, '-')
         .replace(/-+/g, '-')
         .trim();
-      return `https://www.zillow.com/${formatted}-county-${stateCodeLower}/`;
+      const regionalUnit = stateCode?.toUpperCase() === 'LA' ? 'parish' : 'county';
+      return `https://www.zillow.com/${formatted}-${regionalUnit}-${stateCodeLower}/`;
     }
     
     // For address queries, try to use county or zip if available
@@ -300,14 +298,15 @@ export default function FMRResults({
         return `https://www.zillow.com/${zipCodesToShow[0]}/`;
       }
       if (dataNonNull.countyName) {
-        const cleaned = dataNonNull.countyName.replace(/\s+county$/i, '').trim();
+        const cleaned = dataNonNull.countyName.replace(/\s+(county|parish)$/i, '').trim();
         const formatted = cleaned
           .toLowerCase()
           .replace(/[^a-z0-9\s-]/g, '')
           .replace(/\s+/g, '-')
           .replace(/-+/g, '-')
           .trim();
-        return `https://www.zillow.com/${formatted}-county-${stateCodeLower}/`;
+        const regionalUnit = stateCode?.toUpperCase() === 'LA' ? 'parish' : 'county';
+        return `https://www.zillow.com/${formatted}-${regionalUnit}-${stateCodeLower}/`;
       }
     }
     
@@ -395,9 +394,7 @@ export default function FMRResults({
   }
 
   if (dataNonNull.countyName && stateCode) {
-    const countyDisplay = dataNonNull.countyName.includes('County')
-      ? dataNonNull.countyName
-      : `${dataNonNull.countyName} County`;
+    const countyDisplay = formatCountyName(dataNonNull.countyName, dataNonNull.stateCode);
     fullBreadcrumbs.push({
       label: countyDisplay,
       href: `/county/${buildCountySlug(dataNonNull.countyName, stateCode)}`,

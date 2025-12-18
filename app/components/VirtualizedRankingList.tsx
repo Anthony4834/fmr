@@ -3,6 +3,7 @@
 import { useRef, useEffect } from 'react';
 import { buildCitySlug, buildCountySlug } from '@/lib/location-slugs';
 import { STATES } from '@/lib/states';
+import { formatCountyName } from '@/lib/county-utils';
 
 interface RankingItem {
   rank: number;
@@ -64,7 +65,7 @@ export default function VirtualizedRankingList({
       const code = item.stateCode || '';
       return item.stateName || STATE_NAME_BY_CODE[code] || code;
     }
-    if (type === 'county') return item.countyName;
+    if (type === 'county') return item.countyName ? formatCountyName(item.countyName, item.stateCode) : item.countyName;
     if (type === 'city') return item.cityName;
     return item.zipCode;
   };
@@ -72,9 +73,12 @@ export default function VirtualizedRankingList({
   const getSubLabel = (item: RankingItem) => {
     if (type === 'state') return item.stateCode;
     if (type === 'county') return item.stateCode;
-    if (type === 'city')
-      return `${item.countyName || ''}, ${item.stateCode}`.trim().replace(/^,\s*/, '');
-    return `${item.countyName || ''}, ${item.stateCode}`.trim().replace(/^,\s*/, '');
+    if (type === 'city') {
+      const county = item.countyName ? formatCountyName(item.countyName, item.stateCode) : '';
+      return `${county}, ${item.stateCode}`.trim().replace(/^,\s*/, '');
+    }
+    const county = item.countyName ? formatCountyName(item.countyName, item.stateCode) : '';
+    return `${county}, ${item.stateCode}`.trim().replace(/^,\s*/, '');
   };
 
   const getHref = (item: RankingItem) => {

@@ -27,7 +27,7 @@ function descriptionFor(q: string, type: SearchType) {
   if (type === 'zip') return `HUD Fair Market Rent (FMR/SAFMR) for ZIP ${q}. View 0–4 bedroom rent limits for FY 2026.`;
   if (type === 'city') return `HUD Fair Market Rent (FMR/SAFMR) for ${q}. View 0–4 bedroom rent limits for FY 2026.`;
   if (type === 'county') return `HUD Fair Market Rent (FMR/SAFMR) for ${q}. View 0–4 bedroom rent limits for FY 2026.`;
-  return 'Search Fair Market Rent data by address, city, ZIP code, or county. Find HUD FMR and SAFMR data instantly.';
+  return 'Search Fair Market Rent data by address, city, ZIP code, county, or parish. Find HUD FMR and SAFMR data instantly.';
 }
 
 function normalizeType(input: unknown): SearchType | null {
@@ -67,7 +67,7 @@ export async function generateMetadata({
   if (!q || !type) {
     return {
       title: 'fmr.fyi - Fair Market Rent Data',
-      description: 'Search Fair Market Rent data by address, city, ZIP code, or county. Find HUD FMR and SAFMR data instantly.',
+      description: 'Search Fair Market Rent data by address, city, ZIP code, county, or parish. Find HUD FMR and SAFMR data instantly.',
     };
   }
 

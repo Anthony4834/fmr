@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState, useEffect } from 'react';
 import { useDebouncedCallback } from 'use-debounce';
+import { formatCountyName } from '@/lib/county-utils';
 
 interface AutocompleteResult {
   type: 'zip' | 'city' | 'county' | 'address' | 'state';
@@ -39,10 +40,8 @@ function stripCountyWord(s: string) {
   return s.replace(/\bcounty\b/gi, '').replace(/\s+/g, ' ').trim();
 }
 
-function ensureCountySuffix(countyName: string) {
-  const trimmed = countyName.trim();
-  if (!trimmed) return trimmed;
-  return /\bcounty\b/i.test(trimmed) ? trimmed.replace(/\s+county\b/i, ' County') : `${trimmed} County`;
+function ensureCountySuffix(countyName: string, stateCode?: string) {
+  return formatCountyName(countyName, stateCode);
 }
 
 function parseLocationCommaState(input: string): { location: string; state: string } | null {
@@ -401,7 +400,7 @@ export default function SearchInput({ onSelect, autoFocus = false }: SearchInput
 
         // If user typed "X County, ST" (any casing), normalize to "X County, ST"
         if (/\bcounty\b/i.test(location)) {
-          const countyName = ensureCountySuffix(stripCountyWord(location));
+          const countyName = ensureCountySuffix(stripCountyWord(location), state);
           onSelect(`${countyName}, ${state}`, 'county');
           return;
         }
@@ -412,7 +411,7 @@ export default function SearchInput({ onSelect, autoFocus = false }: SearchInput
           const resolved = await resolveCityOrCountyFromApi(`${location}, ${state}`);
           if (resolved) {
             if (resolved.type === 'county') {
-              const countyName = ensureCountySuffix(stripCountyWord(resolved.value.split(',')[0] || location));
+              const countyName = ensureCountySuffix(stripCountyWord(resolved.value.split(',')[0] || location), state);
               onSelect(`${countyName}, ${state}`, 'county');
             } else {
               onSelect(`${location}, ${state}`, 'city');
@@ -545,7 +544,7 @@ export default function SearchInput({ onSelect, autoFocus = false }: SearchInput
               setSelectedIndex(-1);
             }}
             ref={inputRef}
-            placeholder="Search state, ZIP, city, county, or address…"
+            placeholder="Search state, ZIP, city, county/parish, or address…"
             className={`w-full pl-10 ${
               query.trim().length > 0 ? 'pr-28 sm:pr-40' : 'pr-16 sm:pr-24'
             } py-2.5 sm:py-3.5 text-[14px] sm:text-[15px] bg-white border border-[#e5e5e5] rounded-xl appearance-none focus:outline-none focus:ring-0 focus:ring-offset-0 focus:border-[#0a0a0a] transition-colors placeholder:text-[#a3a3a3] text-[#0a0a0a]`}

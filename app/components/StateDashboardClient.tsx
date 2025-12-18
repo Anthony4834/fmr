@@ -13,6 +13,7 @@ import Tooltip from './Tooltip';
 import ScoreGauge from './ScoreGauge';
 import InvestorScoreInfoIcon from './InvestorScoreInfoIcon';
 import InvestorScoreInfoButton from './InvestorScoreInfoButton';
+import { formatCountyName } from '@/lib/county-utils';
 
 // Dynamically import ChoroplethMap to avoid SSR issues with Leaflet
 const ChoroplethMap = dynamic(() => import('./ChoroplethMap'), {
@@ -636,9 +637,7 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
                     }
 
                     return items.map((item, index) => {
-                      const countyLabel = item.areaName.includes('County')
-                        ? item.areaName
-                        : `${item.areaName} County`;
+                      const countyLabel = formatCountyName(item.areaName, item.stateCode);
                       const href = `/county/${buildCountySlug(item.areaName, item.stateCode)}`;
 
                       return (
@@ -703,9 +702,7 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
                   <div className="divide-y divide-[#e5e5e5]">
                     {countyRankings.map((county, index) => {
                       const isHovered = !!county.countyFips && hoveredCountyFips === county.countyFips;
-                      const countyLabel = county.countyName.includes('County')
-                        ? county.countyName
-                        : `${county.countyName} County`;
+                      const countyLabel = formatCountyName(county.countyName, county.stateCode);
                       const href = `/county/${buildCountySlug(county.countyName, county.stateCode)}`;
                       const score = county.medianScore ?? county.avgScore ?? null;
                       const scoreTextColor = getTextColorForScore(score);
@@ -893,9 +890,7 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
                   }
 
                   return items.map((item, index) => {
-                    const countyLabel = item.areaName.includes('County')
-                      ? item.areaName
-                      : `${item.areaName} County`;
+                    const countyLabel = formatCountyName(item.areaName, item.stateCode);
                     const href = `/county/${buildCountySlug(item.areaName, item.stateCode)}`;
 
                     return (

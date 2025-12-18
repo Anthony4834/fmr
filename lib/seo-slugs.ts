@@ -1,5 +1,6 @@
 import { sql } from '@vercel/postgres';
 import { slugify } from '@/lib/location-slugs';
+import { formatCountyName } from '@/lib/county-utils';
 
 export type LocationType = 'zip' | 'city' | 'county';
 
@@ -62,7 +63,7 @@ export async function resolveCountySlugToQuery(slug: string): Promise<string | n
 
     if (result.rows.length > 0) {
       const row = result.rows[0] as { county_name: string; state_code: string };
-      const countyDisplay = /\bcounty\b/i.test(row.county_name) ? row.county_name : `${row.county_name} County`;
+      const countyDisplay = formatCountyName(row.county_name, row.state_code);
       return `${countyDisplay}, ${row.state_code}`;
     }
   } catch {
@@ -72,7 +73,7 @@ export async function resolveCountySlugToQuery(slug: string): Promise<string | n
   // Fallback: best-effort decode.
   const countyGuess = baseNoCounty.replace(/-/g, ' ').trim();
   if (!countyGuess) return null;
-  return `${countyGuess} County, ${stateCode}`;
+  return `${formatCountyName(countyGuess, stateCode)}, ${stateCode}`;
 }
 
 

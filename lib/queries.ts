@@ -1,5 +1,6 @@
 import { sql } from '@vercel/postgres';
 import type { FMRHistoryPoint, FMRResult, ZIPFMRData } from '@/lib/types';
+import { formatCountyName, removeCountySuffix } from '@/lib/county-utils';
 
 export interface AutocompleteResult {
   type: 'zip' | 'city' | 'county' | 'state';
@@ -150,9 +151,7 @@ export async function searchAutocomplete(
       LIMIT 10
     `;
     zipResults.rows.forEach(row => {
-      const countyDisplay = row.county_name?.includes('County')
-        ? row.county_name
-        : `${row.county_name} County`;
+      const countyDisplay = formatCountyName(row.county_name || '', row.state_code);
       results.push({
         type: 'zip',
         display: `${row.zip_code} - ${countyDisplay}, ${row.state_code}`,
@@ -264,10 +263,8 @@ export async function searchAutocomplete(
     }
     const countyResults = await countyQuery;
     countyResults.rows.forEach(row => {
-      // Ensure county name includes "County" if it's a county
-      const countyDisplay = row.county_name.includes('County') 
-        ? row.county_name 
-        : `${row.county_name} County`;
+      // Format county name with appropriate suffix (County or Parish for LA)
+      const countyDisplay = formatCountyName(row.county_name, row.state_code);
       results.push({
         type: 'county',
         display: `${countyDisplay}, ${row.state_code}`,

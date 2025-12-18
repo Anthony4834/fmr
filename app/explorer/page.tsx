@@ -54,7 +54,7 @@ function ExplorerFallback() {
           </div>
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <p className="text-sm sm:text-base text-[#525252] max-w-2xl">
-              Search HUD Fair Market Rent data by address, city, ZIP code, or county
+              Search HUD Fair Market Rent data by address, city, ZIP code, county, or parish
             </p>
             <div className="h-9 w-9 rounded bg-[#e5e5e5] animate-pulse" aria-hidden="true" />
           </div>

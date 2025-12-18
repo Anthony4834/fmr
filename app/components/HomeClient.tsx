@@ -12,6 +12,7 @@ import { STATES } from '@/lib/states';
 import IdealPurchasePriceCard from './IdealPurchasePriceCard';
 import InvestorScoreInfoButton from './InvestorScoreInfoButton';
 import NewBadge from './NewBadge';
+import { formatCountyName } from '@/lib/county-utils';
 
 function getTextColorForScore(score: number | null): string {
   if (score === null || score === undefined || score < 95) {
@@ -742,18 +743,12 @@ export default function HomeClient(props: {
     return () => window.removeEventListener('resize', updateTabBar);
   }, [marketPreviewType]);
 
-  const formatCounty = (name: string) => {
-    const trimmed = (name || '').trim();
-    if (!trimmed) return '';
-    return /\bcounty\b/i.test(trimmed) ? trimmed.replace(/\s+county\b/i, ' County') : `${trimmed} County`;
-  };
-
   const marketPreviewLabel = (item: MarketPreviewItem) => {
     if (marketPreviewType === 'state') {
       const code = item.stateCode || '';
       return STATE_NAME_BY_CODE[code] || code;
     }
-    if (marketPreviewType === 'county') return item.countyName ? formatCounty(item.countyName) : '';
+    if (marketPreviewType === 'county') return item.countyName ? formatCountyName(item.countyName, item.stateCode) : '';
     if (marketPreviewType === 'city') return item.cityName || '';
     return item.zipCode || '';
   };
@@ -762,12 +757,12 @@ export default function HomeClient(props: {
     if (marketPreviewType === 'state') return item.stateCode || '';
     if (marketPreviewType === 'county') return item.stateCode || '';
     if (marketPreviewType === 'city') {
-      const county = item.countyName ? formatCounty(item.countyName) : '';
+      const county = item.countyName ? formatCountyName(item.countyName, item.stateCode) : '';
       const state = item.stateCode || '';
       return `${county}${county && state ? ', ' : ''}${state}`.trim();
     }
     // zip
-    const county = item.countyName ? formatCounty(item.countyName) : '';
+    const county = item.countyName ? formatCountyName(item.countyName, item.stateCode) : '';
     const state = item.stateCode || '';
     return `${county}${county && state ? ', ' : ''}${state}`.trim();
   };
@@ -821,7 +816,7 @@ export default function HomeClient(props: {
           </div>
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <p className="text-sm sm:text-base text-[#525252] max-w-2xl">
-              Search HUD Fair Market Rent data by address, city, ZIP code, or county
+              Search HUD Fair Market Rent data by address, city, ZIP code, county, or parish
             </p>
             <InvestorScoreInfoButton />
           </div>

@@ -51,7 +51,7 @@ export default function WhatIsFmrPage() {
 
         <h2 className="mt-8 text-xl font-semibold text-[#0a0a0a]">Try it</h2>
         <p className="mt-3 text-base text-[#525252] leading-relaxed">
-          Search by <span className="font-medium text-[#0a0a0a]">city</span>, <span className="font-medium text-[#0a0a0a]">county</span>, or{' '}
+          Search by <span className="font-medium text-[#0a0a0a]">city</span>, <span className="font-medium text-[#0a0a0a]">county/parish</span>, or{' '}
           <span className="font-medium text-[#0a0a0a]">ZIP</span> to see the latest HUD values.
         </p>
 
