@@ -291,7 +291,7 @@ export default function FMRResults({
         .replace(/\s+/g, '-')
         .replace(/-+/g, '-')
         .trim();
-      return `https://www.zillow.com/${formatted}-${stateCodeLower}/`;
+      return `https://www.zillow.com/${formatted}-county-${stateCodeLower}/`;
     }
     
     // For address queries, try to use county or zip if available
@@ -307,7 +307,7 @@ export default function FMRResults({
           .replace(/\s+/g, '-')
           .replace(/-+/g, '-')
           .trim();
-        return `https://www.zillow.com/${formatted}-${stateCodeLower}/`;
+        return `https://www.zillow.com/${formatted}-county-${stateCodeLower}/`;
       }
     }
     
