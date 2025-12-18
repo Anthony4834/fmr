@@ -4,6 +4,7 @@
 import { fetchFMRData, fetchMarketParams, fetchInvestmentScore, FMRDataResponse } from '../shared/api-client';
 import { computeCashFlow, getRentForBedrooms } from '../shared/cashflow';
 import { ExtensionPreferences, DEFAULT_PREFERENCES } from '../shared/types';
+import { savePreferences } from '../popup/settings';
 
 export interface MiniViewProps {
   address: string;
@@ -94,6 +95,7 @@ function renderMiniViewContent(
   preferences: ExtensionPreferences
 ): string {
   const bedrooms = [0, 1, 2, 3, 4];
+  const selectedBedrooms = preferences.bedrooms ?? 3; // Default to 3 if null
   
   return `
     <div style="margin-bottom: 16px;">
@@ -145,7 +147,7 @@ function renderMiniViewContent(
         <label style="display: block; font-size: 12px; color: #737373; margin-bottom: 4px;">Bedrooms</label>
         <select id="calc-bedrooms" 
           style="width: 100%; padding: 6px; border: 1px solid #e5e5e5; border-radius: 4px; font-size: 14px;">
-          ${bedrooms.map(br => `<option value="${br}">${br}</option>`).join('')}
+          ${bedrooms.map(br => `<option value="${br}" ${selectedBedrooms === br ? 'selected' : ''}>${br}</option>`).join('')}
         </select>
       </div>
       <div id="calc-result" style="margin-top: 12px; padding: 12px; background: white; border: 1px solid #e5e5e5; border-radius: 4px;">
@@ -236,9 +238,42 @@ function attachCalculatorListeners(
       resultDiv.textContent = '—';
     }
   };
+
+  // Save preferences when user changes purchase price or bedrooms
+  const saveUserSelections = async () => {
+    const purchasePrice = parseFloat(priceInput.value.replace(/[^0-9.]/g, ''));
+    const bedrooms = parseInt(bedroomsSelect.value, 10);
+    
+    const updates: Partial<ExtensionPreferences> = {};
+    
+    if (!isNaN(purchasePrice) && purchasePrice > 0) {
+      updates.purchasePrice = purchasePrice;
+    }
+    
+    if (!isNaN(bedrooms)) {
+      updates.bedrooms = bedrooms;
+    }
+    
+    if (Object.keys(updates).length > 0) {
+      try {
+        await savePreferences(updates);
+      } catch (error) {
+        console.error('[FMR Extension] Error saving preferences:', error);
+      }
+    }
+  };
   
-  priceInput.addEventListener('input', updateCalculator);
-  bedroomsSelect.addEventListener('change', updateCalculator);
+  priceInput.addEventListener('input', () => {
+    updateCalculator();
+    // Debounce saving to avoid too many storage writes
+    clearTimeout((priceInput as any).__saveTimeout);
+    (priceInput as any).__saveTimeout = setTimeout(saveUserSelections, 500);
+  });
+  
+  bedroomsSelect.addEventListener('change', () => {
+    updateCalculator();
+    saveUserSelections();
+  });
   
   // Initial calculation
   updateCalculator();

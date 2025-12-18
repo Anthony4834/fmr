@@ -54,6 +54,13 @@ export default function RootLayout({
             gtag('config', 'AW-11417164379');
           `}
         </Script>
+        <Script id="google-ads-conversion" strategy="afterInteractive">
+          {`
+            if (typeof gtag !== 'undefined') {
+              gtag('event', 'conversion', {'send_to': 'AW-11417164379/dz0wCKb8jvgYENu0kMQq'});
+            }
+          `}
+        </Script>
         <Analytics />
         <StructuredData />
         <VercelAnalytics />
