@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@vercel/postgres';
 
-type Segment = 'zip' | 'city' | 'county';
+type Segment = 'zip' | 'city' | 'county' | 'all';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,7 +20,7 @@ async function ensureTable() {
 }
 
 function normalizeSegment(input: string | null): Segment {
-  return input === 'city' || input === 'county' || input === 'zip' ? input : 'zip';
+  return input === 'all' || input === 'city' || input === 'county' || input === 'zip' ? input : 'zip';
 }
 
 function normalizeLimit(input: string | null): number {
@@ -51,14 +51,30 @@ export async function GET(request: NextRequest) {
   try {
     const sp = request.nextUrl.searchParams;
     const type = normalizeSegment(sp.get('type'));
-    const limit = normalizeLimit(sp.get('limit'));
+    const contextParam = sp.get('context');
+    const baseLimit = normalizeLimit(sp.get('limit'));
+    const limit = contextParam === 'dropdown' ? 5 : baseLimit;
     const days = normalizeDays(sp.get('days'));
     const year = await normalizeYear(sp.get('year'));
 
     await ensureTable();
 
     let rows;
-    if (type === 'zip') {
+    if (type === 'all') {
+      // Top searches across all geo types (exclude address).
+      rows = await sql.query(
+        `
+        SELECT type, query, COUNT(*)::int AS count, MAX(created_at) AS last_seen
+        FROM search_events
+        WHERE type IN ('zip', 'city', 'county')
+          AND created_at >= (NOW() - ($1::int * INTERVAL '1 day'))
+        GROUP BY type, query
+        ORDER BY count DESC, last_seen DESC
+        LIMIT $2
+        `,
+        [days, limit]
+      );
+    } else if (type === 'zip') {
       // ZIPs can map to multiple counties. If we join directly, we can duplicate rows and
       // destabilize React keys in the UI. Instead: compute top queries first, then join a
       // deterministic "one row per ZIP" mapping.
@@ -247,6 +263,7 @@ export async function GET(request: NextRequest) {
       days,
       year,
       items: rows.rows.map((r: any) => ({
+        type: (r.type || type) as Segment,
         query: r.query,
         count: Number(r.count || 0),
         lastSeen: r.last_seen,

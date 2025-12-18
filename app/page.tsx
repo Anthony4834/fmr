@@ -74,7 +74,25 @@ export async function generateMetadata({
   // Clean SERP URLs: canonical location pages are slugs. Query-param pages are duplicates.
   const isAddress = type === 'address';
   const isLocation = type === 'zip' || type === 'city' || type === 'county';
-  const canonical = canonicalUrlFor(q, type);
+  const canonical = (() => {
+    if (type === 'zip') {
+      const zip = q.trim().match(/\b(\d{5})\b/)?.[1];
+      return zip ? `https://fmr.fyi/zip/${zip}` : canonicalUrlFor(q, type);
+    }
+    if (type === 'city') {
+      const [city, state] = q.split(',').map((s) => s.trim());
+      return city && state && state.length === 2
+        ? `https://fmr.fyi/city/${buildCitySlug(city, state)}`
+        : canonicalUrlFor(q, type);
+    }
+    if (type === 'county') {
+      const [county, state] = q.split(',').map((s) => s.trim());
+      return county && state && state.length === 2
+        ? `https://fmr.fyi/county/${buildCountySlug(county, state)}`
+        : canonicalUrlFor(q, type);
+    }
+    return canonicalUrlFor(q, type);
+  })();
 
   // Update title and description to include year if provided
   const title = type === 'zip' ? `${q} FMR (HUD Fair Market Rent) – ${year} | fmr.fyi` :
@@ -164,6 +182,10 @@ export default async function Home({
     initialError = e instanceof Error ? e.message : 'Failed to fetch FMR data';
   }
 
-  return <HomeClient initialQuery={q} initialType={type} initialData={initialData} initialError={initialError} />;
+  return (
+    <main className="min-h-screen">
+      <HomeClient initialQuery={q} initialType={type} initialData={initialData} initialError={initialError} />
+    </main>
+  );
 }
 

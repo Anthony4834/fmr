@@ -57,7 +57,7 @@ async function init() {
   document.getElementById('down-payment-percent').value = String(prefs.downPaymentPercent);
   document.getElementById('down-payment-amount').value = String(prefs.downPaymentAmount || 0);
   document.getElementById('insurance-monthly').value = String(prefs.insuranceMonthly);
-  document.getElementById('hoa-monthly').value = String(prefs.hoaMonthly);
+  // Note: hoa-monthly field doesn't exist in the HTML, so we skip it
   document.getElementById('pm-mode').value = prefs.propertyManagementMode;
   document.getElementById('pm-percent').value = String(prefs.propertyManagementPercent);
   document.getElementById('pm-amount').value = String(prefs.propertyManagementAmount);
@@ -147,7 +147,7 @@ async function saveFormData() {
     downPaymentPercent: parseFloat(document.getElementById('down-payment-percent').value) || DEFAULT_PREFERENCES.downPaymentPercent,
     downPaymentAmount: parseFloat(document.getElementById('down-payment-amount').value) || DEFAULT_PREFERENCES.downPaymentAmount,
     insuranceMonthly: parseFloat(document.getElementById('insurance-monthly').value) || DEFAULT_PREFERENCES.insuranceMonthly,
-    hoaMonthly: parseFloat(document.getElementById('hoa-monthly').value) || DEFAULT_PREFERENCES.hoaMonthly,
+    hoaMonthly: parseFloat(document.getElementById('hoa-monthly')?.value) || DEFAULT_PREFERENCES.hoaMonthly,
     propertyManagementMode: document.getElementById('pm-mode').value,
     propertyManagementPercent: parseFloat(document.getElementById('pm-percent').value) || DEFAULT_PREFERENCES.propertyManagementPercent,
     propertyManagementAmount: parseFloat(document.getElementById('pm-amount').value) || DEFAULT_PREFERENCES.propertyManagementAmount,
@@ -159,6 +159,7 @@ async function saveFormData() {
     mortgageRateAnnualPct: document.getElementById('override-mortgage-rate').checked
       ? parseFloat(document.getElementById('mortgage-rate').value) || null
       : null,
+    customLineItems: customLineItems, // Include custom line items in the save
     enabledSites: {
       redfin: document.getElementById('enable-redfin').checked,
       zillow: document.getElementById('enable-zillow').checked,

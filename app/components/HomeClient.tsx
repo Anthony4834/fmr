@@ -1,14 +1,14 @@
 'use client';
 
-import { useMemo, useRef, useState, useEffect } from 'react';
+import { useMemo, useRef, useState, useEffect, useLayoutEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import SearchInput from './SearchInput';
 import FMRResults from './FMRResults';
-import NationwideStats from './NationwideStats';
 import PercentageBadge from './PercentageBadge';
 import type { FMRResult, ZIPFMRData } from '@/lib/types';
 import ResultAbout from './ResultAbout';
 import { buildCitySlug, buildCountySlug } from '@/lib/location-slugs';
+import { STATES } from '@/lib/states';
 import IdealPurchasePriceCard from './IdealPurchasePriceCard';
 import InvestorScoreInfoButton from './InvestorScoreInfoButton';
 
@@ -21,6 +21,10 @@ function getTextColorForScore(score: number | null): string {
   }
   return '#16a34a'; // Darker green for text: >= 95 and < 130 (improved contrast, easier on eyes)
 }
+
+const STATE_NAME_BY_CODE: Record<string, string> = Object.fromEntries(
+  STATES.map((s) => [s.code, s.name])
+);
 
 type SearchStatus = 'idle' | 'loading' | 'success' | 'error';
 
@@ -35,6 +39,18 @@ type ZipScoreData = {
   zipCode: string;
   medianScore: number | null;
   avgScore: number | null;
+};
+
+type MarketPreviewType = 'state' | 'county' | 'city' | 'zip';
+
+type MarketPreviewItem = {
+  rank: number;
+  stateCode?: string;
+  countyName?: string;
+  cityName?: string;
+  zipCode?: string;
+  medianScore: number | null;
+  zipCount: number;
 };
 
 function computeZipRankings(data: FMRResult | null): { rankings: ZipRanking[]; medianAvgFMR: number } | null {
@@ -588,9 +604,186 @@ export default function HomeClient(props: {
     return searchStatus !== 'idle';
   }, [searchStatus]);
 
+  // Lightweight "dashboard snapshot" for the idle homepage (push heavy views to /map, /explorer, /insights).
+  const DASHBOARD_PREVIEW_YEAR = 2026;
+  const [marketPreviewType, setMarketPreviewType] = useState<MarketPreviewType>('state');
+  const [marketPreviewItems, setMarketPreviewItems] = useState<MarketPreviewItem[]>([]);
+  const [marketPreviewStatus, setMarketPreviewStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('loading');
+  const [marketPreviewError, setMarketPreviewError] = useState<string | null>(null);
+  const marketPreviewAbortRef = useRef<AbortController | null>(null);
+  const tabBarRef = useRef<HTMLDivElement>(null);
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const [tabBarStyle, setTabBarStyle] = useState<{ left: number; width: number }>({ left: 0, width: 0 });
+
+  const [indexComputedAt, setIndexComputedAt] = useState<string | null>(null);
+  const [indexStatus, setIndexStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const indexAbortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    if (showResults) return;
+
+    if (indexAbortRef.current) {
+      indexAbortRef.current.abort();
+    }
+    const controller = new AbortController();
+    indexAbortRef.current = controller;
+
+    setIndexStatus('loading');
+
+    fetch(`/api/stats/investment-score-index?year=${DASHBOARD_PREVIEW_YEAR}`, { signal: controller.signal })
+      .then(async (res) => {
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error((json as any)?.error || 'Failed to load index status');
+        return json as any;
+      })
+      .then((json) => {
+        if (controller.signal.aborted) return;
+        setIndexComputedAt(typeof json?.computedAt === 'string' ? json.computedAt : null);
+        setIndexStatus('success');
+      })
+      .catch(() => {
+        if (controller.signal.aborted) return;
+        setIndexComputedAt(null);
+        setIndexStatus('error');
+      });
+
+    return () => {
+      if (indexAbortRef.current === controller) {
+        controller.abort();
+      }
+    };
+  }, [DASHBOARD_PREVIEW_YEAR, showResults]);
+
+  const indexedText = useMemo(() => {
+    if (indexStatus === 'loading') return 'Indexed (updating…)';
+    if (!indexComputedAt) return 'Indexed';
+    const computed = new Date(indexComputedAt);
+    if (!Number.isFinite(computed.getTime())) return 'Indexed';
+
+    const now = new Date();
+    const diffMs = Math.max(0, now.getTime() - computed.getTime());
+    const diffMins = Math.round(diffMs / (60 * 1000));
+    const diffHours = Math.round(diffMs / (60 * 60 * 1000));
+    const diffDays = Math.round(diffMs / (24 * 60 * 60 * 1000));
+
+    if (diffMins < 60) {
+      return `Indexed ${diffMins} ${diffMins === 1 ? 'minute' : 'minutes'} ago`;
+    } else if (diffHours < 24) {
+      return `Indexed ${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
+    } else {
+      return `Indexed ${diffDays} ${diffDays === 1 ? 'day' : 'days'} ago`;
+    }
+  }, [indexComputedAt, indexStatus]);
+
+  useEffect(() => {
+    if (showResults) return;
+
+    // Cancel any in-flight preview request.
+    if (marketPreviewAbortRef.current) {
+      marketPreviewAbortRef.current.abort();
+    }
+    const controller = new AbortController();
+    marketPreviewAbortRef.current = controller;
+
+    setMarketPreviewStatus('loading');
+    setMarketPreviewError(null);
+
+    const sp = new URLSearchParams();
+    sp.set('type', marketPreviewType);
+    sp.set('year', String(DASHBOARD_PREVIEW_YEAR));
+    sp.set('offset', '0');
+    sp.set('limit', '8');
+
+    fetch(`/api/stats/geo-rankings?${sp.toString()}`, { signal: controller.signal })
+      .then(async (res) => {
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error((json as any)?.error || 'Failed to load market snapshot');
+        return json as any;
+      })
+      .then((json) => {
+        if (controller.signal.aborted) return;
+        setMarketPreviewItems(Array.isArray(json?.items) ? (json.items as MarketPreviewItem[]) : []);
+        setMarketPreviewStatus('success');
+      })
+      .catch((e) => {
+        if (controller.signal.aborted) return;
+        setMarketPreviewItems([]);
+        setMarketPreviewError(e instanceof Error ? e.message : 'Failed to load market snapshot');
+        setMarketPreviewStatus('error');
+      });
+
+    return () => {
+      if (marketPreviewAbortRef.current === controller) {
+        controller.abort();
+      }
+    };
+  }, [marketPreviewType, showResults]);
+
+  // Update tab bar position when active tab changes or window resizes
+  useLayoutEffect(() => {
+    const updateTabBar = () => {
+      if (!tabBarRef.current || tabRefs.current.length === 0) return;
+      const activeIndex = (['state', 'county', 'city', 'zip'] as MarketPreviewType[]).indexOf(marketPreviewType);
+      const activeTab = tabRefs.current[activeIndex];
+      const container = tabBarRef.current;
+      if (!activeTab || !container) return;
+
+      const containerRect = container.getBoundingClientRect();
+      const tabRect = activeTab.getBoundingClientRect();
+      setTabBarStyle({
+        left: tabRect.left - containerRect.left,
+        width: tabRect.width,
+      });
+    };
+
+    updateTabBar();
+    window.addEventListener('resize', updateTabBar);
+    return () => window.removeEventListener('resize', updateTabBar);
+  }, [marketPreviewType]);
+
+  const formatCounty = (name: string) => {
+    const trimmed = (name || '').trim();
+    if (!trimmed) return '';
+    return /\bcounty\b/i.test(trimmed) ? trimmed.replace(/\s+county\b/i, ' County') : `${trimmed} County`;
+  };
+
+  const marketPreviewLabel = (item: MarketPreviewItem) => {
+    if (marketPreviewType === 'state') {
+      const code = item.stateCode || '';
+      return STATE_NAME_BY_CODE[code] || code;
+    }
+    if (marketPreviewType === 'county') return item.countyName ? formatCounty(item.countyName) : '';
+    if (marketPreviewType === 'city') return item.cityName || '';
+    return item.zipCode || '';
+  };
+
+  const marketPreviewSubLabel = (item: MarketPreviewItem) => {
+    if (marketPreviewType === 'state') return item.stateCode || '';
+    if (marketPreviewType === 'county') return item.stateCode || '';
+    if (marketPreviewType === 'city') {
+      const county = item.countyName ? formatCounty(item.countyName) : '';
+      const state = item.stateCode || '';
+      return `${county}${county && state ? ', ' : ''}${state}`.trim();
+    }
+    // zip
+    const county = item.countyName ? formatCounty(item.countyName) : '';
+    const state = item.stateCode || '';
+    return `${county}${county && state ? ', ' : ''}${state}`.trim();
+  };
+
+  const marketPreviewHref = (item: MarketPreviewItem): string | null => {
+    if (marketPreviewType === 'state') return item.stateCode ? `/state/${item.stateCode}` : null;
+    if (marketPreviewType === 'county')
+      return item.countyName && item.stateCode ? `/county/${buildCountySlug(item.countyName, item.stateCode)}` : null;
+    if (marketPreviewType === 'city')
+      return item.cityName && item.stateCode ? `/city/${buildCitySlug(item.cityName, item.stateCode)}` : null;
+    const zip = item.zipCode?.match(/\b(\d{5})\b/)?.[1] || item.zipCode;
+    return zip ? `/zip/${zip}` : null;
+  };
+
   return (
     <main className="min-h-screen bg-[#fafafa] antialiased">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-10 sm:py-8 md:py-10 lg:py-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-8 sm:py-8 md:py-10 lg:py-10">
         {/* Header */}
         <div className="mb-4 sm:mb-6 lg:mb-4 flex-shrink-0">
           <div className="mb-2 sm:mb-3 lg:mb-2">
@@ -609,7 +802,7 @@ export default function HomeClient(props: {
           </div>
         </div>
 
-        <div className="flex flex-col gap-4 sm:gap-6">
+        <div className="flex flex-col gap-3 sm:gap-4">
           {/* Search Input - Always visible */}
           <div className="flex-shrink-0">
             <div className="bg-white rounded-lg border border-[#e5e5e5] p-4 sm:p-6">
@@ -618,7 +811,7 @@ export default function HomeClient(props: {
           </div>
 
           {showResults ? (
-            <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 items-start">
+            <div className="flex flex-col lg:flex-row gap-3 sm:gap-4 items-start">
               {/* Main Results Card */}
               <div
                 ref={mainCardRef}
@@ -644,7 +837,7 @@ export default function HomeClient(props: {
 
               {/* Right Panel - Sticky Container */}
               <div className="w-full lg:w-[420px] flex-shrink-0 lg:sticky lg:top-8 lg:self-start">
-                <div className="flex flex-col gap-4 sm:gap-6">
+                <div className="flex flex-col gap-3 sm:gap-4">
                   {/* Ideal Purchase Price Card */}
                   <div ref={calculatorRef}>
                     <IdealPurchasePriceCard data={viewFmrData} extensionConfig={parsedExtensionConfig} />
@@ -719,12 +912,194 @@ export default function HomeClient(props: {
               </div>
             </div>
           ) : (
-            <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 items-start">
-              <div
-                ref={mainCardRef}
-                className="flex-1 w-full"
-              >
-                <NationwideStats />
+            <div ref={mainCardRef} className="flex-1 w-full">
+              <div className="flex flex-col gap-3 sm:gap-6">
+                {/* Primary actions */}
+                <section>
+                  <div className="mb-3 sm:mb-4">
+                    <p className="text-xs sm:text-sm text-[#737373] mt-1">
+                      Find your next cash flowing market.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2 sm:gap-4">
+                    <a
+                      href="/map"
+                      className="bg-white rounded-lg border border-[#e5e5e5] p-5 sm:p-6 flex flex-col hover:border-[#e5e5e5] hover:-translate-y-0.5 hover:shadow-[0_4px_12px_-2px_rgba(0,0,0,0.1)] transition-all duration-200"
+                    >
+                      <div className="text-xs font-semibold text-[#525252]">Interactive</div>
+                      <h3 className="text-base sm:text-lg font-semibold text-[#0a0a0a] mt-1">Investment Score Map</h3>
+                      <p className="text-sm text-[#737373] mt-2">
+                        Visualize Investment Scores across the US.
+                      </p>
+                      <div className="mt-auto pt-4 text-sm font-medium text-[#0a0a0a]">Open map →</div>
+                    </a>
+
+                    <a
+                      href="/explorer"
+                      className="bg-white rounded-lg border border-[#e5e5e5] p-5 sm:p-6 flex flex-col hover:border-[#e5e5e5] hover:-translate-y-0.5 hover:shadow-[0_4px_12px_-2px_rgba(0,0,0,0.1)] transition-all duration-200"
+                    >
+                      <div className="text-xs font-semibold text-[#525252]">Rankings</div>
+                      <h3 className="text-base sm:text-lg font-semibold text-[#0a0a0a] mt-1">Market Explorer</h3>
+                      <p className="text-sm text-[#737373] mt-2">
+                        Search states, counties, cities, and ZIPs by Investment Score.
+                      </p>
+                      <div className="mt-auto pt-4 text-sm font-medium text-[#0a0a0a]">Browse rankings →</div>
+                    </a>
+
+                    <a
+                      href="/insights"
+                      className="bg-white rounded-lg border border-[#e5e5e5] p-5 sm:p-6 flex flex-col hover:border-[#e5e5e5] hover:-translate-y-0.5 hover:shadow-[0_4px_12px_-2px_rgba(0,0,0,0.1)] transition-all duration-200"
+                    >
+                      <div className="text-xs font-semibold text-[#525252]">Trends</div>
+                      <h3 className="text-base sm:text-lg font-semibold text-[#0a0a0a] mt-1">Market Intelligence</h3>
+                      <p className="text-sm text-[#737373] mt-2">
+                        Find markets with noteworthy outliers.
+                      </p>
+                      <div className="mt-auto pt-4 text-sm font-medium text-[#0a0a0a]">View insights →</div>
+                    </a>
+                  </div>
+                </section>
+
+                {/* Snapshot + context */}
+                <section>
+                  <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col">
+                    <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a] mb-0.5">
+                          Top markets by Investment Score
+                        </h3>
+                        <p className="text-xs text-[#737373]">{indexedText}</p>
+                      </div>
+                      <a
+                        href={`/explorer?geoTab=${marketPreviewType}`}
+                        className="text-xs font-semibold text-[#0a0a0a] hover:opacity-70 whitespace-nowrap"
+                      >
+                        View all →
+                      </a>
+                    </div>
+
+                    <div className="px-3 sm:px-4 py-2 border-b border-[#e5e5e5] bg-white">
+                      <div ref={tabBarRef} className="relative flex gap-1 overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-0">
+                        {(['state', 'county', 'city', 'zip'] as MarketPreviewType[]).map((t, index) => {
+                          const active = marketPreviewType === t;
+                          const label = t === 'state' ? 'States' : t === 'county' ? 'Counties' : t === 'city' ? 'Cities' : 'ZIPs';
+                          return (
+                            <button
+                              key={t}
+                              ref={(el) => {
+                                tabRefs.current[index] = el;
+                              }}
+                              type="button"
+                              onClick={() => setMarketPreviewType(t)}
+                              className={`px-3 py-1.5 text-xs font-medium rounded transition-colors whitespace-nowrap relative ${
+                                active
+                                  ? 'text-[#0a0a0a]'
+                                  : 'text-[#737373] hover:text-[#0a0a0a]'
+                              }`}
+                            >
+                              {label}
+                            </button>
+                          );
+                        })}
+                        {/* Animated bottom bar */}
+                        <div
+                          className="absolute bottom-0 h-0.5 bg-[#0a0a0a] transition-all duration-300 ease-out"
+                          style={{
+                            left: `${tabBarStyle.left}px`,
+                            width: `${tabBarStyle.width}px`,
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="divide-y divide-[#e5e5e5]">
+                      {marketPreviewStatus === 'loading' && (
+                        [...Array(8)].map((_, i) => (
+                          <div key={i} className="px-3 sm:px-4 py-2 sm:py-2.5">
+                            <div className="flex items-start justify-between gap-2 sm:gap-3">
+                              <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
+                                <div className="h-3 bg-[#e5e5e5] rounded w-4 shrink-0 animate-pulse"></div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="h-3.5 sm:h-4 bg-[#e5e5e5] rounded w-28 sm:w-36 mb-1 sm:mb-1.5 animate-pulse"></div>
+                                  <div className="h-3 bg-[#e5e5e5] rounded w-24 sm:w-32 animate-pulse"></div>
+                                </div>
+                              </div>
+                              <div className="h-3.5 sm:h-4 bg-[#e5e5e5] rounded w-12 sm:w-16 ml-auto animate-pulse"></div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+
+                      {marketPreviewStatus === 'error' && (
+                        <div className="px-3 sm:px-4 py-3 text-xs text-[#991b1b]">
+                          {marketPreviewError || 'Failed to load market snapshot.'}
+                        </div>
+                      )}
+
+                      {marketPreviewStatus === 'success' && marketPreviewItems.length === 0 && (
+                        <div className="px-3 sm:px-4 py-6 text-xs text-[#737373]">
+                          No results available.
+                        </div>
+                      )}
+
+                      {marketPreviewStatus === 'success' && marketPreviewItems.length > 0 && (
+                        marketPreviewItems.map((item, index) => {
+                          const href = marketPreviewHref(item);
+                          const label = marketPreviewLabel(item);
+                          const sub = marketPreviewSubLabel(item);
+                          const scoreColor = getTextColorForScore(item.medianScore);
+                          const key = `${marketPreviewType}:${item.stateCode || ''}:${item.countyName || ''}:${item.cityName || ''}:${item.zipCode || ''}:${index}`;
+
+                          return (
+                            <a
+                              key={key}
+                              href={href || undefined}
+                              className="block px-3 sm:px-4 py-2 sm:py-2.5 hover:bg-[#fafafa] transition-colors"
+                            >
+                              <div className="flex items-start justify-between gap-2 sm:gap-3">
+                                <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
+                                  <span className="text-xs text-[#a3a3a3] font-medium shrink-0 tabular-nums">
+                                    #{item.rank || index + 1}
+                                  </span>
+                                  <div className="min-w-0">
+                                    <div className="font-medium text-[#0a0a0a] text-xs sm:text-sm truncate">
+                                      {label}
+                                    </div>
+                                    {!!sub && (
+                                      <div className="text-xs text-[#737373] truncate mt-0.5">
+                                        {sub}
+                                      </div>
+                                    )}
+                                    {item.zipCount > 1 && (
+                                      <div className="text-xs text-[#a3a3a3] mt-0.5">
+                                        {item.zipCount} ZIPs
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="text-right shrink-0">
+                                  {item.medianScore !== null ? (
+                                    <div
+                                      className="font-semibold text-xs sm:text-sm tabular-nums"
+                                      style={{ color: scoreColor }}
+                                    >
+                                      {Math.round(item.medianScore)}
+                                    </div>
+                                  ) : (
+                                    <div className="font-semibold text-[#737373] text-xs sm:text-sm tabular-nums">
+                                      —
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </a>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                </section>
               </div>
             </div>
           )}

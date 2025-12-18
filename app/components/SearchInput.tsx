@@ -13,6 +13,7 @@ interface AutocompleteResult {
 
 interface SearchInputProps {
   onSelect: (value: string, type: 'zip' | 'city' | 'county' | 'address' | 'state') => void;
+  autoFocus?: boolean;
 }
 
 function normalizeLoose(s: string) {
@@ -118,7 +119,7 @@ function dedupeSuggestionsByType(items: AutocompleteResult[]) {
   return out;
 }
 
-export default function SearchInput({ onSelect }: SearchInputProps) {
+export default function SearchInput({ onSelect, autoFocus = false }: SearchInputProps) {
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<AutocompleteResult[]>([]);
   const [suggestionsForQuery, setSuggestionsForQuery] = useState<string>('');
@@ -129,6 +130,7 @@ export default function SearchInput({ onSelect }: SearchInputProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const skipOpenOnFocusRef = useRef(false);
   const queryRef = useRef<string>('');
   const autocompleteAbortRef = useRef<AbortController | null>(null);
   const autocompleteRequestIdRef = useRef(0);
@@ -223,13 +225,16 @@ export default function SearchInput({ onSelect }: SearchInputProps) {
     fetchSuggestions(query);
   }, [query, fetchSuggestions]);
 
-  // Autofocus on initial load
+  // Optional autofocus on initial load (used on homepage)
   useEffect(() => {
+    if (!autoFocus) return;
+    // Avoid automatically opening the suggestions dropdown on programmatic focus.
+    skipOpenOnFocusRef.current = true;
     const id = window.requestAnimationFrame(() => {
       inputRef.current?.focus();
     });
     return () => window.cancelAnimationFrame(id);
-  }, []);
+  }, [autoFocus]);
 
   // Type-to-focus: if the user starts typing anywhere, focus search and keep the first keystroke
   useEffect(() => {
@@ -361,8 +366,10 @@ export default function SearchInput({ onSelect }: SearchInputProps) {
     e.preventDefault();
     if (isSubmitting) return;
 
-    if (selectedIndex >= 0 && suggestions[selectedIndex]) {
-      handleSelect(suggestions[selectedIndex]);
+    const activeSuggestions = displayedSuggestions;
+
+    if (selectedIndex >= 0 && activeSuggestions[selectedIndex]) {
+      handleSelect(activeSuggestions[selectedIndex]);
     } else if (query.trim()) {
       const trimmed = query.trim();
 
@@ -429,10 +436,13 @@ export default function SearchInput({ onSelect }: SearchInputProps) {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    const activeSuggestions =
+      displayedSuggestions;
+
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       setSelectedIndex(prev => 
-        prev < suggestions.length - 1 ? prev + 1 : prev
+        prev < activeSuggestions.length - 1 ? prev + 1 : prev
       );
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
@@ -446,7 +456,7 @@ export default function SearchInput({ onSelect }: SearchInputProps) {
     // Only show suggestions that correspond to the current input, to avoid stale flashes
     if (normalizeLoose(suggestionsForQuery) !== normalizeLoose(query)) return [];
     return suggestions;
-  }, [suggestions, suggestionsForQuery, query]);
+  }, [query, suggestions, suggestionsForQuery]);
 
   // Auto-submit: if there's exactly one address suggestion and it matches the current input
   // (must be based on rendered suggestion state to avoid timing/staleness issues)
@@ -526,7 +536,14 @@ export default function SearchInput({ onSelect }: SearchInputProps) {
             value={query}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
-            onFocus={() => setShowSuggestions(true)}
+            onFocus={() => {
+              if (skipOpenOnFocusRef.current) {
+                skipOpenOnFocusRef.current = false;
+                return;
+              }
+              setShowSuggestions(true);
+              setSelectedIndex(-1);
+            }}
             ref={inputRef}
             placeholder="Search state, ZIP, city, county, or address…"
             className={`w-full pl-10 ${

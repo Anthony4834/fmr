@@ -17,7 +17,7 @@
         "react-dom": "^18.3.0",
         "react-leaflet": "4.2.1",
         "react-simple-maps": "^3.0.0",
-        "use-debounce": "^10.0.0",
+        "use-debounce": "^10.0.6",
       },
       "devDependencies": {
         "@types/leaflet": "^1.9.21",

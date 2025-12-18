@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState, useRef } from 'react';
+import { useEffect, useMemo, useState, useRef, useLayoutEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ComposableMap, Geographies, Geography } from 'react-simple-maps';
+import { ComposableMap, Geographies, Geography, ZoomableGroup } from 'react-simple-maps';
 import { buildCountySlug } from '@/lib/location-slugs';
 import { STATES } from '@/lib/states';
 
@@ -42,6 +42,23 @@ function getColorForScore(score: number | null): string {
 
 const countyGeoUrl = 'https://cdn.jsdelivr.net/npm/us-atlas@3/counties-10m.json';
 const stateGeoUrl = 'https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json';
+
+// A "safe" center point for geoAlbersUsa (roughly central US).
+// Using [0, 0] can cause geoAlbersUsa to return null and crash on zoom/pan.
+const DEFAULT_US_CENTER: [number, number] = [-97, 38];
+
+function isValidAlbersUsaCenter(coords: [number, number]): boolean {
+  const lon = coords[0];
+  const lat = coords[1];
+  if (!Number.isFinite(lon) || !Number.isFinite(lat)) return false;
+
+  // Rough bounding boxes for geoAlbersUsa sub-projections (lower 48, Alaska, Hawaii).
+  const inLower48 = lon >= -125 && lon <= -66 && lat >= 24 && lat <= 50;
+  const inAlaska = lon >= -170 && lon <= -130 && lat >= 50 && lat <= 72;
+  const inHawaii = lon >= -161 && lon <= -154 && lat >= 18 && lat <= 24;
+
+  return inLower48 || inAlaska || inHawaii;
+}
 
 function getStateCode(geo: any): string {
   const props = geo?.properties || {};
@@ -102,7 +119,74 @@ export default function USStateMap({ year }: USStateMapProps) {
   const [hoveredCounty, setHoveredCounty] = useState<string | null>(null);
   const [hoveredState, setHoveredState] = useState<string | null>(null);
   const [mousePosition, setMousePosition] = useState<{ x: number; y: number } | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [windowHeight, setWindowHeight] = useState(600);
+  const [position, setPosition] = useState<{ coordinates: [number, number]; zoom: number }>({
+    coordinates: DEFAULT_US_CENTER,
+    zoom: 1,
+  });
+
+  // Ensure coordinates are always valid
+  const safeCoordinates: [number, number] = useMemo(() => {
+    const coords = position.coordinates;
+    if (
+      Array.isArray(coords) &&
+      coords.length === 2 &&
+      typeof coords[0] === 'number' &&
+      typeof coords[1] === 'number' &&
+      !isNaN(coords[0]) &&
+      !isNaN(coords[1])
+    ) {
+      const candidate: [number, number] = [coords[0], coords[1]];
+      if (isValidAlbersUsaCenter(candidate)) return candidate;
+    }
+    return DEFAULT_US_CENTER;
+  }, [position.coordinates]);
+
+  const safeZoom = useMemo(() => {
+    const zoom = position.zoom;
+    if (typeof zoom === 'number' && !isNaN(zoom) && zoom >= 0.5 && zoom <= 4) {
+      return zoom;
+    }
+    return 1;
+  }, [position.zoom]);
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
+  const fullscreenRef = useRef<HTMLDivElement | null>(null);
+  const switchContainerRef = useRef<HTMLDivElement | null>(null);
+  const switchButtonRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const [switchIndicatorStyle, setSwitchIndicatorStyle] = useState<{ left: number; width: number }>({ left: 0, width: 0 });
+
+  // Update window height for fullscreen
+  useEffect(() => {
+    if (isFullscreen) {
+      setWindowHeight(window.innerHeight);
+      const handleResize = () => setWindowHeight(window.innerHeight);
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+    }
+  }, [isFullscreen]);
+
+  // Update switch indicator position when map level changes or window resizes
+  useLayoutEffect(() => {
+    const updateIndicator = () => {
+      if (!switchContainerRef.current || switchButtonRefs.current.length === 0) return;
+      const activeIndex = mapLevel === 'county' ? 0 : 1;
+      const activeButton = switchButtonRefs.current[activeIndex];
+      const container = switchContainerRef.current;
+      if (!activeButton || !container) return;
+
+      const containerRect = container.getBoundingClientRect();
+      const buttonRect = activeButton.getBoundingClientRect();
+      setSwitchIndicatorStyle({
+        left: buttonRect.left - containerRect.left,
+        width: buttonRect.width,
+      });
+    };
+
+    updateIndicator();
+    window.addEventListener('resize', updateIndicator);
+    return () => window.removeEventListener('resize', updateIndicator);
+  }, [mapLevel]);
 
   useEffect(() => {
     const fetchScores = async () => {
@@ -209,64 +293,152 @@ export default function USStateMap({ year }: USStateMapProps) {
     router.push(`/state/${stateCode}`);
   };
 
-  if (loading) {
-    return (
-      <div className="w-full h-96 bg-white rounded-lg border border-[#e5e5e5] flex items-center justify-center">
-        <p className="text-[#737373]">Loading map...</p>
-      </div>
-    );
-  }
+  // Handle ESC key to close fullscreen
+  useEffect(() => {
+    if (!isFullscreen) return;
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsFullscreen(false);
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [isFullscreen]);
 
-  return (
-    <div className="w-full">
-      <div 
-        ref={mapContainerRef}
-        className="relative w-full h-[500px] sm:h-[600px] bg-[#fafafa] rounded-lg border border-[#e5e5e5] overflow-hidden"
-        onMouseMove={(e) => {
-          const rect = e.currentTarget.getBoundingClientRect();
-          setMousePosition({
-            x: e.clientX - rect.left,
-            y: e.clientY - rect.top,
-          });
-        }}
-        onMouseLeave={() => {
-          setMousePosition(null);
-          setHoveredCounty(null);
-          setHoveredState(null);
-        }}
-      >
-        {/* County/State selector - positioned inside map */}
-        <div className="absolute top-3 right-3 z-10">
-          <div className="flex gap-1 border border-[#e5e5e5] rounded-lg p-1 bg-white shadow-sm">
-            <button
-              onClick={() => setMapLevel('county')}
-              className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
-                mapLevel === 'county'
-                  ? 'bg-[#fafafa] text-[#0a0a0a]'
-                  : 'text-[#737373] hover:text-[#0a0a0a]'
-              }`}
-            >
-              County
-            </button>
-            <button
-              onClick={() => setMapLevel('state')}
-              className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
-                mapLevel === 'state'
-                  ? 'bg-[#fafafa] text-[#0a0a0a]'
-                  : 'text-[#737373] hover:text-[#0a0a0a]'
-              }`}
-            >
-              State
-            </button>
-          </div>
+  // Prevent body scroll when fullscreen
+  useEffect(() => {
+    if (isFullscreen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isFullscreen]);
+
+  const mapContent = (
+    <div 
+      ref={mapContainerRef}
+      className={`relative w-full bg-[#fafafa] overflow-hidden ${
+        isFullscreen ? 'h-screen' : 'h-[500px] sm:h-[600px] rounded-lg border border-[#e5e5e5]'
+      }`}
+      onMouseMove={(e) => {
+        const rect = e.currentTarget.getBoundingClientRect();
+        setMousePosition({
+          x: e.clientX - rect.left,
+          y: e.clientY - rect.top,
+        });
+      }}
+      onMouseLeave={() => {
+        setMousePosition(null);
+        setHoveredCounty(null);
+        setHoveredState(null);
+      }}
+    >
+      {/* Loading overlay - stays visible during map type switches */}
+      {loading && (
+        <div className="absolute inset-0 z-20 bg-[#fafafa] flex items-center justify-center">
+          <p className="text-[#737373]">Loading map...</p>
         </div>
+      )}
+      {/* County/State selector and Fullscreen button - positioned inside map */}
+      <div className="absolute top-3 right-3 z-30 flex items-center gap-2">
+        <div ref={switchContainerRef} className="relative inline-flex border border-[#e5e5e5] rounded bg-white shadow-sm overflow-hidden">
+          {/* Animated sliding indicator */}
+          <div
+            className="absolute top-0 bottom-0 bg-[#f5f5f5] transition-all duration-300 ease-out"
+            style={{
+              left: `${switchIndicatorStyle.left}px`,
+              width: `${switchIndicatorStyle.width}px`,
+            }}
+          />
+          <button
+            ref={(el) => {
+              switchButtonRefs.current[0] = el;
+            }}
+            onClick={() => setMapLevel('county')}
+            className={`relative px-2.5 py-2 text-xs font-medium transition-colors duration-200 ${
+              mapLevel === 'county'
+                ? 'text-[#0a0a0a]'
+                : 'text-[#737373] hover:text-[#0a0a0a]'
+            }`}
+          >
+            County
+          </button>
+          <button
+            ref={(el) => {
+              switchButtonRefs.current[1] = el;
+            }}
+            onClick={() => setMapLevel('state')}
+            className={`relative px-2.5 py-2 text-xs font-medium transition-colors duration-200 ${
+              mapLevel === 'state'
+                ? 'text-[#0a0a0a]'
+                : 'text-[#737373] hover:text-[#0a0a0a]'
+            }`}
+          >
+            State
+          </button>
+        </div>
+        <button
+          onClick={() => setIsFullscreen(!isFullscreen)}
+          className="px-2.5 py-2 text-xs font-medium rounded border border-[#e5e5e5] bg-white shadow-sm text-[#0a0a0a] hover:bg-[#fafafa] transition-colors"
+          aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+        >
+          {isFullscreen ? (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          ) : (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+            </svg>
+          )}
+        </button>
+      </div>
+      {!loading && (
         <ComposableMap
           projection="geoAlbersUsa"
           projectionConfig={{ scale: 1400 }}
           width={1400}
-          height={600}
-          className="w-full h-full"
+          height={isFullscreen ? windowHeight : 600}
+          className="w-full h-full transition-opacity duration-300"
           style={{ width: '100%', height: '100%' }}
+          key={mapLevel}
+        >
+        <ZoomableGroup
+          zoom={safeZoom}
+          center={safeCoordinates}
+          onMoveEnd={(pos: any) => {
+            try {
+              if (pos && typeof pos === 'object') {
+                const coords = pos.coordinates;
+                const zoom = pos.zoom;
+                
+                // Validate coordinates
+                if (Array.isArray(coords) && coords.length === 2) {
+                  const lon = Number(coords[0]);
+                  const lat = Number(coords[1]);
+                  if (!isNaN(lon) && !isNaN(lat) && isValidAlbersUsaCenter([lon, lat])) {
+                    // Validate zoom
+                    const validZoom = typeof zoom === 'number' && !isNaN(zoom) 
+                      ? Math.max(0.5, Math.min(4, zoom))
+                      : safeZoom;
+                    
+                    setPosition({ 
+                      coordinates: [lon, lat] as [number, number], 
+                      zoom: validZoom 
+                    });
+                  }
+                }
+              }
+            } catch (e) {
+              // Silently ignore errors in callback to prevent crashes
+              console.warn('Error in onMoveEnd:', e);
+            }
+          }}
+          minZoom={0.5}
+          maxZoom={4}
         >
           {/* Separate fill and stroke layers to prevent border overlap issues */}
           <Geographies geography={mapLevel === 'county' ? countyGeoUrl : stateGeoUrl}>
@@ -404,52 +576,115 @@ export default function USStateMap({ year }: USStateMapProps) {
               </>
             )}
           </Geographies>
+        </ZoomableGroup>
         </ComposableMap>
+      )}
 
-        {/* Tooltip */}
-        {mousePosition && mapContainerRef.current && (
-          <>
-            {mapLevel === 'county' && hoveredCounty && countyScoreMap.get(hoveredCounty) && (
-              <div
-                className="absolute pointer-events-none z-20 bg-[#0a0a0a] text-white text-xs rounded-md px-2 py-1.5 shadow-lg whitespace-nowrap"
-                style={{
-                  left: mousePosition.x + 10 > mapContainerRef.current.offsetWidth - 200
-                    ? `${mousePosition.x - 10}px`
-                    : `${mousePosition.x + 10}px`,
-                  top: `${mousePosition.y - 10}px`,
-                  transform: mousePosition.x + 10 > mapContainerRef.current.offsetWidth - 200
-                    ? 'translateX(-100%)'
-                    : 'translateX(0)',
-                }}
-              >
-                <div className="font-semibold">{countyScoreMap.get(hoveredCounty)?.countyName}</div>
-                <div className="text-[#d4d4d4]">
-                  {countyScoreMap.get(hoveredCounty)?.stateCode}: Score {countyScoreMap.get(hoveredCounty)?.medianScore?.toFixed(1) ?? 'N/A'}
-                </div>
-              </div>
-            )}
-            {mapLevel === 'state' && hoveredState && stateScoreMap.get(hoveredState) && (
-              <div
-                className="absolute pointer-events-none z-20 bg-[#0a0a0a] text-white text-xs rounded-md px-2 py-1.5 shadow-lg whitespace-nowrap"
-                style={{
-                  left: mousePosition.x + 10 > mapContainerRef.current.offsetWidth - 200
-                    ? `${mousePosition.x - 10}px`
-                    : `${mousePosition.x + 10}px`,
-                  top: `${mousePosition.y - 10}px`,
-                  transform: mousePosition.x + 10 > mapContainerRef.current.offsetWidth - 200
-                    ? 'translateX(-100%)'
-                    : 'translateX(0)',
-                }}
-              >
-                <div className="font-semibold">{hoveredState}</div>
-                <div className="text-[#d4d4d4]">
-                  Score: {stateScoreMap.get(hoveredState)?.medianScore?.toFixed(1) ?? 'N/A'}
-                </div>
-              </div>
-            )}
-          </>
-        )}
+      {/* Zoom Controls */}
+      <div className="absolute bottom-3 right-3 z-30 flex flex-col gap-1">
+        <button
+          onClick={() => {
+            const newZoom = Math.min(safeZoom * 1.5, 4);
+            setPosition({ coordinates: safeCoordinates, zoom: newZoom });
+          }}
+          className="px-2.5 py-2 text-xs font-medium rounded border border-[#e5e5e5] bg-white shadow-sm text-[#0a0a0a] hover:bg-[#fafafa] transition-colors"
+          aria-label="Zoom in"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+        </button>
+        <button
+          onClick={() => {
+            const newZoom = Math.max(safeZoom / 1.5, 0.5);
+            setPosition({ coordinates: safeCoordinates, zoom: newZoom });
+          }}
+          className="px-2.5 py-2 text-xs font-medium rounded border border-[#e5e5e5] bg-white shadow-sm text-[#0a0a0a] hover:bg-[#fafafa] transition-colors"
+          aria-label="Zoom out"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+          </svg>
+        </button>
+        <button
+          onClick={() => {
+            setPosition({ coordinates: DEFAULT_US_CENTER, zoom: 1 });
+          }}
+          className="px-2.5 py-2 text-xs font-medium rounded border border-[#e5e5e5] bg-white shadow-sm text-[#0a0a0a] hover:bg-[#fafafa] transition-colors"
+          aria-label="Reset zoom"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+        </button>
       </div>
+
+      {/* Tooltip */}
+      {mousePosition && mapContainerRef.current && (
+        <>
+          {mapLevel === 'county' && hoveredCounty && countyScoreMap.get(hoveredCounty) && (
+            <div
+              className="absolute pointer-events-none z-20 bg-[#0a0a0a] text-white text-xs rounded-md px-2 py-1.5 shadow-lg whitespace-nowrap"
+              style={{
+                left: mousePosition.x + 10 > mapContainerRef.current.offsetWidth - 200
+                  ? `${mousePosition.x - 10}px`
+                  : `${mousePosition.x + 10}px`,
+                top: `${mousePosition.y - 10}px`,
+                transform: mousePosition.x + 10 > mapContainerRef.current.offsetWidth - 200
+                  ? 'translateX(-100%)'
+                  : 'translateX(0)',
+              }}
+            >
+              <div className="font-semibold">{countyScoreMap.get(hoveredCounty)?.countyName}</div>
+              <div className="text-[#d4d4d4]">
+                {countyScoreMap.get(hoveredCounty)?.stateCode}: Score {countyScoreMap.get(hoveredCounty)?.medianScore?.toFixed(1) ?? 'N/A'}
+              </div>
+            </div>
+          )}
+          {mapLevel === 'state' && hoveredState && stateScoreMap.get(hoveredState) && (
+            <div
+              className="absolute pointer-events-none z-20 bg-[#0a0a0a] text-white text-xs rounded-md px-2 py-1.5 shadow-lg whitespace-nowrap"
+              style={{
+                left: mousePosition.x + 10 > mapContainerRef.current.offsetWidth - 200
+                  ? `${mousePosition.x - 10}px`
+                  : `${mousePosition.x + 10}px`,
+                top: `${mousePosition.y - 10}px`,
+                transform: mousePosition.x + 10 > mapContainerRef.current.offsetWidth - 200
+                  ? 'translateX(-100%)'
+                  : 'translateX(0)',
+              }}
+            >
+              <div className="font-semibold">{hoveredState}</div>
+              <div className="text-[#d4d4d4]">
+                Score: {stateScoreMap.get(hoveredState)?.medianScore?.toFixed(1) ?? 'N/A'}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+
+  if (isFullscreen) {
+    return (
+      <div
+        ref={fullscreenRef}
+        className="fixed inset-0 z-50 bg-[#fafafa]"
+        onClick={(e) => {
+          // Close fullscreen if clicking on the overlay background (not the map)
+          if (e.target === fullscreenRef.current) {
+            setIsFullscreen(false);
+          }
+        }}
+      >
+        {mapContent}
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full">
+      {mapContent}
     </div>
   );
 }

@@ -4,7 +4,9 @@
       "Bash(find:*)",
       "Bash(bun run build:*)",
       "Bash(npm run build:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(bun add:*)",
+      "Bash(bun run dev)"
     ]
   }
 }
