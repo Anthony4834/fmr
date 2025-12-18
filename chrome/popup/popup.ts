@@ -13,8 +13,6 @@ async function init() {
     String(prefs.downPaymentPercent);
   (document.getElementById('insurance-monthly') as HTMLInputElement).value = 
     String(prefs.insuranceMonthly);
-  (document.getElementById('hoa-monthly') as HTMLInputElement).value = 
-    String(prefs.hoaMonthly);
   (document.getElementById('pm-mode') as HTMLSelectElement).value = 
     prefs.propertyManagementMode;
   (document.getElementById('pm-percent') as HTMLInputElement).value = 
@@ -91,7 +89,6 @@ async function saveFormData() {
   const prefs: Partial<ExtensionPreferences> = {
     downPaymentPercent: parseFloat((document.getElementById('down-payment-percent') as HTMLInputElement).value) || DEFAULT_PREFERENCES.downPaymentPercent,
     insuranceMonthly: parseFloat((document.getElementById('insurance-monthly') as HTMLInputElement).value) || DEFAULT_PREFERENCES.insuranceMonthly,
-    hoaMonthly: parseFloat((document.getElementById('hoa-monthly') as HTMLInputElement).value) || DEFAULT_PREFERENCES.hoaMonthly,
     propertyManagementMode: (document.getElementById('pm-mode') as HTMLSelectElement).value as 'percent' | 'amount',
     propertyManagementPercent: parseFloat((document.getElementById('pm-percent') as HTMLInputElement).value) || DEFAULT_PREFERENCES.propertyManagementPercent,
     propertyManagementAmount: parseFloat((document.getElementById('pm-amount') as HTMLInputElement).value) || DEFAULT_PREFERENCES.propertyManagementAmount,

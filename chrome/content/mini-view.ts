@@ -9,6 +9,7 @@ export interface MiniViewProps {
   preferences: ExtensionPreferences;
   purchasePrice: number | null;
   bedrooms: number | null;
+  hoaMonthly: number | null; // Detected HOA from page, or null if not available
   onClose: () => void;
   overlay?: HTMLElement; // Overlay element to hide/show during dragging
 }
@@ -265,12 +266,15 @@ export function createMiniViewElement(props: MiniViewProps): HTMLElement {
   const iframe = document.createElement('iframe');
 
   // Build config object to pass to main app
+  // Use detected HOA if available, otherwise use preference default (0)
+  const hoaToUse = props.hoaMonthly !== null ? props.hoaMonthly : props.preferences.hoaMonthly;
+  
   const config = {
     downPaymentMode: props.preferences.downPaymentMode,
     downPaymentPercent: props.preferences.downPaymentPercent,
     downPaymentAmount: props.preferences.downPaymentAmount,
     insuranceMonthly: props.preferences.insuranceMonthly,
-    hoaMonthly: props.preferences.hoaMonthly,
+    hoaMonthly: hoaToUse,
     propertyManagementMode: props.preferences.propertyManagementMode,
     propertyManagementPercent: props.preferences.propertyManagementPercent,
     propertyManagementAmount: props.preferences.propertyManagementAmount,

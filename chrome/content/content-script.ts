@@ -16,6 +16,63 @@ let miniViewContainer: HTMLElement | null = null;
 // Track badges by card element for cleanup
 const cardBadges = new Map<HTMLElement, HTMLElement>();
 
+// Used to detect when Zillow reuses a card DOM node for a different listing
+const CARD_KEY_DATASET_FIELD = 'fmrKey';
+const HOA_PENDING_DATASET_FIELD = 'fmrHoaPending';
+
+let zillowCardPollInterval: number | null = null;
+
+function isElementWithinZillowCardOrExpandedView(target: Node | null): boolean {
+  if (!target) return false;
+  const el = (target.nodeType === Node.ELEMENT_NODE ? (target as Element) : (target.parentElement as Element | null));
+  if (!el) return false;
+  return !!el.closest?.('[data-testid="property-card-data"], [data-testid="fs-chip-container"]');
+}
+
+function startZillowCardKeyPolling(): void {
+  // Backstop: Zillow sometimes swaps selected map card state without triggering our debounced observer.
+  if (zillowCardPollInterval !== null) return;
+  zillowCardPollInterval = setInterval(() => {
+    try {
+      // Only poll on Zillow search/map pages (not detail pages)
+      const site = window.location.hostname.toLowerCase();
+      const isZillowDetail = site.includes('zillow.com') && window.location.pathname.toLowerCase().includes('/homedetails/');
+      if (!site.includes('zillow.com') || isZillowDetail) return;
+
+      // Limit work: only check a small number of visible cards that already have badges
+      const badgedCards = Array.from(
+        document.querySelectorAll('[data-testid="property-card-data"] .fmr-badge')
+      )
+        .map((b) => (b as HTMLElement).closest('[data-testid="property-card-data"]') as HTMLElement | null)
+        .filter(Boolean) as HTMLElement[];
+
+      const seen = new Set<HTMLElement>();
+      let checked = 0;
+      for (const card of badgedCards) {
+        if (seen.has(card)) continue;
+        seen.add(card);
+        if (!(card as any).isConnected) continue;
+        // "Visible-ish" heuristic
+        if ((card as any).offsetParent === null) continue;
+        checked++;
+        if (checked > 5) break;
+
+        const cardData = extractPropertyDataFromZillowCard(card);
+        if (!cardData.address) continue;
+        const key = getCardDataKey(cardData.address, cardData.price, cardData.bedrooms);
+        const lastKey = (card as any).dataset?.[CARD_KEY_DATASET_FIELD] as string | undefined;
+        if (lastKey && lastKey !== key) {
+          const existingBadge = card.querySelector('.fmr-badge') as HTMLElement | null;
+          if (existingBadge) existingBadge.remove();
+          processCard(card, 'map', 'zillow').catch(() => {});
+        }
+      }
+    } catch {
+      // Ignore polling errors
+    }
+  }, 650) as unknown as number;
+}
+
 // Cache for API responses by ZIP code (shared across all views)
 interface ZipCodeCacheEntry {
   fmrData: any; // FMRDataResponse['data']
@@ -29,6 +86,92 @@ interface ZipCodeCacheEntry {
 // LRU-like cache with max 100 entries (using Map with insertion order)
 const zipCodeCache = new Map<string, ZipCodeCacheEntry>();
 const MAX_CACHE_SIZE = 100;
+
+// Cache for cash flow results by property (prioritizes results with HOA)
+interface CashFlowCacheEntry {
+  cashFlow: number | null;
+  hoaMonthly: number | null; // null means HOA was not available, number means HOA was available (could be 0)
+  hasHOA: boolean; // true if HOA was available in the view (even if 0), false if not available
+  timestamp: number;
+}
+
+// Cache key: address + price + bedrooms (normalized)
+function getCashFlowCacheKey(address: string, price: number | null, bedrooms: number | null): string {
+  const normalizedAddress = address.toLowerCase().trim();
+  const priceStr = price !== null ? String(price) : 'null';
+  const bedroomsStr = bedrooms !== null ? String(bedrooms) : 'null';
+  return `${normalizedAddress}|${priceStr}|${bedroomsStr}`;
+}
+
+// LRU-like cache with max 200 entries
+const cashFlowCache = new Map<string, CashFlowCacheEntry>();
+const MAX_CASH_FLOW_CACHE_SIZE = 200;
+
+/**
+ * Get cached cash flow for a property
+ * Returns null if not cached, or if cached but HOA unavailable and we need HOA
+ */
+function getCachedCashFlow(
+  address: string,
+  price: number | null,
+  bedrooms: number | null,
+  requireHOA: boolean = false
+): CashFlowCacheEntry | null {
+  const key = getCashFlowCacheKey(address, price, bedrooms);
+  const entry = cashFlowCache.get(key);
+  
+  if (entry) {
+    // If we require HOA but cached entry doesn't have HOA, don't use it
+    if (requireHOA && !entry.hasHOA) {
+      return null;
+    }
+    
+    // Move to end (most recently used) for LRU behavior
+    cashFlowCache.delete(key);
+    cashFlowCache.set(key, entry);
+    return entry;
+  }
+  
+  return null;
+}
+
+/**
+ * Set cached cash flow for a property
+ * If entry exists with HOA, only update if new entry also has HOA (prioritize HOA results)
+ * If entry exists without HOA, always update (expanded view results are better)
+ */
+function setCachedCashFlow(
+  address: string,
+  price: number | null,
+  bedrooms: number | null,
+  cashFlow: number | null,
+  hoaMonthly: number | null,
+  hasHOA: boolean
+): void {
+  const key = getCashFlowCacheKey(address, price, bedrooms);
+  const existing = cashFlowCache.get(key);
+  
+  // If existing entry has HOA and new one doesn't, don't overwrite (prioritize HOA)
+  if (existing && existing.hasHOA && !hasHOA) {
+    return;
+  }
+  
+  // Remove oldest entry if cache is full
+  if (cashFlowCache.size >= MAX_CASH_FLOW_CACHE_SIZE) {
+    const firstKey = cashFlowCache.keys().next().value;
+    if (firstKey) {
+      cashFlowCache.delete(firstKey);
+    }
+  }
+  
+  // Add or update entry
+  cashFlowCache.set(key, {
+    cashFlow,
+    hoaMonthly,
+    hasHOA,
+    timestamp: Date.now(),
+  });
+}
 
 /**
  * Get cached data for a ZIP code
@@ -81,14 +224,35 @@ async function getPreferences(): Promise<ExtensionPreferences> {
 
 /**
  * Calculate cash flow for detected property
+ * @param address Property address
+ * @param detectedBedrooms Number of bedrooms
+ * @param detectedPrice Purchase price
+ * @param preferences User preferences
+ * @param hoaMonthly HOA monthly dues (null if not available)
+ * @param checkCache Whether to check cache first (default: true)
+ * @param isExpandedView Whether this is from an expanded/detail view (default: false)
  */
 async function calculateCashFlow(
   address: string,
   detectedBedrooms: number | null,
   detectedPrice: number | null,
-  preferences: ExtensionPreferences
+  preferences: ExtensionPreferences,
+  hoaMonthly: number | null = null,
+  checkCache: boolean = true,
+  isExpandedView: boolean = false
 ): Promise<number | null> {
   try {
+    // Check cash flow cache first if enabled
+    if (checkCache && detectedPrice !== null && detectedBedrooms !== null) {
+      const cached = getCachedCashFlow(address, detectedPrice, detectedBedrooms, false);
+      if (cached && (!isExpandedView || cached.hasHOA)) {
+        // Use cached value if:
+        // - It's a card view (not expanded), or
+        // - It's an expanded view and cached value has HOA
+        return cached.cashFlow;
+      }
+    }
+    
     // Extract ZIP code from address first
     const zipCode = extractZipFromAddress(address);
     if (!zipCode) {
@@ -165,6 +329,9 @@ async function calculateCashFlow(
       propertyManagementMonthly = preferences.propertyManagementAmount;
     }
     
+    // Use detected HOA if available, otherwise use preference (default 0)
+    const hoa = hoaMonthly !== null ? hoaMonthly : preferences.hoaMonthly;
+    
     // Calculate cash flow
     const result = computeCashFlow({
       purchasePrice,
@@ -173,7 +340,7 @@ async function calculateCashFlow(
       interestRateAnnualPct: mortgageRate,
       propertyTaxRateAnnualPct: taxRate,
       insuranceMonthly: preferences.insuranceMonthly,
-      hoaMonthly: preferences.hoaMonthly,
+      hoaMonthly: hoa,
       propertyManagementMonthly,
       downPayment: {
         mode: preferences.downPaymentMode || 'percent',
@@ -184,7 +351,15 @@ async function calculateCashFlow(
       customLineItems: preferences.customLineItems || [],
     });
     
-    return result?.monthlyCashFlow ?? null;
+    const cashFlow = result?.monthlyCashFlow ?? null;
+    
+    // Cache the result
+    if (checkCache && purchasePrice !== null && bedrooms !== null) {
+      const hasHOA = hoaMonthly !== null; // HOA was available (even if 0)
+      setCachedCashFlow(address, purchasePrice, bedrooms, cashFlow, hoaMonthly, hasHOA);
+    }
+    
+    return cashFlow;
   } catch (error) {
     console.error('[FMR Extension] Error calculating cash flow:', error);
     return null;
@@ -200,9 +375,10 @@ async function injectBadge(
   address: string, 
   isLoading: boolean = false,
   cardElement?: HTMLElement,
-  propertyData?: { price: number | null; bedrooms: number | null },
+  propertyData?: { price: number | null; bedrooms: number | null; hoaMonthly: number | null },
   insufficientInfo: boolean = false,
-  nonInteractive: boolean = false
+  nonInteractive: boolean = false,
+  hoaUnavailable: boolean = false
 ) {
   // Remove existing badge for this card if any
   if (cardElement) {
@@ -233,13 +409,14 @@ async function injectBadge(
     isLoading,
     insufficientInfo,
     nonInteractive,
+    hoaUnavailable,
     onClick: () => {
       // Open mini view
       const zipCode = extractZipFromAddress(address);
       if (zipCode) {
         // Use provided property data or extract it
         const data = propertyData || extractPropertyData();
-        openMiniView(address, zipCode, data.price, data.bedrooms);
+        openMiniView(address, zipCode, data.price, data.bedrooms, data.hoaMonthly);
       }
     },
   });
@@ -341,24 +518,25 @@ function badgeHasValidData(badge: HTMLElement): boolean {
     return false; // Still loading
   }
   
-  // Check if badge shows "Insufficient info"
+  // Check if badge shows insufficient info
   const badgeText = badge.textContent || '';
-  if (badgeText.includes('Insufficient info')) {
+  if (badgeText.includes('Insufficient')) {
     return false; // Invalid data
   }
   
   // Check if badge shows "N/A"
-  if (badgeText.includes('Cash Flow:') && badgeText.includes('N/A')) {
+  if (badgeText.includes('N/A')) {
     return false; // No data available
   }
   
   // Check if badge has a cash flow value (contains $ sign and number)
-  const hasCashFlow = /Cash Flow:.*[\+\-]\$[\d,]+/.test(badgeText);
-  if (hasCashFlow) {
-    return true; // Has valid cash flow data
-  }
-  
-  return false;
+  // Badge format is like: "fmr.fyi +$1,234/mo"
+  return /[\+\-]\$[\d,]+/.test(badgeText) && badgeText.includes('/mo');
+}
+
+function getCardDataKey(address: string, price: number | null, bedrooms: number | null): string {
+  // Reuse the same normalization as the cashflow cache key
+  return getCashFlowCacheKey(address, price, bedrooms);
 }
 
 /**
@@ -366,8 +544,9 @@ function badgeHasValidData(badge: HTMLElement): boolean {
  */
 async function processCard(cardElement: HTMLElement, viewType: 'list' | 'map', site: 'redfin' | 'zillow') {
   // Extract data from card based on site
-  let cardData: { address: string | null; bedrooms: number | null; price: number | null };
+  let cardData: { address: string | null; bedrooms: number | null; price: number | null; hoaMonthly: number | null };
   let addressElement: HTMLElement | null = null;
+  let isExpandedView = false;
   
   if (site === 'redfin') {
     cardData = extractPropertyDataFromCard(cardElement);
@@ -376,6 +555,7 @@ async function processCard(cardElement: HTMLElement, viewType: 'list' | 'map', s
     // Zillow - check if it's an expanded view or regular card
     if (cardElement.getAttribute('data-testid') === 'fs-chip-container') {
       // Expanded view
+      isExpandedView = true;
       cardData = extractPropertyDataFromZillowExpanded(cardElement);
       const addressWrapper = cardElement.querySelector('.styles__AddressWrapper-fshdp-8-112-0__sc-13x5vko-0');
       addressElement = addressWrapper?.querySelector('h1') as HTMLElement;
@@ -391,18 +571,30 @@ async function processCard(cardElement: HTMLElement, viewType: 'list' | 'map', s
   if (!cardData.address || !addressElement) {
     return;
   }
+
+  // If Zillow reuses the same card DOM node for a new listing (common in map view),
+  // detect it and reprocess even if a badge already exists.
+  const currentKey = getCardDataKey(cardData.address, cardData.price, cardData.bedrooms);
+  const lastKey = (cardElement as any).dataset?.[CARD_KEY_DATASET_FIELD] as string | undefined;
   
   // Check if badge already exists in this card
   const existingBadge = cardElement.querySelector('.fmr-badge');
   if (existingBadge) {
     // Badge exists, check if it's still valid (not orphaned)
     const badgeParent = existingBadge.parentElement;
-    if (badgeParent && cardElement.contains(badgeParent)) {
+    const isOrphaned = !(badgeParent && cardElement.contains(badgeParent));
+    const isSameListing = lastKey === currentKey;
+    if (isSameListing && !isOrphaned) {
       return;
     }
-    // Badge exists but is orphaned, remove it
+    // Badge exists but listing changed or is orphaned; remove and reprocess
     existingBadge.remove();
   }
+
+  // Record the key we processed for this DOM node (best-effort)
+  try {
+    (cardElement as any).dataset[CARD_KEY_DATASET_FIELD] = currentKey;
+  } catch {}
   
   // Check if we have sufficient data
   const hasData = hasSufficientData(cardData.address, cardData.bedrooms, cardData.price);
@@ -410,37 +602,58 @@ async function processCard(cardElement: HTMLElement, viewType: 'list' | 'map', s
   if (!hasData) {
     // Show insufficient info badge immediately
     // For Zillow cards, make badge non-interactive to prevent event propagation issues
-    const isZillowCard = site === 'zillow' && cardElement.getAttribute('data-testid') !== 'fs-chip-container';
+    const isZillowCard = site === 'zillow' && !isExpandedView;
     await injectBadge(addressElement, null, cardData.address, false, cardElement, {
       price: cardData.price,
       bedrooms: cardData.bedrooms,
-    }, true, isZillowCard); // insufficientInfo = true, nonInteractive = isZillowCard
+      hoaMonthly: cardData.hoaMonthly,
+    }, true, isZillowCard, !isExpandedView); // insufficientInfo = true, nonInteractive = isZillowCard, hoaUnavailable = !isExpandedView
     return;
   }
-  
+
   // Inject loading skeleton immediately
   // For Zillow cards, make badge non-interactive to prevent event propagation issues
-  const isZillowCard = site === 'zillow' && cardElement.getAttribute('data-testid') !== 'fs-chip-container';
+  const isZillowCard = site === 'zillow' && !isExpandedView;
   await injectBadge(addressElement, null, cardData.address, true, cardElement, {
     price: cardData.price,
     bedrooms: cardData.bedrooms,
-  }, false, isZillowCard);
-  
+    hoaMonthly: cardData.hoaMonthly,
+  }, false, isZillowCard, !isExpandedView);
+
   // Get user preferences
   const preferences = await getPreferences();
+
+  // Check cache first for card views
+  let cashFlow: number | null = null;
+  let hoaUnavailable = !isExpandedView;
   
-  // Calculate cash flow
-  const cashFlow = await calculateCashFlow(
-    cardData.address,
-    cardData.bedrooms,
-    cardData.price,
-    preferences
-  );
+  if (!isExpandedView && cardData.price !== null && cardData.bedrooms !== null) {
+    // Check if we have a cached result with HOA
+    const cached = getCachedCashFlow(cardData.address, cardData.price, cardData.bedrooms, false);
+    if (cached && cached.hasHOA) {
+      // Use cached result with HOA - no tooltip needed
+      cashFlow = cached.cashFlow;
+      hoaUnavailable = false;
+    }
+  }
   
+  // Calculate if not using cache
+  if (cashFlow === null) {
+    cashFlow = await calculateCashFlow(
+      cardData.address,
+      cardData.bedrooms,
+      cardData.price,
+      preferences,
+      cardData.hoaMonthly,
+      true, // checkCache
+      isExpandedView
+    );
+  }
+
   // Update badge with actual data
   const badge = cardBadges.get(cardElement);
   if (badge && (badge as any).updateContent) {
-    (badge as any).updateContent(cashFlow, false, false);
+    (badge as any).updateContent(cashFlow, false, false, hoaUnavailable);
   }
 }
 
@@ -465,7 +678,7 @@ async function processCards(viewType: 'list' | 'map', site: 'redfin' | 'zillow')
     const cardElement = card as HTMLElement;
     
     // Extract data to check if card has address
-    let cardData: { address: string | null; bedrooms: number | null; price: number | null };
+    let cardData: { address: string | null; bedrooms: number | null; price: number | null; hoaMonthly: number | null };
     if (site === 'redfin') {
       cardData = extractPropertyDataFromCard(cardElement);
     } else {
@@ -473,6 +686,9 @@ async function processCards(viewType: 'list' | 'map', site: 'redfin' | 'zillow')
     }
     
     if (cardData.address) {
+      const key = getCardDataKey(cardData.address, cardData.price, cardData.bedrooms);
+      const lastKey = (cardElement as any).dataset?.[CARD_KEY_DATASET_FIELD] as string | undefined;
+
       // Check if badge exists in card - if not, process it
       const existingBadge = cardElement.querySelector('.fmr-badge');
       if (!existingBadge) {
@@ -481,6 +697,13 @@ async function processCards(viewType: 'list' | 'map', site: 'redfin' | 'zillow')
             processCard(cardElement, viewType, site).catch(() => {})
           );
       } else {
+        // If Zillow reused this card node for a different listing, reprocess even if badge exists.
+        if (site === 'zillow' && lastKey && lastKey !== key) {
+          existingBadge.remove();
+          processPromises.push(processCard(cardElement, viewType, site).catch(() => {}));
+          continue;
+        }
+
         // Badge exists, verify it's still valid
         const badgeParent = existingBadge.parentElement;
         if (!badgeParent || !cardElement.contains(badgeParent)) {
@@ -489,6 +712,15 @@ async function processCards(viewType: 'list' | 'map', site: 'redfin' | 'zillow')
           processPromises.push(
             processCard(cardElement, viewType, site).catch(() => {})
           );
+        } else {
+          // Badge exists and is valid - check if we have cached HOA data to update it
+          if (cardData.price !== null && cardData.bedrooms !== null) {
+            const cached = getCachedCashFlow(cardData.address, cardData.price, cardData.bedrooms, false);
+            if (cached && cached.hasHOA && (existingBadge as any).updateContent) {
+              // Update badge with cached HOA data (remove tooltip)
+              (existingBadge as any).updateContent(cached.cashFlow, false, false, false);
+            }
+          }
         }
       }
     }
@@ -606,12 +838,17 @@ async function processPage() {
   
   // Check if we're on Zillow list or map view
   if (site.includes('zillow.com') && !isZillowDetail) {
+    startZillowCardKeyPolling();
+
     // Check for expanded view (fs-chip-container)
     const expandedView = document.querySelector('[data-testid="fs-chip-container"]');
     if (expandedView) {
       const expandedData = extractPropertyDataFromZillowExpanded(expandedView as HTMLElement);
       
       if (expandedData.address) {
+        const expandedKey = getCardDataKey(expandedData.address, expandedData.price, expandedData.bedrooms);
+        const lastExpandedKey = (expandedView as any).dataset?.[CARD_KEY_DATASET_FIELD] as string | undefined;
+
         // Find address element (h1 in AddressWrapper)
         // Try multiple selectors for AddressWrapper
         let addressElement: HTMLElement | null = null;
@@ -642,34 +879,64 @@ async function processPage() {
         }
         
         if (addressElement) {
-          // Check if badge already exists with valid data
+          // If Zillow reused this expanded container for a new listing, never keep the old badge
           const existingBadge = expandedView.querySelector('.fmr-badge') as HTMLElement;
-          if (existingBadge && badgeHasValidData(existingBadge)) {
-            return;
-          }
-          
-          // If badge exists but doesn't have valid data, remove it to reprocess
-          if (existingBadge) {
+          const isSameListing = lastExpandedKey === expandedKey;
+          if (existingBadge && !isSameListing) {
             existingBadge.remove();
             cardBadges.delete(expandedView as HTMLElement);
           }
+
+          // Track which listing this expanded view currently represents (Zillow can reuse this node)
+          try {
+            (expandedView as any).dataset[CARD_KEY_DATASET_FIELD] = expandedKey;
+          } catch {}
           
           // Check if we have sufficient data
           const hasData = hasSufficientData(expandedData.address, expandedData.bedrooms, expandedData.price);
           
           if (!hasData) {
+            // Clear HOA pending flag
+            try { (expandedView as any).dataset[HOA_PENDING_DATASET_FIELD] = '0'; } catch {}
             await injectBadge(addressElement, null, expandedData.address, false, expandedView as HTMLElement, {
               price: expandedData.price,
               bedrooms: expandedData.bedrooms,
-            }, true, false);
+              hoaMonthly: expandedData.hoaMonthly,
+            }, true, false, false); // hoaUnavailable = false for expanded view
             return;
           }
-          
-          // Inject loading skeleton
-          await injectBadge(addressElement, null, expandedData.address, true, expandedView as HTMLElement, {
-            price: expandedData.price,
-            bedrooms: expandedData.bedrooms,
-          }, false, false);
+
+          // In expanded view, never show the non-HOA cached value even briefly.
+          // If we already have an HOA-aware cached result, we can show it immediately.
+          let cachedHoaCashFlow: number | null = null;
+          if (expandedData.price !== null && expandedData.bedrooms !== null) {
+            const cachedHoa = getCachedCashFlow(expandedData.address, expandedData.price, expandedData.bedrooms, true);
+            if (cachedHoa && cachedHoa.hasHOA) {
+              cachedHoaCashFlow = cachedHoa.cashFlow;
+            }
+          }
+
+          const existingBadge2 = expandedView.querySelector('.fmr-badge') as HTMLElement | null;
+          if (cachedHoaCashFlow !== null && existingBadge2 && (existingBadge2 as any).updateContent) {
+            // Ensure we don't refetch if we already have HOA-aware cached result and badge matches listing
+            (existingBadge2 as any).updateContent(cachedHoaCashFlow, false, false, false);
+            try { (expandedView as any).dataset[HOA_PENDING_DATASET_FIELD] = '0'; } catch {}
+            if (isSameListing && badgeHasValidData(existingBadge2)) {
+              return;
+            }
+          } else {
+            // Force loading immediately (prevents "cached -> loading -> HOA" flicker)
+            try { (expandedView as any).dataset[HOA_PENDING_DATASET_FIELD] = '1'; } catch {}
+            if (existingBadge2 && (existingBadge2 as any).updateContent) {
+              (existingBadge2 as any).updateContent(null, true, false, false);
+            } else {
+              await injectBadge(addressElement, null, expandedData.address, true, expandedView as HTMLElement, {
+                price: expandedData.price,
+                bedrooms: expandedData.bedrooms,
+                hoaMonthly: expandedData.hoaMonthly,
+              }, false, false, false); // hoaUnavailable = false for expanded view
+            }
+          }
           
           // Get preferences and calculate
           const preferences = await getPreferences();
@@ -677,14 +944,19 @@ async function processPage() {
             expandedData.address,
             expandedData.bedrooms,
             expandedData.price,
-            preferences
+            preferences,
+            expandedData.hoaMonthly,
+            true, // checkCache
+            true // isExpandedView
           );
           
           // Update badge
           const badge = cardBadges.get(expandedView as HTMLElement);
           if (badge && (badge as any).updateContent) {
-            (badge as any).updateContent(cashFlow, false, false);
+            // HOA is available in expanded view
+            (badge as any).updateContent(cashFlow, false, false, false);
           }
+          try { (expandedView as any).dataset[HOA_PENDING_DATASET_FIELD] = '0'; } catch {}
         }
       }
     }
@@ -698,6 +970,13 @@ async function processPage() {
     const observer = new MutationObserver((mutations) => {
       let hasChanges = false;
       mutations.forEach((mutation) => {
+        // Zillow map selection changes often show up as text/attribute mutations
+        if (mutation.type === 'attributes' || mutation.type === 'characterData') {
+          if (isElementWithinZillowCardOrExpandedView(mutation.target)) {
+            hasChanges = true;
+          }
+        }
+
         // Check for added nodes (new cards)
         mutation.addedNodes.forEach((node) => {
           if (node.nodeType === Node.ELEMENT_NODE) {
@@ -737,19 +1016,22 @@ async function processPage() {
           const expandedView = document.querySelector('[data-testid="fs-chip-container"]');
           if (expandedView) {
             const existingBadge = expandedView.querySelector('.fmr-badge') as HTMLElement;
-            // Only process if no badge exists or badge doesn't have valid data
-            if (existingBadge && badgeHasValidData(existingBadge)) {
-              // Badge has valid data, skip refetch
-              // Continue to process cards instead
-            } else {
-              // Remove existing badge if it doesn't have valid data
-              if (existingBadge) {
+            const expandedData = extractPropertyDataFromZillowExpanded(expandedView as HTMLElement);
+            if (expandedData.address) {
+              const expandedKey = getCardDataKey(expandedData.address, expandedData.price, expandedData.bedrooms);
+              const lastExpandedKey = (expandedView as any).dataset?.[CARD_KEY_DATASET_FIELD] as string | undefined;
+              const isSameListing = lastExpandedKey === expandedKey;
+
+              // If listing changed, clear old badge immediately
+              if (existingBadge && !isSameListing) {
                 existingBadge.remove();
                 cardBadges.delete(expandedView as HTMLElement);
               }
-              
-              const expandedData = extractPropertyDataFromZillowExpanded(expandedView as HTMLElement);
-              if (expandedData.address) {
+
+              // If we already have HOA-aware cached value and badge is valid, skip
+              if (isSameListing && existingBadge && badgeHasValidData(existingBadge)) {
+                // ok
+              } else {
                 // Find address element (h1 in AddressWrapper)
                 let addressElement: HTMLElement | null = null;
                 const addressWrappers = [
@@ -757,7 +1039,7 @@ async function processPage() {
                   expandedView.querySelector('[class*="AddressWrapper"]'),
                   expandedView.querySelector('[class*="address-wrapper"]'),
                 ].filter(Boolean) as HTMLElement[];
-                
+
                 for (const addressWrapper of addressWrappers) {
                   const h1 = addressWrapper.querySelector('h1');
                   if (h1) {
@@ -765,8 +1047,7 @@ async function processPage() {
                     break;
                   }
                 }
-                
-                // Fallback: try any h1 with address-like text
+
                 if (!addressElement) {
                   const h1Elements = expandedView.querySelectorAll('h1');
                   for (const h1 of Array.from(h1Elements)) {
@@ -777,38 +1058,66 @@ async function processPage() {
                     }
                   }
                 }
-                
+
                 if (addressElement) {
-                  // Check if we have sufficient data
+                  // Track which listing this expanded view currently represents
+                  try {
+                    (expandedView as any).dataset[CARD_KEY_DATASET_FIELD] = expandedKey;
+                  } catch {}
+
                   const hasData = hasSufficientData(expandedData.address, expandedData.bedrooms, expandedData.price);
-                  
                   if (!hasData) {
+                    try { (expandedView as any).dataset[HOA_PENDING_DATASET_FIELD] = '0'; } catch {}
                     injectBadge(addressElement, null, expandedData.address, false, expandedView as HTMLElement, {
                       price: expandedData.price,
                       bedrooms: expandedData.bedrooms,
-                    }, true, false).catch(() => {});
+                      hoaMonthly: expandedData.hoaMonthly,
+                    }, true, false, false).catch(() => {});
                   } else {
-                    // Inject loading skeleton
-                    injectBadge(addressElement, null, expandedData.address, true, expandedView as HTMLElement, {
-                      price: expandedData.price,
-                      bedrooms: expandedData.bedrooms,
-                    }, false, false).then(() => {
-                      // Get preferences and calculate
-                      return getPreferences();
-                    }).then(preferences => {
-                      return calculateCashFlow(
-                        expandedData.address!,
-                        expandedData.bedrooms,
-                        expandedData.price,
-                        preferences
-                      );
-                    }).then(cashFlow => {
-                      // Update badge
-                      const badge = cardBadges.get(expandedView as HTMLElement);
-                      if (badge && (badge as any).updateContent) {
-                        (badge as any).updateContent(cashFlow, false, false);
+                    // Always show loading unless we already have HOA-aware cached result
+                    let cachedHoaCashFlow: number | null = null;
+                    if (expandedData.price !== null && expandedData.bedrooms !== null) {
+                      const cachedHoa = getCachedCashFlow(expandedData.address, expandedData.price, expandedData.bedrooms, true);
+                      if (cachedHoa && cachedHoa.hasHOA) cachedHoaCashFlow = cachedHoa.cashFlow;
+                    }
+
+                    const existingBadge2 = expandedView.querySelector('.fmr-badge') as HTMLElement | null;
+                    if (cachedHoaCashFlow !== null && existingBadge2 && (existingBadge2 as any).updateContent) {
+                      (existingBadge2 as any).updateContent(cachedHoaCashFlow, false, false, false);
+                      try { (expandedView as any).dataset[HOA_PENDING_DATASET_FIELD] = '0'; } catch {}
+                    } else {
+                      try { (expandedView as any).dataset[HOA_PENDING_DATASET_FIELD] = '1'; } catch {}
+                      if (existingBadge2 && (existingBadge2 as any).updateContent) {
+                        (existingBadge2 as any).updateContent(null, true, false, false);
+                      } else {
+                        injectBadge(addressElement, null, expandedData.address, true, expandedView as HTMLElement, {
+                          price: expandedData.price,
+                          bedrooms: expandedData.bedrooms,
+                          hoaMonthly: expandedData.hoaMonthly,
+                        }, false, false, false).catch(() => {});
                       }
-                    }).catch(() => {});
+                    }
+
+                    getPreferences()
+                      .then((preferences) =>
+                        calculateCashFlow(
+                          expandedData.address!,
+                          expandedData.bedrooms,
+                          expandedData.price,
+                          preferences,
+                          expandedData.hoaMonthly,
+                          true,
+                          true
+                        )
+                      )
+                      .then((cashFlow) => {
+                        const badge = cardBadges.get(expandedView as HTMLElement);
+                        if (badge && (badge as any).updateContent) {
+                          (badge as any).updateContent(cashFlow, false, false, false);
+                        }
+                        try { (expandedView as any).dataset[HOA_PENDING_DATASET_FIELD] = '0'; } catch {}
+                      })
+                      .catch(() => {});
                   }
                 }
               }
@@ -818,7 +1127,7 @@ async function processPage() {
           // Process both list and map cards
           processCards('list', 'zillow').catch(() => {});
           processCards('map', 'zillow').catch(() => {});
-        }, 500) as unknown as number;
+        }, 150) as unknown as number;
       }
     });
     
@@ -839,6 +1148,10 @@ async function processPage() {
         observer.observe(contentArea, {
           childList: true,
           subtree: true,
+          // Zillow often updates the selected map card by mutating text/attributes,
+          // without adding/removing nodes.
+          attributes: true,
+          characterData: true,
         });
       }
     });
@@ -890,9 +1203,6 @@ async function processPage() {
       return;
     }
     
-    // Inject loading skeleton immediately (before checking data to avoid premature "insufficient info")
-    await injectBadge(addressElement, null, address, true, undefined, undefined, false, false);
-    
     // Wait a bit for page to fully load before extracting property data
     await new Promise(resolve => setTimeout(resolve, 500));
     
@@ -903,27 +1213,47 @@ async function processPage() {
     const hasData = hasSufficientData(address, propertyData.bedrooms, propertyData.price);
     
     if (!hasData) {
-      // Update badge to show insufficient info
-      if (badgeElement && (badgeElement as any).updateContent) {
-        (badgeElement as any).updateContent(null, false, true);
-      }
+      // Inject insufficient info badge
+      await injectBadge(addressElement, null, address, false, undefined, undefined, true, false);
       return;
+    }
+
+    // On detail pages, never show non-HOA cached value even briefly.
+    // Check if we already have HOA-aware cached result first.
+    let cachedHoaCashFlow: number | null = null;
+    if (propertyData.price !== null && propertyData.bedrooms !== null) {
+      const cachedHoa = getCachedCashFlow(address, propertyData.price, propertyData.bedrooms, true);
+      if (cachedHoa && cachedHoa.hasHOA) {
+        cachedHoaCashFlow = cachedHoa.cashFlow;
+      }
+    }
+
+    // Inject badge: show cached HOA result if available, otherwise show loading
+    // This prevents the "cached non-HOA -> loading -> HOA-aware" flicker
+    if (cachedHoaCashFlow !== null) {
+      await injectBadge(addressElement, cachedHoaCashFlow, address, false, undefined, undefined, false, false);
+    } else {
+      await injectBadge(addressElement, null, address, true, undefined, undefined, false, false);
     }
     
     // Get user preferences
     const preferences = await getPreferences();
     
-    // Calculate cash flow
+    // Calculate cash flow (HOA is available on detail pages)
+    // Always recalculate to ensure we have the latest result (cache might be stale)
     const cashFlow = await calculateCashFlow(
       address,
       propertyData.bedrooms,
       propertyData.price,
-      preferences
+      preferences,
+      propertyData.hoaMonthly,
+      false, // checkCache: skip cache check to always recalculate with HOA (prevents flicker)
+      true // isExpandedView (detail pages are expanded views)
     );
-    
-    // Update badge with actual data
+
+    // Update badge with actual data (HOA is available on detail pages)
     if (badgeElement && (badgeElement as any).updateContent) {
-      (badgeElement as any).updateContent(cashFlow, false, false);
+      (badgeElement as any).updateContent(cashFlow, false, false, false);
     }
   } catch (error) {
     console.error('[FMR Extension] Error:', error);
@@ -935,9 +1265,210 @@ async function processPage() {
 }
 
 /**
+ * Update card badges for a property when we get expanded view results
+ * Also triggers re-processing of matching cards to ensure they get updated
+ */
+function updateCardBadgesForProperty(address: string, price: number, bedrooms: number): void {
+  // Check cache for this property
+  const cached = getCachedCashFlow(address, price, bedrooms, false);
+  if (!cached || !cached.hasHOA) {
+    return; // No cached result with HOA
+  }
+  
+  // Normalize address for comparison
+  const normalizedAddress = address.toLowerCase().trim();
+  
+  // Track which cards we've updated to avoid duplicates
+  const updatedCards = new Set<HTMLElement>();
+  
+  // Find all card badges in the map and update them if they match this property
+  for (const [cardElement, badge] of cardBadges.entries()) {
+    // Skip expanded views (they're already updated)
+    if (cardElement.getAttribute('data-testid') === 'fs-chip-container') {
+      continue;
+    }
+    
+    // Check if card element is still in the DOM
+    if (!cardElement.isConnected) {
+      continue;
+    }
+    
+    // Try to extract property data from the card to see if it matches
+    let cardData: { address: string | null; price: number | null; bedrooms: number | null } | null = null;
+    
+    try {
+      // Check if it's a Zillow card
+      if (cardElement.getAttribute('data-testid') === 'property-card-data') {
+        cardData = extractPropertyDataFromZillowCard(cardElement);
+      } else if (cardElement.classList?.contains('bp-Homecard__Content')) {
+        // Redfin card
+        cardData = extractPropertyDataFromCard(cardElement);
+      }
+    } catch (e) {
+      // Skip if extraction fails
+      continue;
+    }
+    
+    // Check if this card matches the property
+    if (!cardData || !cardData.address) {
+      continue;
+    }
+    
+    // Use more flexible matching - check if addresses are similar (normalize whitespace, case)
+    const cardAddressNormalized = cardData.address.toLowerCase().trim().replace(/\s+/g, ' ');
+    const targetAddressNormalized = normalizedAddress.replace(/\s+/g, ' ');
+    
+    if (cardAddressNormalized === targetAddressNormalized &&
+        cardData.price === price &&
+        cardData.bedrooms === bedrooms) {
+      // Update the badge with cached result (no tooltip since HOA is available)
+      if ((badge as any).updateContent) {
+        (badge as any).updateContent(cached.cashFlow, false, false, false);
+        updatedCards.add(cardElement);
+      }
+    }
+  }
+  
+  // Also search the DOM directly for badges that might not be in the map
+  // (e.g., if cards were re-rendered after expanded view closed)
+  const allBadges = document.querySelectorAll('.fmr-badge');
+  for (const badgeElement of Array.from(allBadges)) {
+    const badge = badgeElement as HTMLElement;
+    
+    // Skip if this badge is already in our map (we updated it above)
+    let isInMap = false;
+    for (const mappedBadge of Array.from(cardBadges.values())) {
+      if (mappedBadge === badge) {
+        isInMap = true;
+        break;
+      }
+    }
+    if (isInMap) {
+      continue;
+    }
+    
+    // Find the card element that contains this badge
+    const cardElement = badge.closest('[data-testid="property-card-data"]') || 
+                       badge.closest('.bp-Homecard__Content') ||
+                       badge.closest('[data-testid="fs-chip-container"]');
+    
+    if (!cardElement) {
+      continue;
+    }
+    
+    // Skip expanded views
+    if ((cardElement as HTMLElement).getAttribute('data-testid') === 'fs-chip-container') {
+      continue;
+    }
+    
+    // Skip if already updated
+    if (updatedCards.has(cardElement as HTMLElement)) {
+      continue;
+    }
+    
+    // Try to extract property data
+    let cardData: { address: string | null; price: number | null; bedrooms: number | null } | null = null;
+    
+    try {
+      if ((cardElement as HTMLElement).getAttribute('data-testid') === 'property-card-data') {
+        cardData = extractPropertyDataFromZillowCard(cardElement as HTMLElement);
+      } else if ((cardElement as HTMLElement).classList?.contains('bp-Homecard__Content')) {
+        cardData = extractPropertyDataFromCard(cardElement as HTMLElement);
+      }
+    } catch (e) {
+      continue;
+    }
+    
+    // Check if this card matches the property
+    if (!cardData || !cardData.address) {
+      continue;
+    }
+    
+    // Use more flexible matching - check if addresses are similar (normalize whitespace, case)
+    const cardAddressNormalized = cardData.address.toLowerCase().trim().replace(/\s+/g, ' ');
+    const targetAddressNormalized = normalizedAddress.replace(/\s+/g, ' ');
+    
+    if (cardAddressNormalized === targetAddressNormalized &&
+        cardData.price === price &&
+        cardData.bedrooms === bedrooms) {
+      // Update the badge with cached result (no tooltip since HOA is available)
+      if ((badge as any).updateContent) {
+        (badge as any).updateContent(cached.cashFlow, false, false, false);
+        updatedCards.add(cardElement as HTMLElement);
+      }
+    }
+  }
+  
+  // Also trigger re-processing of matching cards that don't have badges yet
+  // This ensures newly rendered cards get the HOA-aware value
+  const site = window.location.hostname.toLowerCase();
+  if (site.includes('zillow.com')) {
+    const allCards = document.querySelectorAll('[data-testid="property-card-data"]');
+    for (const card of Array.from(allCards)) {
+      const cardElement = card as HTMLElement;
+      if (updatedCards.has(cardElement)) {
+        continue; // Already updated
+      }
+      
+      let cardData: { address: string | null; price: number | null; bedrooms: number | null } | null = null;
+      try {
+        cardData = extractPropertyDataFromZillowCard(cardElement);
+      } catch (e) {
+        continue;
+      }
+      
+      if (!cardData || !cardData.address) {
+        continue;
+      }
+      
+      const cardAddressNormalized = cardData.address.toLowerCase().trim().replace(/\s+/g, ' ');
+      const targetAddressNormalized = normalizedAddress.replace(/\s+/g, ' ');
+      
+      if (cardAddressNormalized === targetAddressNormalized &&
+          cardData.price === price &&
+          cardData.bedrooms === bedrooms) {
+        // Re-process this card to get the HOA-aware value
+        processCard(cardElement, 'list', 'zillow').catch(() => {});
+        processCard(cardElement, 'map', 'zillow').catch(() => {});
+      }
+    }
+  } else if (site.includes('redfin.com')) {
+    const allCards = document.querySelectorAll('.bp-Homecard__Content');
+    for (const card of Array.from(allCards)) {
+      const cardElement = card as HTMLElement;
+      if (updatedCards.has(cardElement)) {
+        continue; // Already updated
+      }
+      
+      let cardData: { address: string | null; price: number | null; bedrooms: number | null } | null = null;
+      try {
+        cardData = extractPropertyDataFromCard(cardElement);
+      } catch (e) {
+        continue;
+      }
+      
+      if (!cardData || !cardData.address) {
+        continue;
+      }
+      
+      const cardAddressNormalized = cardData.address.toLowerCase().trim().replace(/\s+/g, ' ');
+      const targetAddressNormalized = normalizedAddress.replace(/\s+/g, ' ');
+      
+      if (cardAddressNormalized === targetAddressNormalized &&
+          cardData.price === price &&
+          cardData.bedrooms === bedrooms) {
+        // Re-process this card to get the HOA-aware value
+        processCard(cardElement, 'list', 'redfin').catch(() => {});
+        processCard(cardElement, 'map', 'redfin').catch(() => {});
+      }
+    }
+  }
+}
+
+/**
  * Open mini view modal
  */
-async function openMiniView(address: string, zipCode: string, purchasePrice: number | null, bedrooms: number | null) {
+async function openMiniView(address: string, zipCode: string, purchasePrice: number | null, bedrooms: number | null, hoaMonthly: number | null = null) {
   // Remove existing mini view if any
   const existingOverlay = document.querySelector('.fmr-mini-view-overlay');
   if (existingOverlay) {
@@ -967,6 +1498,7 @@ async function openMiniView(address: string, zipCode: string, purchasePrice: num
     preferences,
     purchasePrice,
     bedrooms,
+    hoaMonthly, // Pass detected HOA (null if not available, 0 if explicitly no HOA, or the actual amount)
     overlay, // Pass overlay reference so it can be hidden during dragging
     onClose: () => {
       overlay.remove();

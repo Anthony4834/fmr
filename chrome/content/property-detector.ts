@@ -3,6 +3,7 @@
 export interface PropertyData {
   bedrooms: number | null;
   price: number | null;
+  hoaMonthly: number | null;
 }
 
 type Site = 'zillow' | 'redfin' | 'realtor' | 'homes' | 'unknown';
@@ -311,12 +312,144 @@ function parsePrice(text: string): number | null {
 }
 
 /**
+ * Extract HOA monthly dues from the DOM (detail pages only)
+ */
+export function extractHOA(): number | null {
+  const site = detectSite();
+  const isDetail = isDetailPage();
+  
+  // HOA is only available on detail pages
+  if (!isDetail) {
+    return null;
+  }
+  
+  if (site === 'zillow') {
+    // Zillow: Look for span with "HOA" text containing price
+    // Format 1: <span class="Text-c11n-8-112-0__sc-aiai24-0 ...">$509/mo HOA</span>
+    // Format 2: <span class="Text-c11n-8-112-0__sc-aiai24-0 hdp__sc-6k0go5-3 ...">$290 monthly HOA fee</span>
+    // Or: $-- HOA (when no HOA)
+    const hoaElements = document.querySelectorAll('span[class*="Text-c11n-8-112-0"]');
+    for (const element of Array.from(hoaElements)) {
+      const text = element.textContent?.trim() || '';
+      if (text.includes('HOA')) {
+        // Check if it's the "no HOA" indicator
+        if (text.includes('$--') || text.includes('$—')) {
+          return 0; // Explicitly no HOA
+        }
+        // Format 1: "$509/mo HOA" -> 509
+        let match = text.match(/\$([\d,]+)\/mo/);
+        if (match) {
+          const price = parseFloat(match[1].replace(/,/g, ''));
+          if (!isNaN(price) && price >= 0) {
+            return price;
+          }
+        }
+        // Format 2: "$290 monthly HOA fee" -> 290
+        match = text.match(/\$([\d,]+)\s+monthly\s+HOA\s+fee/i);
+        if (match) {
+          const price = parseFloat(match[1].replace(/,/g, ''));
+          if (!isNaN(price) && price >= 0) {
+            return price;
+          }
+        }
+      }
+    }
+  } else if (site === 'redfin') {
+    // Redfin: Look for keyDetails-row with "HOA Dues" valueType
+    // Structure: <div class="keyDetails-row">...<span class="valueText">$509/mo</span><span class="valueType">HOA Dues</span>...</div>
+    const keyDetailsRows = document.querySelectorAll('.keyDetails-row');
+    for (const row of Array.from(keyDetailsRows)) {
+      const valueType = row.querySelector('.valueType');
+      if (valueType && valueType.textContent?.trim().toLowerCase().includes('hoa')) {
+        const valueText = row.querySelector('.valueText');
+        if (valueText) {
+          const text = valueText.textContent?.trim() || '';
+          // Extract price: "$509/mo" -> 509
+          const match = text.match(/\$([\d,]+)\/mo/);
+          if (match) {
+            const price = parseFloat(match[1].replace(/,/g, ''));
+            if (!isNaN(price) && price >= 0) {
+              return price;
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Extract HOA from Zillow expanded view
+ */
+export function extractHOAFromZillowExpanded(container: HTMLElement): number | null {
+  // Look for span with "HOA" text containing price
+  // Format 1: <span class="Text-c11n-8-112-0__sc-aiai24-0 ...">$509/mo HOA</span>
+  // Format 2: <span class="Text-c11n-8-112-0__sc-aiai24-0 hdp__sc-6k0go5-3 ...">$290 monthly HOA fee</span>
+  const hoaElements = container.querySelectorAll('span[class*="Text-c11n-8-112-0"]');
+  for (const element of Array.from(hoaElements)) {
+    const text = element.textContent?.trim() || '';
+    if (text.includes('HOA')) {
+      // Check if it's the "no HOA" indicator
+      if (text.includes('$--') || text.includes('$—')) {
+        return 0; // Explicitly no HOA
+      }
+      // Format 1: "$509/mo HOA" -> 509
+      let match = text.match(/\$([\d,]+)\/mo/);
+      if (match) {
+        const price = parseFloat(match[1].replace(/,/g, ''));
+        if (!isNaN(price) && price >= 0) {
+          return price;
+        }
+      }
+      // Format 2: "$290 monthly HOA fee" -> 290
+      match = text.match(/\$([\d,]+)\s+monthly\s+HOA\s+fee/i);
+      if (match) {
+        const price = parseFloat(match[1].replace(/,/g, ''));
+        if (!isNaN(price) && price >= 0) {
+          return price;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Extract HOA from Redfin detail page
+ */
+export function extractHOAFromRedfinDetail(): number | null {
+  // Look for keyDetails-row with "HOA Dues" valueType
+  const keyDetailsRows = document.querySelectorAll('.keyDetails-row');
+  for (const row of Array.from(keyDetailsRows)) {
+    const valueType = row.querySelector('.valueType');
+    if (valueType && valueType.textContent?.trim().toLowerCase().includes('hoa')) {
+      const valueText = row.querySelector('.valueText');
+      if (valueText) {
+        const text = valueText.textContent?.trim() || '';
+        // Extract price: "$509/mo" -> 509
+        const match = text.match(/\$([\d,]+)\/mo/);
+        if (match) {
+          const price = parseFloat(match[1].replace(/,/g, ''));
+          if (!isNaN(price) && price >= 0) {
+            return price;
+          }
+        }
+      }
+    }
+  }
+  return null;
+}
+
+/**
  * Extract both bedrooms and price
  */
 export function extractPropertyData(): PropertyData {
   return {
     bedrooms: extractBedrooms(),
     price: extractPrice(),
+    hoaMonthly: extractHOA(),
   };
 }
 
@@ -387,11 +520,13 @@ export function extractPropertyDataFromCard(cardElement: HTMLElement): {
   address: string | null;
   bedrooms: number | null;
   price: number | null;
+  hoaMonthly: number | null;
 } {
   return {
     address: extractAddressFromCard(cardElement),
     bedrooms: extractBedroomsFromCard(cardElement),
     price: extractPriceFromCard(cardElement),
+    hoaMonthly: null, // HOA not available in card view
   };
 }
 
@@ -468,11 +603,13 @@ export function extractPropertyDataFromZillowCard(cardElement: HTMLElement): {
   address: string | null;
   bedrooms: number | null;
   price: number | null;
+  hoaMonthly: number | null;
 } {
   return {
     address: extractAddressFromZillowCard(cardElement),
     bedrooms: extractBedroomsFromZillowCard(cardElement),
     price: extractPriceFromZillowCard(cardElement),
+    hoaMonthly: null, // HOA not available in card view
   };
 }
 
@@ -558,11 +695,13 @@ export function extractPropertyDataFromZillowExpanded(container: HTMLElement): {
   address: string | null;
   bedrooms: number | null;
   price: number | null;
+  hoaMonthly: number | null;
 } {
   return {
     address: extractAddressFromZillowExpanded(container),
     bedrooms: extractBedroomsFromZillowExpanded(container),
     price: extractPriceFromZillowExpanded(container),
+    hoaMonthly: extractHOAFromZillowExpanded(container),
   };
 }
 
