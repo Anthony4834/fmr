@@ -1,0 +1,25 @@
+Instant Cash Flow Analysis on Real Estate Listings
+
+fmr.fyi is a Chrome extension that helps investors, property managers, and homebuyers evaluate rental properties while browsing real estate listings. It displays estimated monthly cash flow and Fair Market Rent (FMR) data directly on supported sites, eliminating the need for manual calculations or separate tools.
+
+The extension detects property details such as address, price, bedroom count, and HOA fees, then shows an on-page cash flow indicator. Selecting the indicator opens a detailed analysis view with HUD FMR and Small Area FMR data, local tax rates, mortgage assumptions, and customizable expense inputs.
+
+Key Features
+
+On-page cash flow estimates shown directly on listings
+
+Uses official HUD FMR and SAFMR data
+
+Automatically detects and includes HOA fees when available
+
+Configurable assumptions for financing, taxes, and expenses
+
+Supports Zillow, Redfin, Realtor.com, and Homes.com
+
+Works on list views, map views, expanded map cards, and property detail pages
+
+Enable or disable the extension per site
+
+Privacy
+
+All calculations run locally in your browser. No personal data or browsing activity is collected or stored.

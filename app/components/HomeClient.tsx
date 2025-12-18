@@ -11,6 +11,7 @@ import { buildCitySlug, buildCountySlug } from '@/lib/location-slugs';
 import { STATES } from '@/lib/states';
 import IdealPurchasePriceCard from './IdealPurchasePriceCard';
 import InvestorScoreInfoButton from './InvestorScoreInfoButton';
+import NewBadge from './NewBadge';
 
 function getTextColorForScore(score: number | null): string {
   if (score === null || score === undefined || score < 95) {
@@ -786,13 +787,37 @@ export default function HomeClient(props: {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-8 sm:py-8 md:py-10 lg:py-10">
         {/* Header */}
         <div className="mb-4 sm:mb-6 lg:mb-4 flex-shrink-0">
-          <div className="mb-2 sm:mb-3 lg:mb-2">
+          <div className="mb-2 sm:mb-3 lg:mb-2 flex items-start justify-between gap-3 flex-wrap">
             <button onClick={handleReset} className="text-left hover:opacity-70 transition-opacity">
               <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#0a0a0a] mb-1 tracking-tight">
                 fmr.fyi
               </h1>
               <p className="text-xs text-[#737373] font-medium tracking-wide uppercase">Fair Market Rent Data</p>
             </button>
+            <a
+              href="https://chromewebstore.google.com/detail/fmrfyi-%E2%80%93-fair-market-rent/gkemjakehildeolcagbibhmbcddkkflb"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group inline-flex items-center gap-2 px-3 py-2 bg-[#0a0a0a] text-white text-xs sm:text-sm font-medium rounded-lg hover:opacity-90 transition-opacity duration-200 flex-shrink-0"
+            >
+              <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 0C8.21 0 4.831 1.757 2.632 4.501l3.953 6.848A5.454 5.454 0 0 1 12 6.545h10.691A12 12 0 0 0 12 0zM1.931 5.47A11.943 11.943 0 0 0 0 12c0 6.012 4.42 10.991 10.189 11.864l3.953-6.847a5.45 5.45 0 0 1-6.865-2.29zm13.342 2.166a5.446 5.446 0 0 1 1.45 7.09l.002.001h-.002l-3.953 6.848c.062.002.124.006.187.006 6.627 0 12-5.373 12-12 0-.807-.084-1.594-.236-2.355H15.273zM12 16.364a4.364 4.364 0 1 1 0-8.728 4.364 4.364 0 0 1 0 8.728z"/>
+              </svg>
+              <span className="flex items-center gap-1.5">
+                <span className="hidden sm:inline whitespace-nowrap">Get Chrome Extension</span>
+                <span className="sm:hidden whitespace-nowrap">Extension</span>
+                <NewBadge />
+              </span>
+              <svg
+                className="w-4 h-4 flex-shrink-0 transition-transform group-hover:translate-x-1"
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M6 3l5 5-5 5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </a>
           </div>
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <p className="text-sm sm:text-base text-[#525252] max-w-2xl">
