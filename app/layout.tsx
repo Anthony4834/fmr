@@ -14,7 +14,9 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://fmr.fyi"),
   verification: googleVerification ? { google: googleVerification } : undefined,
   icons: {
-    icon: "/icon.png",
+    icon: [
+      { url: "/icon.png", sizes: "96x96", type: "image/png" },
+    ],
     shortcut: "/icon.png",
     apple: "/icon.png",
   },
