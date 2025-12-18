@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { resolveCitySlugToQuery } from '@/lib/seo-slugs';
-import { getFMRByCity, getFMRHistoryByCity } from '@/lib/queries';
+import { getFMRByCity, getFMRHistoryByCity, getCityInvestmentScore, getLatestFMRYear } from '@/lib/queries';
 import HomeClient from '@/app/components/HomeClient';
+import IncompleteGeoView from '@/app/components/IncompleteGeoView';
 
 export const revalidate = 86400;
 
@@ -48,10 +49,38 @@ export default async function CitySlugPage({ params, searchParams }: { params: {
 
   const year = searchParams.year ? parseInt(searchParams.year, 10) : undefined;
   const result = await getFMRByCity(city, state, year);
-  if (!result) notFound();
-  const history = await getFMRHistoryByCity(city, state);
-  const initialData = serializeResult({ ...result, history, queriedLocation: q, queriedType: 'city' as const });
-  return <HomeClient initialQuery={q} initialType="city" initialData={initialData} initialError={null} />;
+
+  // If FMR data exists, show the full view
+  if (result) {
+    const history = await getFMRHistoryByCity(city, state);
+    const initialData = serializeResult({ ...result, history, queriedLocation: q, queriedType: 'city' as const });
+    return <HomeClient initialQuery={q} initialType="city" initialData={initialData} initialError={null} />;
+  }
+
+  // Try to get investment score data as fallback
+  const investmentScore = await getCityInvestmentScore(city, state, year);
+
+  // If we have investment score data, show the incomplete/degraded view
+  if (investmentScore) {
+    const latestYear = year ?? await getLatestFMRYear();
+    return (
+      <IncompleteGeoView
+        geoType="city"
+        name={city}
+        stateCode={state}
+        countyName={investmentScore.countyName}
+        year={latestYear}
+        zipCount={investmentScore.zipCount}
+        medianScore={investmentScore.medianScore}
+        avgYield={investmentScore.avgYield}
+        avgPropertyValue={investmentScore.avgPropertyValue}
+        avgAnnualRent={investmentScore.avgAnnualRent}
+      />
+    );
+  }
+
+  // No data at all - show 404
+  notFound();
 }
 
 

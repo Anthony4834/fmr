@@ -671,3 +671,208 @@ export async function getFMRHistoryByCity(cityName: string, stateCode: string): 
   return results.filter(Boolean) as FMRHistoryPoint[];
 }
 
+/**
+ * Investment score data for a city (used when FMR data is not available)
+ */
+export interface CityInvestmentScore {
+  cityName: string;
+  stateCode: string;
+  countyName?: string;
+  year: number;
+  zipCount: number;
+  medianScore: number | null;
+  avgScore: number | null;
+  avgYield: number | null;
+  avgPropertyValue: number | null;
+  avgTaxRate: number | null;
+  avgAnnualRent: number | null;
+}
+
+/**
+ * Get investment score data for a city directly from investment_score table.
+ * This is used as a fallback when FMR data is not available.
+ */
+export async function getCityInvestmentScore(cityName: string, stateCode: string, year?: number): Promise<CityInvestmentScore | null> {
+  const targetYear = year ?? (await getLatestFMRYear());
+
+  if (stateCode.toUpperCase() === 'PR') {
+    return null;
+  }
+
+  const result = await sql`
+    WITH city_data AS (
+      SELECT
+        city_name,
+        state_code,
+        county_name,
+        COALESCE(score_with_demand, score) as score,
+        net_yield,
+        property_value,
+        tax_rate,
+        annual_rent,
+        zhvi_month,
+        acs_vintage
+      FROM investment_score
+      WHERE city_name ILIKE ${cityName}
+        AND state_code = ${stateCode.toUpperCase()}
+        AND fmr_year = ${targetYear}
+        AND data_sufficient = true
+    ),
+    latest_versions AS (
+      SELECT
+        MAX(zhvi_month) as latest_zhvi_month,
+        MAX(acs_vintage) as latest_acs_vintage
+      FROM city_data
+    ),
+    filtered_data AS (
+      SELECT *
+      FROM city_data cd
+      CROSS JOIN latest_versions lv
+      WHERE (
+        (lv.latest_zhvi_month IS NULL AND cd.zhvi_month IS NULL) OR
+        (lv.latest_zhvi_month IS NOT NULL AND cd.zhvi_month = lv.latest_zhvi_month)
+      )
+      AND (
+        (lv.latest_acs_vintage IS NULL AND cd.acs_vintage IS NULL) OR
+        (lv.latest_acs_vintage IS NOT NULL AND cd.acs_vintage = lv.latest_acs_vintage)
+      )
+    )
+    SELECT
+      city_name,
+      state_code,
+      (SELECT county_name FROM filtered_data LIMIT 1) as county_name,
+      COUNT(*) as zip_count,
+      PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY score) as median_score,
+      AVG(score) as avg_score,
+      AVG(net_yield) as avg_yield,
+      AVG(property_value) as avg_property_value,
+      AVG(tax_rate) as avg_tax_rate,
+      AVG(annual_rent) as avg_annual_rent
+    FROM filtered_data
+    GROUP BY city_name, state_code
+  `;
+
+  if (result.rows.length === 0 || Number(result.rows[0]?.zip_count) === 0) {
+    return null;
+  }
+
+  const row = result.rows[0];
+  return {
+    cityName: row.city_name,
+    stateCode: row.state_code,
+    countyName: row.county_name || undefined,
+    year: targetYear,
+    zipCount: Number(row.zip_count),
+    medianScore: row.median_score ? Number(row.median_score) : null,
+    avgScore: row.avg_score ? Number(row.avg_score) : null,
+    avgYield: row.avg_yield ? Number(row.avg_yield) : null,
+    avgPropertyValue: row.avg_property_value ? Number(row.avg_property_value) : null,
+    avgTaxRate: row.avg_tax_rate ? Number(row.avg_tax_rate) : null,
+    avgAnnualRent: row.avg_annual_rent ? Number(row.avg_annual_rent) : null,
+  };
+}
+
+/**
+ * Investment score data for a county (used when FMR data is not available)
+ */
+export interface CountyInvestmentScore {
+  countyName: string;
+  stateCode: string;
+  year: number;
+  zipCount: number;
+  medianScore: number | null;
+  avgScore: number | null;
+  avgYield: number | null;
+  avgPropertyValue: number | null;
+  avgTaxRate: number | null;
+  avgAnnualRent: number | null;
+}
+
+/**
+ * Get investment score data for a county directly from investment_score table.
+ * This is used as a fallback when FMR data is not available.
+ */
+export async function getCountyInvestmentScore(countyName: string, stateCode: string, year?: number): Promise<CountyInvestmentScore | null> {
+  const targetYear = year ?? (await getLatestFMRYear());
+
+  if (stateCode.toUpperCase() === 'PR') {
+    return null;
+  }
+
+  // Normalize county name (remove "County" suffix if present)
+  const normalizedCounty = countyName.replace(/\s+County\s*$/i, '').trim();
+
+  const result = await sql`
+    WITH county_data AS (
+      SELECT
+        county_name,
+        state_code,
+        COALESCE(score_with_demand, score) as score,
+        net_yield,
+        property_value,
+        tax_rate,
+        annual_rent,
+        zhvi_month,
+        acs_vintage
+      FROM investment_score
+      WHERE (
+        county_name ILIKE ${normalizedCounty}
+        OR county_name ILIKE ${normalizedCounty + ' County'}
+      )
+        AND state_code = ${stateCode.toUpperCase()}
+        AND fmr_year = ${targetYear}
+        AND data_sufficient = true
+        AND county_name IS NOT NULL
+    ),
+    latest_versions AS (
+      SELECT
+        MAX(zhvi_month) as latest_zhvi_month,
+        MAX(acs_vintage) as latest_acs_vintage
+      FROM county_data
+    ),
+    filtered_data AS (
+      SELECT *
+      FROM county_data cd
+      CROSS JOIN latest_versions lv
+      WHERE (
+        (lv.latest_zhvi_month IS NULL AND cd.zhvi_month IS NULL) OR
+        (lv.latest_zhvi_month IS NOT NULL AND cd.zhvi_month = lv.latest_zhvi_month)
+      )
+      AND (
+        (lv.latest_acs_vintage IS NULL AND cd.acs_vintage IS NULL) OR
+        (lv.latest_acs_vintage IS NOT NULL AND cd.acs_vintage = lv.latest_acs_vintage)
+      )
+    )
+    SELECT
+      (SELECT county_name FROM filtered_data LIMIT 1) as county_name,
+      state_code,
+      COUNT(*) as zip_count,
+      PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY score) as median_score,
+      AVG(score) as avg_score,
+      AVG(net_yield) as avg_yield,
+      AVG(property_value) as avg_property_value,
+      AVG(tax_rate) as avg_tax_rate,
+      AVG(annual_rent) as avg_annual_rent
+    FROM filtered_data
+    GROUP BY state_code
+  `;
+
+  if (result.rows.length === 0 || Number(result.rows[0]?.zip_count) === 0) {
+    return null;
+  }
+
+  const row = result.rows[0];
+  return {
+    countyName: row.county_name || normalizedCounty,
+    stateCode: row.state_code,
+    year: targetYear,
+    zipCount: Number(row.zip_count),
+    medianScore: row.median_score ? Number(row.median_score) : null,
+    avgScore: row.avg_score ? Number(row.avg_score) : null,
+    avgYield: row.avg_yield ? Number(row.avg_yield) : null,
+    avgPropertyValue: row.avg_property_value ? Number(row.avg_property_value) : null,
+    avgTaxRate: row.avg_tax_rate ? Number(row.avg_tax_rate) : null,
+    avgAnnualRent: row.avg_annual_rent ? Number(row.avg_annual_rent) : null,
+  };
+}
+

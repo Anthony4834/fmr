@@ -78,6 +78,9 @@ export default function ResultAbout({ data }: { data: FMRResult }) {
           <a className="px-2.5 py-1 rounded-md border border-[#e5e5e5] bg-white hover:bg-[#fafafa]" href="/data-sources">
             Data sources
           </a>
+          <a className="px-2.5 py-1 rounded-md border border-[#e5e5e5] bg-white hover:bg-[#fafafa]" href="/incomplete-geos">
+            Incomplete geos
+          </a>
           {countyLink && queriedType !== 'county' && (
             <a className="px-2.5 py-1 rounded-md border border-[#e5e5e5] bg-white hover:bg-[#fafafa]" href={countyLink}>
               View county page

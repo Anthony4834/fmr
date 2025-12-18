@@ -107,6 +107,7 @@ export async function GET(req: NextRequest) {
 
     } else if (type === 'county') {
       // Query counties ranked by median investment score
+      // Exclude incomplete counties (those without FMR data)
       result = await sql.query(
         `
         WITH all_county_data AS (
@@ -127,6 +128,13 @@ export async function GET(req: NextRequest) {
             AND ($2::text IS NULL OR state_code = $2::text)
             AND ($3::text IS NULL OR county_name ILIKE ('%' || $3::text || '%'))
         ),
+        fmr_counties AS (
+          SELECT DISTINCT
+            county_code,
+            state_code
+          FROM fmr_data
+          WHERE year = $1
+        ),
         latest_versions AS (
           SELECT
             MAX(zhvi_month) as latest_zhvi_month,
@@ -135,12 +143,15 @@ export async function GET(req: NextRequest) {
         ),
         filtered_data AS (
           SELECT
-            county_fips,
-            county_name,
-            state_code,
-            score
+            acd.county_fips,
+            acd.county_name,
+            acd.state_code,
+            acd.score
           FROM all_county_data acd
           CROSS JOIN latest_versions lv
+          INNER JOIN fmr_counties fc
+            ON acd.county_fips = fc.county_code
+            AND acd.state_code = fc.state_code
           WHERE (
             (lv.latest_zhvi_month IS NULL AND acd.zhvi_month IS NULL) OR
             (lv.latest_zhvi_month IS NOT NULL AND acd.zhvi_month = lv.latest_zhvi_month)
@@ -166,19 +177,31 @@ export async function GET(req: NextRequest) {
         [year, stateFilter, search, offset, limit]
       );
 
-      // Get total count for counties
+      // Get total count for counties (excluding incomplete counties)
       const countResult = await sql.query(
         `
-        SELECT COUNT(DISTINCT county_fips) as total
-        FROM investment_score
-        WHERE fmr_year = $1
-          AND data_sufficient = true
-          AND county_fips IS NOT NULL
-          AND LENGTH(TRIM(county_fips)) = 5
-          AND state_code IS NOT NULL
-          AND state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS')
-          AND ($2::text IS NULL OR state_code = $2::text)
-          AND ($3::text IS NULL OR county_name ILIKE ('%' || $3::text || '%'))
+        WITH all_county_data AS (
+          SELECT DISTINCT county_fips, state_code
+          FROM investment_score
+          WHERE fmr_year = $1
+            AND data_sufficient = true
+            AND county_fips IS NOT NULL
+            AND LENGTH(TRIM(county_fips)) = 5
+            AND state_code IS NOT NULL
+            AND state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS')
+            AND ($2::text IS NULL OR state_code = $2::text)
+            AND ($3::text IS NULL OR county_name ILIKE ('%' || $3::text || '%'))
+        ),
+        fmr_counties AS (
+          SELECT DISTINCT county_code, state_code
+          FROM fmr_data
+          WHERE year = $1
+        )
+        SELECT COUNT(DISTINCT acd.county_fips) as total
+        FROM all_county_data acd
+        INNER JOIN fmr_counties fc
+          ON acd.county_fips = fc.county_code
+          AND acd.state_code = fc.state_code
         `,
         [year, stateFilter, search]
       );
@@ -186,6 +209,7 @@ export async function GET(req: NextRequest) {
 
     } else if (type === 'city') {
       // Query cities ranked by median investment score
+      // Exclude incomplete cities (those without zip_codes in cities table)
       result = await sql.query(
         `
         WITH all_city_data AS (
@@ -205,6 +229,12 @@ export async function GET(req: NextRequest) {
             AND ($2::text IS NULL OR state_code = $2::text)
             AND ($3::text IS NULL OR city_name ILIKE ('%' || $3::text || '%'))
         ),
+        cities_with_zips AS (
+          SELECT LOWER(TRIM(city_name)) as city_name_lower, state_code
+          FROM cities
+          WHERE zip_codes IS NOT NULL
+            AND array_length(zip_codes, 1) > 0
+        ),
         latest_versions AS (
           SELECT
             MAX(zhvi_month) as latest_zhvi_month,
@@ -213,12 +243,15 @@ export async function GET(req: NextRequest) {
         ),
         filtered_data AS (
           SELECT
-            city_name,
-            state_code,
-            county_name,
-            score
+            acd.city_name,
+            acd.state_code,
+            acd.county_name,
+            acd.score
           FROM all_city_data acd
           CROSS JOIN latest_versions lv
+          INNER JOIN cities_with_zips cwz
+            ON LOWER(TRIM(acd.city_name)) = cwz.city_name_lower
+            AND acd.state_code = cwz.state_code
           WHERE (
             (lv.latest_zhvi_month IS NULL AND acd.zhvi_month IS NULL) OR
             (lv.latest_zhvi_month IS NOT NULL AND acd.zhvi_month = lv.latest_zhvi_month)
@@ -262,18 +295,31 @@ export async function GET(req: NextRequest) {
         [year, stateFilter, search, offset, limit]
       );
 
-      // Get total count for cities
+      // Get total count for cities (excluding incomplete cities)
       const countResult = await sql.query(
         `
-        SELECT COUNT(DISTINCT (city_name, state_code)) as total
-        FROM investment_score
-        WHERE fmr_year = $1
-          AND data_sufficient = true
-          AND city_name IS NOT NULL
-          AND state_code IS NOT NULL
-          AND state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS')
-          AND ($2::text IS NULL OR state_code = $2::text)
-          AND ($3::text IS NULL OR city_name ILIKE ('%' || $3::text || '%'))
+        WITH all_city_data AS (
+          SELECT DISTINCT city_name, state_code
+          FROM investment_score
+          WHERE fmr_year = $1
+            AND data_sufficient = true
+            AND city_name IS NOT NULL
+            AND state_code IS NOT NULL
+            AND state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS')
+            AND ($2::text IS NULL OR state_code = $2::text)
+            AND ($3::text IS NULL OR city_name ILIKE ('%' || $3::text || '%'))
+        ),
+        cities_with_zips AS (
+          SELECT LOWER(TRIM(city_name)) as city_name_lower, state_code
+          FROM cities
+          WHERE zip_codes IS NOT NULL
+            AND array_length(zip_codes, 1) > 0
+        )
+        SELECT COUNT(DISTINCT (acd.city_name, acd.state_code)) as total
+        FROM all_city_data acd
+        INNER JOIN cities_with_zips cwz
+          ON LOWER(TRIM(acd.city_name)) = cwz.city_name_lower
+          AND acd.state_code = cwz.state_code
         `,
         [year, stateFilter, search]
       );

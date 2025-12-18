@@ -1,8 +1,10 @@
 'use client';
 
 import { useMemo, useRef, useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useDebouncedCallback } from 'use-debounce';
 import { formatCountyName } from '@/lib/county-utils';
+import { buildCitySlug, buildCountySlug } from '@/lib/location-slugs';
 
 interface AutocompleteResult {
   type: 'zip' | 'city' | 'county' | 'address' | 'state';
@@ -13,7 +15,7 @@ interface AutocompleteResult {
 }
 
 interface SearchInputProps {
-  onSelect: (value: string, type: 'zip' | 'city' | 'county' | 'address' | 'state') => void;
+  onSelect?: (value: string, type: 'zip' | 'city' | 'county' | 'address' | 'state') => void;
   autoFocus?: boolean;
 }
 
@@ -119,6 +121,7 @@ function dedupeSuggestionsByType(items: AutocompleteResult[]) {
 }
 
 export default function SearchInput({ onSelect, autoFocus = false }: SearchInputProps) {
+  const router = useRouter();
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<AutocompleteResult[]>([]);
   const [suggestionsForQuery, setSuggestionsForQuery] = useState<string>('');
@@ -128,6 +131,53 @@ export default function SearchInput({ onSelect, autoFocus = false }: SearchInput
   const [completedQuery, setCompletedQuery] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Default navigation handler when onSelect is not provided
+  const navigateToSelection = (value: string, type: 'zip' | 'city' | 'county' | 'address' | 'state') => {
+    if (onSelect) {
+      onSelect(value, type);
+      return;
+    }
+
+    // Default navigation behavior
+    if (type === 'state') {
+      const st = (value || '').trim().toUpperCase();
+      if (st && st.length === 2) {
+        router.push(`/state/${st}`);
+      }
+      return;
+    }
+
+    if (type === 'zip') {
+      const zip = value.trim().match(/\b(\d{5})\b/)?.[1];
+      if (zip) {
+        router.push(`/zip/${zip}`);
+      }
+      return;
+    }
+
+    if (type === 'city') {
+      const [city, st] = value.split(',').map((s) => s.trim());
+      if (city && st && st.length === 2) {
+        router.push(`/city/${buildCitySlug(city, st)}`);
+      }
+      return;
+    }
+
+    if (type === 'county') {
+      const [county, st] = value.split(',').map((s) => s.trim());
+      if (county && st && st.length === 2) {
+        router.push(`/county/${buildCountySlug(county, st)}`);
+      }
+      return;
+    }
+
+    // Address or fallback - go to home with query params
+    const params = new URLSearchParams();
+    params.set('q', value);
+    params.set('type', type);
+    router.push(`/?${params.toString()}`);
+  };
   const inputRef = useRef<HTMLInputElement>(null);
   const skipOpenOnFocusRef = useRef(false);
   const queryRef = useRef<string>('');
@@ -320,14 +370,14 @@ export default function SearchInput({ onSelect, autoFocus = false }: SearchInput
     setShowSuggestions(false);
     setSuggestions([]);
     setSuggestionsForQuery('');
-    
+
     // For addresses with a ZIP code from autocomplete, include it in the value
     // Format: "address|zipCode" so the API can use the ZIP directly
     if (suggestion.type === 'address' && suggestion.zipCode) {
-      onSelect(`${suggestion.value}|${suggestion.zipCode}`, suggestion.type);
+      navigateToSelection(`${suggestion.value}|${suggestion.zipCode}`, suggestion.type);
     } else {
       // For other types, pass the value as-is
-      onSelect(suggestion.value, suggestion.type);
+      navigateToSelection(suggestion.value, suggestion.type);
     }
   };
 
@@ -378,21 +428,21 @@ export default function SearchInput({ onSelect, autoFocus = false }: SearchInput
         const { findStateMatches } = await import('@/lib/states');
         const hits = findStateMatches(trimmed, 1);
         if (hits.length === 1) {
-          onSelect(hits[0].code, 'state');
+          navigateToSelection(hits[0].code, 'state');
           return;
         }
       } catch {
         // ignore
       }
-      
+
       // Try to extract ZIP code from address string (e.g., "123 Main St, City, ST 12345")
       const zipFromText = extractZipFromText(trimmed);
       if (zipFromText) {
         // Found a ZIP code in the string - use it directly
-        onSelect(zipFromText, 'zip');
+        navigateToSelection(zipFromText, 'zip');
         return;
       }
-      
+
       // Check if it's a "city, state" or "county, state" format
       const parsed = parseLocationCommaState(trimmed);
       if (parsed) {
@@ -401,7 +451,7 @@ export default function SearchInput({ onSelect, autoFocus = false }: SearchInput
         // If user typed "X County, ST" (any casing), normalize to "X County, ST"
         if (/\bcounty\b/i.test(location)) {
           const countyName = ensureCountySuffix(stripCountyWord(location), state);
-          onSelect(`${countyName}, ${state}`, 'county');
+          navigateToSelection(`${countyName}, ${state}`, 'county');
           return;
         }
 
@@ -412,24 +462,24 @@ export default function SearchInput({ onSelect, autoFocus = false }: SearchInput
           if (resolved) {
             if (resolved.type === 'county') {
               const countyName = ensureCountySuffix(stripCountyWord(resolved.value.split(',')[0] || location), state);
-              onSelect(`${countyName}, ${state}`, 'county');
+              navigateToSelection(`${countyName}, ${state}`, 'county');
             } else {
-              onSelect(`${location}, ${state}`, 'city');
+              navigateToSelection(`${location}, ${state}`, 'city');
             }
             return;
           }
 
           // Fallback: if nothing matches, treat as city (most intuitive)
-          onSelect(`${location}, ${state}`, 'city');
+          navigateToSelection(`${location}, ${state}`, 'city');
         } finally {
           setIsSubmitting(false);
         }
       } else if (looksLikeZip(trimmed)) {
         // It's a ZIP code
-        onSelect(trimmed.replace(/-\d{4}$/, ''), 'zip');
+        navigateToSelection(trimmed.replace(/-\d{4}$/, ''), 'zip');
       } else {
         // Treat as address if no specific format detected
-        onSelect(trimmed, 'address');
+        navigateToSelection(trimmed, 'address');
       }
     }
   };
