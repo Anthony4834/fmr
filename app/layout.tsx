@@ -1,5 +1,6 @@
 import { Analytics as VercelAnalytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
+import Script from "next/script";
 import Analytics from "./components/Analytics";
 import StructuredData from "./components/StructuredData";
 import "./globals.css";
@@ -41,6 +42,18 @@ export default function RootLayout({
   return (
     <html lang="en" className="scroll-smooth">
       <body className="antialiased">
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=AW-11417164379"
+          strategy="afterInteractive"
+        />
+        <Script id="google-ads" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'AW-11417164379');
+          `}
+        </Script>
         <Analytics />
         <StructuredData />
         <VercelAnalytics />
