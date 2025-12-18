@@ -5,7 +5,43 @@
   "framework": "nextjs",
   "crons": [
     { "path": "/api/cron/property-data", "schedule": "0 6 * * *" }
-  ]
+  ],
+  "security": {
+    "rateLimits": [
+      {
+        "id": "block-scrapers-api",
+        "path": "/api/*",
+        "limit": 100,
+        "window": "1m",
+        "skipFailedRequests": false,
+        "skipSuccessfulRequests": false
+      },
+      {
+        "id": "autocomplete-limit",
+        "path": "/api/search/autocomplete",
+        "limit": 50,
+        "window": "1m"
+      },
+      {
+        "id": "geocoding-limit",
+        "path": "/api/geocode/*",
+        "limit": 20,
+        "window": "1m"
+      },
+      {
+        "id": "map-data-limit",
+        "path": "/api/maps/*",
+        "limit": 30,
+        "window": "1m"
+      },
+      {
+        "id": "general-browsing",
+        "path": "/*",
+        "limit": 300,
+        "window": "1m"
+      }
+    ]
+  }
 }
 
 
