@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
     await ensureTable();
     await sql`
       INSERT INTO missing_data_events (zip_code, address, bedrooms, price, missing_fields, source, user_agent)
-      VALUES (${zipCode}, ${address}, ${bedrooms}, ${price}, ${missingFields}, ${source}, ${userAgent})
+      VALUES (${zipCode}, ${address}, ${bedrooms}, ${price}, ${missingFields as any}, ${source}, ${userAgent})
     `;
 
     return NextResponse.json({ ok: true });
