@@ -4,6 +4,7 @@
 // For now, we'll create a simple version that works without compilation
 
 const DEFAULT_PREFERENCES = {
+  mode: 'cashFlow',
   bedrooms: null,
   purchasePrice: null,
   downPaymentMode: 'percent',
