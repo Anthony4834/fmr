@@ -35,26 +35,41 @@ export async function GET(request: NextRequest) {
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
-    // Get total count
-    const countQuery = `SELECT COUNT(*) as total FROM missing_data_events ${whereClause}`;
+    // Get total count of unique groups
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM (
+        SELECT DISTINCT
+          zip_code,
+          address,
+          bedrooms,
+          price,
+          missing_fields,
+          source
+        FROM missing_data_events
+        ${whereClause}
+      ) AS unique_groups
+    `;
     const countResult = await sql.query(countQuery, values);
     const total = parseInt(countResult.rows[0]?.total || '0');
 
-    // Get paginated data
+    // Get paginated deduplicated data with counts
     const dataQuery = `
       SELECT
-        id,
+        MIN(id) as id,
         zip_code,
         address,
         bedrooms,
         price,
         missing_fields,
         source,
-        user_agent,
-        created_at
+        COUNT(*) as occurrence_count,
+        MAX(created_at) as last_seen,
+        MIN(created_at) as first_seen
       FROM missing_data_events
       ${whereClause}
-      ORDER BY created_at DESC
+      GROUP BY zip_code, address, bedrooms, price, missing_fields, source
+      ORDER BY occurrence_count DESC, last_seen DESC
       LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}
     `;
 
@@ -81,12 +96,25 @@ export async function GET(request: NextRequest) {
     const summaryResult = await sql.query(summaryQuery, values);
     const summary = summaryResult.rows[0];
 
+    // Get unique combinations count
+    const uniqueCombinationsQuery = `
+      SELECT COUNT(*) as total
+      FROM (
+        SELECT DISTINCT zip_code, address, bedrooms, price, missing_fields, source
+        FROM missing_data_events
+        ${whereClause}
+      ) AS unique_combos
+    `;
+    const uniqueCombinationsResult = await sql.query(uniqueCombinationsQuery, values);
+    const uniqueCombinations = parseInt(uniqueCombinationsResult.rows[0]?.total || '0');
+
     return NextResponse.json({
       success: true,
       data: dataResult.rows,
       total,
       summary: {
         totalEvents: parseInt(summary?.total_events || '0'),
+        uniqueCombinations,
         uniqueZips: parseInt(summary?.unique_zips || '0'),
         uniqueSources: parseInt(summary?.unique_sources || '0'),
         missingTaxRate: parseInt(summary?.missing_tax_rate || '0'),
