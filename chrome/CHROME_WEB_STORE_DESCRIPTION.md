@@ -1,26 +1,31 @@
 # Chrome Web Store Description
 
 ## Short Description (132 characters max)
-View FMR data and cash flow calculations directly on real estate listings from Zillow, Redfin, and more.
+View FMR data and cash flow calculations directly on real estate listings. Choose Cash Flow or FMR-only mode.
 
 ## Full Description
 
 ### Transform Your Real Estate Research with Instant Cash Flow Analysis
 
-**fmr.fyi** is the essential Chrome extension for real estate investors, property managers, and anyone evaluating rental property opportunities. Get instant, accurate cash flow calculations and Fair Market Rent (FMR) data directly on the property listings you're already browsing—no more switching between tabs or manually entering data into spreadsheets.
+**fmr.fyi** is the essential Chrome extension for real estate investors, property managers, and anyone evaluating rental property opportunities. Choose between Cash Flow mode for detailed financial analysis or FMR mode for quick rent reference. Get instant, accurate cash flow calculations and Fair Market Rent (FMR) data directly on the property listings you're already browsing—no more switching between tabs or manually entering data into spreadsheets.
 
 ### 🎯 What It Does
 
-The extension automatically detects property information (address, price, bedrooms, HOA fees) from real estate listing pages and displays a smart badge showing the estimated monthly cash flow right next to each property. Click the badge to open a detailed analysis view with comprehensive FMR data, market parameters, and customizable financial calculations.
+The extension automatically detects property information (address, price, bedrooms, HOA fees) from real estate listing pages and displays a smart badge next to each property. Choose between two display modes: Cash Flow mode shows estimated monthly cash flow calculations, while FMR mode displays Fair Market Rent values. Click the badge to open a detailed analysis view with comprehensive FMR data, market parameters, and customizable financial calculations.
 
 ### ✨ Key Features
 
-**Instant Cash Flow Badges**
-- See monthly cash flow estimates directly on property listings
-- Color-coded display (green for positive, red for negative cash flow)
+**Two Display Modes**
+- **Cash Flow Mode**: See monthly cash flow estimates directly on property listings with color-coded display (green for positive, red for negative cash flow)
+- **FMR Mode**: Display Fair Market Rent values for quick rent reference without calculations
+- Switch between modes instantly in settings
+- Badges automatically update when switching modes
+
+**Smart Property Badges**
 - Works seamlessly on list views, map views, and detail pages
 - Automatically updates as you browse new properties
-- Smart HOA detection with visual indicators when HOA data isn't available in list/map views
+- Smart HOA detection with visual indicators when HOA data isn't available in list/map views (Cash Flow mode)
+- Elegant transitions when switching between modes
 
 **Comprehensive Financial Analysis**
 - Uses official HUD Fair Market Rent (FMR) and Small Area FMR (SAFMR) data
@@ -48,10 +53,11 @@ The extension automatically detects property information (address, price, bedroo
 - Embedded iframe showing full fmr.fyi ZIP page with all data
 
 **Fully Customizable**
-- Adjust down payment percentage or fixed amount
-- Override tax rates and mortgage rates
-- Set property management fees (percentage or fixed amount)
-- Add custom expense line items
+- Choose your display mode (Cash Flow or FMR)
+- Adjust down payment percentage or fixed amount (Cash Flow mode)
+- Override tax rates and mortgage rates (Cash Flow mode)
+- Set property management fees (percentage or fixed amount) (Cash Flow mode)
+- Add custom expense line items (Cash Flow mode)
 - Configure default bedroom count and purchase price
 - Enable/disable specific real estate sites
 - All preferences sync across devices

@@ -1,18 +1,22 @@
-Instant Cash Flow Analysis on Real Estate Listings
+Instant Cash Flow Analysis and FMR Data on Real Estate Listings
 
-fmr.fyi is a Chrome extension that helps investors, property managers, and homebuyers evaluate rental properties while browsing real estate listings. It displays estimated monthly cash flow and Fair Market Rent (FMR) data directly on supported sites, eliminating the need for manual calculations or separate tools.
+fmr.fyi is a Chrome extension that helps investors, property managers, and homebuyers evaluate rental properties while browsing real estate listings. Choose between two display modes: view monthly cash flow calculations or display Fair Market Rent (FMR) data directly on supported sites, eliminating the need for manual calculations or separate tools.
 
-The extension detects property details such as address, price, bedroom count, and HOA fees, then shows an on-page cash flow indicator. Selecting the indicator opens a detailed analysis view with HUD FMR and Small Area FMR data, local tax rates, mortgage assumptions, and customizable expense inputs.
+The extension detects property details such as address, price, bedroom count, and HOA fees, then shows an on-page indicator based on your selected mode. In Cash Flow mode, you'll see estimated monthly cash flow calculations. In FMR mode, you'll see the Fair Market Rent value for the property. Selecting the indicator opens a detailed analysis view with HUD FMR and Small Area FMR data, local tax rates, mortgage assumptions, and customizable expense inputs.
 
 Key Features
 
-On-page cash flow estimates shown directly on listings
+Two Display Modes:
+- Cash Flow Mode: Shows monthly cash flow estimates with color-coded indicators (green for positive, red for negative)
+- FMR Mode: Displays Fair Market Rent values for quick rent reference
+
+On-page indicators shown directly on listings
 
 Uses official HUD FMR and SAFMR data
 
-Automatically detects and includes HOA fees when available
+Automatically detects and includes HOA fees when available (Cash Flow mode)
 
-Configurable assumptions for financing, taxes, and expenses
+Configurable assumptions for financing, taxes, and expenses (Cash Flow mode)
 
 Supports Zillow, Redfin, Realtor.com, and Homes.com
 

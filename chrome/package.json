@@ -1,6 +1,6 @@
 {
   "name": "fmr-fyi-chrome-extension",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Chrome extension for FMR.fyi",
   "scripts": {
     "build": "bun run build:ts && bun run build:bundle",
