@@ -18,8 +18,26 @@
 
       <main class="popup-content">
         <div id="settings-form-fields" class="stack">
-          <!-- Financial Parameters -->
+          <!-- Display Mode -->
           <section class="section card">
+            <div class="section-head">
+              <h2>Display Mode</h2>
+              <p class="section-description">
+                Choose what to display in the badge.
+              </p>
+            </div>
+
+            <div class="form-group">
+              <label for="display-mode">Mode</label>
+              <select id="display-mode">
+                <option value="cashFlow">Cash Flow</option>
+                <option value="fmr">FMR Only</option>
+              </select>
+            </div>
+          </section>
+
+          <!-- Financial Parameters -->
+          <section class="section card" id="financial-params-section">
             <div class="section-head">
               <h2>Financial Parameters</h2>
               <p class="section-description">
@@ -75,7 +93,7 @@
           </section>
 
           <!-- Property Management -->
-          <section class="section card">
+          <section class="section card" id="property-management-section">
             <div class="section-head">
               <h2>Property Management</h2>
               <p class="section-description">
@@ -122,7 +140,7 @@
           </section>
 
           <!-- Custom Line Items -->
-          <section class="section card">
+          <section class="section card" id="custom-expenses-section">
             <div class="section-head">
               <h2>Custom Expenses</h2>
               <p class="section-description">
@@ -142,7 +160,7 @@
           </section>
 
           <!-- Rate Overrides -->
-          <section class="section card">
+          <section class="section card" id="rate-overrides-section">
             <div class="section-head">
               <h2>Rate Overrides</h2>
               <p class="section-description">

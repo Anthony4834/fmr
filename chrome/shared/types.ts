@@ -10,6 +10,11 @@ export interface CustomLineItem {
 }
 
 export interface ExtensionPreferences {
+  // Display mode for the on-page badge
+  // - cashFlow: existing behavior (shows monthly cash flow)
+  // - fmr: show FMR rent only (no cash flow calculation)
+  mode: 'cashFlow' | 'fmr';
+
   // Auto-detection overrides (used if detection fails or user prefers manual)
   bedrooms: number | null;                    // Default: null (auto-detect), fallback: 3
   purchasePrice: number | null;               // Default: null (auto-detect)
@@ -55,6 +60,7 @@ export interface MarketParams {
 }
 
 export const DEFAULT_PREFERENCES: ExtensionPreferences = {
+  mode: 'cashFlow',
   bedrooms: null,
   purchasePrice: null,
   downPaymentMode: 'percent',

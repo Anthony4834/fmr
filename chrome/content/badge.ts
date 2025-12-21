@@ -7,6 +7,8 @@ export interface BadgeProps {
   insufficientInfo?: boolean;
   nonInteractive?: boolean;
   hoaUnavailable?: boolean;
+  mode?: 'cashFlow' | 'fmr';
+  fmrMonthly?: number | null;
 }
 
 export function createBadgeElement(props: BadgeProps): HTMLElement {
@@ -14,6 +16,13 @@ export function createBadgeElement(props: BadgeProps): HTMLElement {
   badge.className = 'fmr-badge';
 
   const badgeZIndex = props.hoaUnavailable ? '10010' : '1000';
+  const setModeDataset = (mode: 'cashFlow' | 'fmr') => {
+    try {
+      badge.dataset.fmrMode = mode;
+    } catch {
+      // ignore
+    }
+  };
 
   // Match the reference style (flat, crisp border, small radius, no heavy shadow)
   // Use !important to prevent parent element font-size from affecting badge (detail views often have larger h1 fonts)
@@ -212,6 +221,7 @@ export function createBadgeElement(props: BadgeProps): HTMLElement {
     insufficientInfo = false,
     hoaUnavailable = false
   ) => {
+    setModeDataset('cashFlow');
     // z-index / pointer-events if tooltip should be shown
     if (hoaUnavailable) {
       badge.style.zIndex = '10010';
@@ -229,7 +239,7 @@ export function createBadgeElement(props: BadgeProps): HTMLElement {
       dot.style.background = 'rgba(163, 163, 163, 1)';
 
       const t = document.createElement('span');
-      t.textContent = 'Insufficient';
+      t.textContent = 'Insufficient data';
       t.style.cssText = `
         color: rgba(115, 115, 115, 1);
         font-weight: 600;
@@ -266,7 +276,7 @@ export function createBadgeElement(props: BadgeProps): HTMLElement {
       dot.style.background = 'rgba(163, 163, 163, 1)';
 
       const t = document.createElement('span');
-      t.textContent = 'N/A';
+      t.textContent = 'Insufficient data';
       t.style.cssText = `
         color: rgba(115, 115, 115, 1);
         font-weight: 600;
@@ -313,8 +323,114 @@ export function createBadgeElement(props: BadgeProps): HTMLElement {
     }
   };
 
+  const updateFmrContent = (
+    fmrMonthly: number | null,
+    isLoading = false,
+    insufficientInfo = false,
+    hoaUnavailable = false
+  ) => {
+    setModeDataset('fmr');
+
+    // In FMR-only mode we never show the HOA tooltip, so keep normal z-index.
+    badge.style.zIndex = '1000';
+    if (props.nonInteractive) {
+      // Respect non-interactive setting for Zillow card propagation safety
+      badge.style.pointerEvents = hoaUnavailable ? 'auto' : 'none';
+    }
+
+    valueWrap.textContent = '';
+    const existingTip = content.querySelector('.fmr-tip-icon');
+    if (existingTip) existingTip.remove();
+
+    if (insufficientInfo) {
+      dot.style.background = 'rgba(163, 163, 163, 1)';
+
+      const t = document.createElement('span');
+      t.textContent = 'Insufficient data';
+      t.style.cssText = `
+        color: rgba(115, 115, 115, 1);
+        font-weight: 600;
+        font-size: 12px !important;
+      `;
+      valueWrap.appendChild(t);
+      return;
+    }
+
+    if (isLoading) {
+      ensureShimmerStyle();
+      dot.style.background = 'rgba(163, 163, 163, 1)';
+
+      const skeleton = document.createElement('span');
+      skeleton.style.cssText = `
+        display: inline-block;
+        width: 56px;
+        height: 12px;
+        border-radius: 4px;
+        background: linear-gradient(
+          90deg,
+          rgba(229,229,229,1) 25%,
+          rgba(245,245,245,1) 50%,
+          rgba(229,229,229,1) 75%
+        );
+        background-size: 200% 100%;
+        animation: shimmer 1.1s infinite;
+      `;
+      valueWrap.appendChild(skeleton);
+      return;
+    }
+
+    if (fmrMonthly === null) {
+      dot.style.background = 'rgba(163, 163, 163, 1)';
+
+      const t = document.createElement('span');
+      t.textContent = 'Insufficient data';
+      t.style.cssText = `
+        color: rgba(115, 115, 115, 1);
+        font-weight: 600;
+        font-size: 12px !important;
+      `;
+      valueWrap.appendChild(t);
+      return;
+    }
+
+    const dotColor = 'rgba(59, 130, 246, 1)'; // blue accent for FMR-only mode
+    dot.style.background = dotColor;
+
+    const formatted = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      maximumFractionDigits: 0,
+    }).format(Math.abs(fmrMonthly));
+
+    const value = document.createElement('span');
+    value.textContent = `${formatted}`;
+    value.style.cssText = `
+      color: ${dotColor};
+      font-weight: 700;
+      font-size: 13px !important;
+    `;
+
+    const per = document.createElement('span');
+    per.textContent = '/mo';
+    per.style.cssText = `
+      color: rgba(163, 163, 163, 1);
+      font-size: 11px !important;
+      margin-left: 2px;
+    `;
+
+    valueWrap.appendChild(value);
+    valueWrap.appendChild(per);
+  };
+
   (badge as any).updateContent = updateContent;
-  updateContent(props.cashFlow, props.isLoading, props.insufficientInfo, props.hoaUnavailable);
+  (badge as any).updateFmrContent = updateFmrContent;
+
+  // Initialize based on desired mode (default: cash flow)
+  if (props.mode === 'fmr') {
+    updateFmrContent(props.fmrMonthly ?? null, props.isLoading, props.insufficientInfo, props.hoaUnavailable);
+  } else {
+    updateContent(props.cashFlow, props.isLoading, props.insufficientInfo, props.hoaUnavailable);
+  }
 
   return badge;
 }

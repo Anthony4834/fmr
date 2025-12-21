@@ -101,11 +101,11 @@ export async function fetchInvestmentScore(zip: string): Promise<InvestmentScore
     const url = `${API_BASE_URL}/api/investment/score?zip=${encodeURIComponent(zip)}`;
     const response = await fetch(url);
     const data = await response.json();
-    
+
     if (!response.ok) {
       return { found: false, error: data.error || 'Failed to fetch investment score' };
     }
-    
+
     return {
       found: data.found ?? false,
       score: data.score,
@@ -117,4 +117,50 @@ export async function fetchInvestmentScore(zip: string): Promise<InvestmentScore
       error: error instanceof Error ? error.message : 'Network error',
     };
   }
+}
+
+export type MissingDataField =
+  | 'property_tax_rate'
+  | 'mortgage_rate'
+  | 'fmr_data'
+  | 'fmr_bedroom'
+  | 'price'
+  | 'bedrooms'
+  | 'address'
+  | 'zip_code';
+
+export interface TrackMissingDataParams {
+  zipCode?: string | null;
+  address?: string | null;
+  bedrooms?: number | null;
+  price?: number | null;
+  missingFields: MissingDataField[];
+  source?: string;
+}
+
+/**
+ * Fire-and-forget logging of missing data events.
+ * Never throws or blocks - used for debugging data gaps.
+ */
+export function trackMissingData(params: TrackMissingDataParams): void {
+  if (params.missingFields.length === 0) return;
+
+  const url = `${API_BASE_URL}/api/track/missing-data`;
+  const body = JSON.stringify({
+    zipCode: params.zipCode,
+    address: params.address,
+    bedrooms: params.bedrooms,
+    price: params.price,
+    missingFields: params.missingFields,
+    source: params.source || 'chrome-extension',
+  });
+
+  // Fire-and-forget: don't await, don't care about response
+  fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body,
+  }).catch(() => {
+    // Silently ignore errors - this is best-effort tracking
+  });
 }

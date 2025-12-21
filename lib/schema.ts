@@ -578,6 +578,32 @@ export async function createSchema() {
     "CREATE INDEX IF NOT EXISTS idx_cbsa_code ON cbsa_zip_mapping(cbsa_code);"
   );
 
+  // Missing data events (fire-and-forget logging for debugging data gaps)
+  await execute(`
+    CREATE TABLE IF NOT EXISTS missing_data_events (
+      id SERIAL PRIMARY KEY,
+      zip_code VARCHAR(10),
+      address TEXT,
+      bedrooms INTEGER,
+      price NUMERIC(14, 2),
+      missing_fields TEXT[] NOT NULL,
+      source VARCHAR(50),
+      user_agent TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+
+  // Missing data events indexes
+  await execute(
+    "CREATE INDEX IF NOT EXISTS idx_missing_data_zip ON missing_data_events(zip_code);"
+  );
+  await execute(
+    "CREATE INDEX IF NOT EXISTS idx_missing_data_created ON missing_data_events(created_at DESC);"
+  );
+  await execute(
+    "CREATE INDEX IF NOT EXISTS idx_missing_data_fields ON missing_data_events USING gin(missing_fields);"
+  );
+
   // Investment score indexes
   await execute(
     "CREATE INDEX IF NOT EXISTS idx_investment_score_zip ON investment_score(zip_code, bedroom_count, fmr_year DESC);"

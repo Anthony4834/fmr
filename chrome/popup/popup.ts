@@ -9,6 +9,8 @@ async function init() {
   const prefs = await getPreferences();
   
   // Populate form fields
+  (document.getElementById('display-mode') as HTMLSelectElement).value = 
+    prefs.mode || 'cashFlow';
   (document.getElementById('down-payment-percent') as HTMLInputElement).value = 
     String(prefs.downPaymentPercent);
   (document.getElementById('insurance-monthly') as HTMLInputElement).value = 
@@ -52,6 +54,10 @@ async function init() {
     }
   });
   
+  // Handle display mode change
+  const displayMode = document.getElementById('display-mode') as HTMLSelectElement;
+  displayMode.addEventListener('change', updateConditionalFields);
+  
   // Handle property management mode change
   const pmMode = document.getElementById('pm-mode') as HTMLSelectElement;
   pmMode.addEventListener('change', updateConditionalFields);
@@ -64,6 +70,36 @@ async function init() {
 }
 
 function updateConditionalFields() {
+  const displayMode = (document.getElementById('display-mode') as HTMLSelectElement).value;
+  const isFmrMode = displayMode === 'fmr';
+  
+  // Show/hide cash flow related sections based on mode
+  const financialSection = document.getElementById('financial-params-section') as HTMLElement;
+  const propertyMgmtSection = document.getElementById('property-management-section') as HTMLElement;
+  const customExpensesSection = document.getElementById('custom-expenses-section') as HTMLElement;
+  const rateOverridesSection = document.getElementById('rate-overrides-section') as HTMLElement;
+  
+  if (financialSection) {
+    financialSection.style.display = isFmrMode ? 'none' : 'block';
+    financialSection.style.opacity = isFmrMode ? '0' : '1';
+    financialSection.style.transition = 'opacity 0.2s ease, display 0.2s ease';
+  }
+  if (propertyMgmtSection) {
+    propertyMgmtSection.style.display = isFmrMode ? 'none' : 'block';
+    propertyMgmtSection.style.opacity = isFmrMode ? '0' : '1';
+    propertyMgmtSection.style.transition = 'opacity 0.2s ease, display 0.2s ease';
+  }
+  if (customExpensesSection) {
+    customExpensesSection.style.display = isFmrMode ? 'none' : 'block';
+    customExpensesSection.style.opacity = isFmrMode ? '0' : '1';
+    customExpensesSection.style.transition = 'opacity 0.2s ease, display 0.2s ease';
+  }
+  if (rateOverridesSection) {
+    rateOverridesSection.style.display = isFmrMode ? 'none' : 'block';
+    rateOverridesSection.style.opacity = isFmrMode ? '0' : '1';
+    rateOverridesSection.style.transition = 'opacity 0.2s ease, display 0.2s ease';
+  }
+  
   const pmMode = (document.getElementById('pm-mode') as HTMLSelectElement).value;
   const pmPercentGroup = document.getElementById('pm-percent-group') as HTMLElement;
   const pmAmountGroup = document.getElementById('pm-amount-group') as HTMLElement;
@@ -87,6 +123,7 @@ function updateConditionalFields() {
 
 async function saveFormData() {
   const prefs: Partial<ExtensionPreferences> = {
+    mode: (document.getElementById('display-mode') as HTMLSelectElement).value as 'cashFlow' | 'fmr',
     downPaymentPercent: parseFloat((document.getElementById('down-payment-percent') as HTMLInputElement).value) || DEFAULT_PREFERENCES.downPaymentPercent,
     insuranceMonthly: parseFloat((document.getElementById('insurance-monthly') as HTMLInputElement).value) || DEFAULT_PREFERENCES.insuranceMonthly,
     propertyManagementMode: (document.getElementById('pm-mode') as HTMLSelectElement).value as 'percent' | 'amount',

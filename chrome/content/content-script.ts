@@ -2,7 +2,7 @@
 
 import { extractAddress, extractZipFromAddress } from './address-detector';
 import { extractPropertyData, extractPropertyDataFromCard, extractPropertyDataFromZillowCard, extractPropertyDataFromZillowExpanded } from './property-detector';
-import { fetchFMRData, fetchMarketParams } from '../shared/api-client';
+import { fetchFMRData, fetchMarketParams, trackMissingData, MissingDataField } from '../shared/api-client';
 import { computeCashFlow, getRentForBedrooms } from '../shared/cashflow';
 import { DEFAULT_PREFERENCES, ExtensionPreferences } from '../shared/types';
 import { createBadgeElement } from './badge';
@@ -19,6 +19,14 @@ const cardBadges = new Map<HTMLElement, HTMLElement>();
 // Used to detect when Zillow reuses a card DOM node for a different listing
 const CARD_KEY_DATASET_FIELD = 'fmrKey';
 const HOA_PENDING_DATASET_FIELD = 'fmrHoaPending';
+
+type BadgeMode = 'cashFlow' | 'fmr';
+
+// We keep a lightweight, live view of the current mode so we can
+// - branch badge rendering without re-reading storage for every decision
+// - update badges immediately when the user switches modes in the popup
+let currentBadgeMode: BadgeMode = DEFAULT_PREFERENCES.mode;
+let hasLoadedInitialMode = false;
 
 let zillowCardPollInterval: number | null = null;
 
@@ -86,6 +94,33 @@ interface ZipCodeCacheEntry {
 // LRU-like cache with max 100 entries (using Map with insertion order)
 const zipCodeCache = new Map<string, ZipCodeCacheEntry>();
 const MAX_CACHE_SIZE = 100;
+
+// FMR-only cache (ZIP -> FMR response data). Kept separate so we don't pollute the
+// cash-flow cache with incomplete market params.
+interface FmrOnlyZipCacheEntry {
+  fmrData: any;
+  timestamp: number;
+}
+
+const fmrOnlyZipCache = new Map<string, FmrOnlyZipCacheEntry>();
+const MAX_FMR_ONLY_CACHE_SIZE = 100;
+
+function getCachedFmrOnlyZipData(zipCode: string): any | null {
+  const entry = fmrOnlyZipCache.get(zipCode);
+  if (!entry) return null;
+  // LRU: move to end
+  fmrOnlyZipCache.delete(zipCode);
+  fmrOnlyZipCache.set(zipCode, entry);
+  return entry.fmrData;
+}
+
+function setCachedFmrOnlyZipData(zipCode: string, fmrData: any): void {
+  if (fmrOnlyZipCache.size >= MAX_FMR_ONLY_CACHE_SIZE) {
+    const firstKey = fmrOnlyZipCache.keys().next().value;
+    if (firstKey) fmrOnlyZipCache.delete(firstKey);
+  }
+  fmrOnlyZipCache.set(zipCode, { fmrData, timestamp: Date.now() });
+}
 
 // Cache for cash flow results by property (prioritizes results with HOA)
 interface CashFlowCacheEntry {
@@ -222,6 +257,82 @@ async function getPreferences(): Promise<ExtensionPreferences> {
   });
 }
 
+function normalizeBadgeMode(value: any): BadgeMode {
+  return value === 'fmr' ? 'fmr' : 'cashFlow';
+}
+
+async function loadInitialBadgeMode(): Promise<void> {
+  try {
+    const prefs = await getPreferences();
+    currentBadgeMode = normalizeBadgeMode((prefs as any).mode);
+  } catch {
+    // ignore
+  } finally {
+    hasLoadedInitialMode = true;
+  }
+}
+
+async function refreshBadgesForModeChange(): Promise<void> {
+  const site = window.location.hostname.toLowerCase();
+
+  // Only refresh if this site is enabled.
+  const siteEnabled = await isSiteEnabled(site);
+  if (!siteEnabled) {
+    // If disabled, remove any existing badges (best-effort) to avoid stale mode display.
+    document.querySelectorAll('.fmr-badge').forEach((b) => b.remove());
+    cardBadges.clear();
+    badgeElement = null;
+    return;
+  }
+
+  const isRedfinDetail = site.includes('redfin.com') && window.location.pathname.toLowerCase().includes('/home/');
+  const isZillowDetail = site.includes('zillow.com') && window.location.pathname.toLowerCase().includes('/homedetails/');
+
+  // List/map pages: re-run card processing (processCard/processCards will reprocess if mode changed).
+  if (site.includes('redfin.com') && !isRedfinDetail) {
+    await processCards('list', 'redfin');
+    await processCards('map', 'redfin');
+    return;
+  }
+
+  if (site.includes('zillow.com') && !isZillowDetail) {
+    const expandedView = document.querySelector('[data-testid="fs-chip-container"]');
+    if (expandedView) {
+      processCard(expandedView as HTMLElement, 'map', 'zillow').catch(() => {});
+    }
+    await processCards('list', 'zillow');
+    await processCards('map', 'zillow');
+    return;
+  }
+
+  // Detail pages: force re-processing quickly.
+  processedAddresses.clear();
+  document.querySelectorAll('.fmr-badge').forEach((b) => b.remove());
+  cardBadges.clear();
+  badgeElement = null;
+  await processPage({ skipWait: true });
+}
+
+function setupModeChangeListener(): void {
+  try {
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName !== 'sync') return;
+      if (!changes.mode) return;
+
+      const next = normalizeBadgeMode(changes.mode.newValue);
+      const prev = currentBadgeMode;
+      currentBadgeMode = next;
+
+      if (next !== prev) {
+        // Refresh in the background; badge updates are "live" and shouldn't require page refresh.
+        refreshBadgesForModeChange().catch(() => {});
+      }
+    });
+  } catch {
+    // ignore
+  }
+}
+
 /**
  * Calculate cash flow for detected property
  * @param address Property address
@@ -256,7 +367,13 @@ async function calculateCashFlow(
     // Extract ZIP code from address first
     const zipCode = extractZipFromAddress(address);
     if (!zipCode) {
-        return null;
+      trackMissingData({
+        address,
+        bedrooms: detectedBedrooms,
+        price: detectedPrice,
+        missingFields: ['zip_code'],
+      });
+      return null;
     }
 
     // Check cache first
@@ -271,6 +388,13 @@ async function calculateCashFlow(
       // Fetch FMR data using ZIP code
       const fmrResponse = await fetchFMRData(zipCode);
       if (fmrResponse.error || !fmrResponse.data) {
+        trackMissingData({
+          zipCode,
+          address,
+          bedrooms: detectedBedrooms,
+          price: detectedPrice,
+          missingFields: ['fmr_data'],
+        });
         return null;
       }
 
@@ -300,6 +424,13 @@ async function calculateCashFlow(
     // Get rent for bedrooms
     const rentMonthly = getRentForBedrooms(fmrData, bedrooms);
     if (rentMonthly === null) {
+      trackMissingData({
+        zipCode,
+        address,
+        bedrooms,
+        price: detectedPrice,
+        missingFields: ['fmr_bedroom'],
+      });
       return null;
     }
     
@@ -318,6 +449,16 @@ async function calculateCashFlow(
       : marketParams.mortgageRateAnnualPct;
     
     if (taxRate === null || mortgageRate === null) {
+      const missingFields: MissingDataField[] = [];
+      if (taxRate === null) missingFields.push('property_tax_rate');
+      if (mortgageRate === null) missingFields.push('mortgage_rate');
+      trackMissingData({
+        zipCode,
+        address,
+        bedrooms,
+        price: purchasePrice,
+        missingFields,
+      });
       return null;
     }
     
@@ -367,6 +508,73 @@ async function calculateCashFlow(
 }
 
 /**
+ * Calculate FMR monthly rent for a detected property (no cash flow calculation).
+ * Uses ZIP -> FMR data and bedroom count.
+ */
+async function calculateFmrMonthly(
+  address: string,
+  detectedBedrooms: number | null
+): Promise<number | null> {
+  try {
+    const zipCode = extractZipFromAddress(address);
+    if (!zipCode) {
+      trackMissingData({
+        address,
+        bedrooms: detectedBedrooms,
+        missingFields: ['zip_code'],
+        source: 'chrome-extension-fmr-only',
+      });
+      return null;
+    }
+
+    if (detectedBedrooms === null || detectedBedrooms === undefined || isNaN(detectedBedrooms)) {
+      trackMissingData({
+        zipCode,
+        address,
+        missingFields: ['bedrooms'],
+        source: 'chrome-extension-fmr-only',
+      });
+      return null;
+    }
+
+    // Reuse cash-flow ZIP cache if available (it includes FMR data), otherwise use FMR-only cache.
+    const cachedZip = getCachedZipData(zipCode);
+    let fmrData: any = cachedZip?.fmrData ?? getCachedFmrOnlyZipData(zipCode);
+
+    if (!fmrData) {
+      const fmrResponse = await fetchFMRData(zipCode);
+      if (fmrResponse.error || !fmrResponse.data) {
+        trackMissingData({
+          zipCode,
+          address,
+          bedrooms: detectedBedrooms,
+          missingFields: ['fmr_data'],
+          source: 'chrome-extension-fmr-only',
+        });
+        return null;
+      }
+      fmrData = fmrResponse.data;
+      setCachedFmrOnlyZipData(zipCode, fmrData);
+    }
+
+    const rentMonthly = getRentForBedrooms(fmrData, detectedBedrooms);
+    if (rentMonthly === null) {
+      trackMissingData({
+        zipCode,
+        address,
+        bedrooms: detectedBedrooms,
+        missingFields: ['fmr_bedroom'],
+        source: 'chrome-extension-fmr-only',
+      });
+    }
+    return rentMonthly;
+  } catch (error) {
+    console.error('[FMR Extension] Error calculating FMR:', error);
+    return null;
+  }
+}
+
+/**
  * Inject badge near address element
  */
 async function injectBadge(
@@ -403,9 +611,26 @@ async function injectBadge(
     badgeElement = null;
   }
   
+  // Get FMR data if in FMR mode
+  let fmrMonthly: number | null = null;
+  if (currentBadgeMode === 'fmr' && !isLoading && !insufficientInfo && propertyData && propertyData.bedrooms !== null) {
+    // Try to get FMR synchronously from cache if available
+    const zipCode = extractZipFromAddress(address);
+    if (zipCode) {
+      const cachedZip = getCachedZipData(zipCode);
+      const cachedFmrOnly = getCachedFmrOnlyZipData(zipCode);
+      const fmrData = cachedZip?.fmrData ?? cachedFmrOnly;
+      if (fmrData && propertyData.bedrooms !== null) {
+        fmrMonthly = getRentForBedrooms(fmrData, propertyData.bedrooms);
+      }
+    }
+  }
+  
   // Create and inject badge
   const badge = createBadgeElement({
     cashFlow,
+    mode: currentBadgeMode,
+    fmrMonthly,
     isLoading,
     insufficientInfo,
     nonInteractive,
@@ -487,7 +712,7 @@ async function injectBadge(
 }
 
 /**
- * Check if we have sufficient data to calculate cash flow
+ * Check if we have sufficient data to calculate cash flow (Cash Flow mode).
  */
 function hasSufficientData(address: string | null, bedrooms: number | null, price: number | null): boolean {
   if (!address) return false;
@@ -506,10 +731,27 @@ function hasSufficientData(address: string | null, bedrooms: number | null, pric
 }
 
 /**
+ * Check if we have sufficient data to display FMR (FMR-only mode).
+ * Price is not required.
+ */
+function hasSufficientDataForFmr(address: string | null, bedrooms: number | null): boolean {
+  if (!address) return false;
+
+  const zipCode = extractZipFromAddress(address);
+  if (!zipCode) return false;
+
+  if (bedrooms === null || bedrooms === undefined || isNaN(bedrooms)) return false;
+
+  return true;
+}
+
+/**
  * Check if a badge already has valid data (not loading, not insufficient info, has cash flow)
  */
 function badgeHasValidData(badge: HTMLElement): boolean {
   if (!badge) return false;
+  const rawMode = (badge as any).dataset?.fmrMode as string | undefined;
+  const mode: BadgeMode = rawMode === 'fmr' ? 'fmr' : 'cashFlow';
   
   // Check if badge is in loading state (has shimmer animation)
   const hasShimmer = badge.querySelector('[style*="shimmer"]') || 
@@ -518,20 +760,20 @@ function badgeHasValidData(badge: HTMLElement): boolean {
     return false; // Still loading
   }
   
-  // Check if badge shows insufficient info
+  // Check if badge shows insufficient data (covers both missing input data and failed API fetch)
   const badgeText = badge.textContent || '';
-  if (badgeText.includes('Insufficient')) {
-    return false; // Invalid data
+  if (badgeText.includes('Insufficient data')) {
+    return false; // Invalid or missing data
   }
   
-  // Check if badge shows "N/A"
-  if (badgeText.includes('N/A')) {
-    return false; // No data available
+  if (mode === 'cashFlow') {
+    // Check if badge has a cash flow value (contains $ sign and number)
+    // Badge format is like: "fmr.fyi +$1,234/mo"
+    return /[\+\-]\$[\d,]+/.test(badgeText) && badgeText.includes('/mo');
   }
-  
-  // Check if badge has a cash flow value (contains $ sign and number)
-  // Badge format is like: "fmr.fyi +$1,234/mo"
-  return /[\+\-]\$[\d,]+/.test(badgeText) && badgeText.includes('/mo');
+
+  // FMR-only mode: "$1,234/mo"
+  return /\$[\d,]+/.test(badgeText) && badgeText.includes('/mo');
 }
 
 function getCardDataKey(address: string, price: number | null, bedrooms: number | null): string {
@@ -584,7 +826,11 @@ async function processCard(cardElement: HTMLElement, viewType: 'list' | 'map', s
     const badgeParent = existingBadge.parentElement;
     const isOrphaned = !(badgeParent && cardElement.contains(badgeParent));
     const isSameListing = lastKey === currentKey;
-    if (isSameListing && !isOrphaned) {
+    const rawMode = (existingBadge as any).dataset?.fmrMode as string | undefined;
+    const existingMode: BadgeMode = rawMode === 'fmr' ? 'fmr' : 'cashFlow'; // default old badges to cashFlow
+    const modeMatches = existingMode === currentBadgeMode;
+
+    if (isSameListing && !isOrphaned && modeMatches) {
       return;
     }
     // Badge exists but listing changed or is orphaned; remove and reprocess
@@ -597,7 +843,9 @@ async function processCard(cardElement: HTMLElement, viewType: 'list' | 'map', s
   } catch {}
   
   // Check if we have sufficient data
-  const hasData = hasSufficientData(cardData.address, cardData.bedrooms, cardData.price);
+  const hasCashFlowData = hasSufficientData(cardData.address, cardData.bedrooms, cardData.price);
+  const hasFmrData = hasSufficientDataForFmr(cardData.address, cardData.bedrooms);
+  const hasData = currentBadgeMode === 'fmr' ? hasFmrData : hasCashFlowData;
   
   if (!hasData) {
     // Show insufficient info badge immediately
@@ -622,6 +870,22 @@ async function processCard(cardElement: HTMLElement, viewType: 'list' | 'map', s
 
   // Get user preferences
   const preferences = await getPreferences();
+  // Keep our live mode in sync with storage (used by observers + mode switching refresh).
+  currentBadgeMode = normalizeBadgeMode((preferences as any).mode);
+
+  if (currentBadgeMode === 'fmr') {
+    const fmrMonthly = await calculateFmrMonthly(cardData.address, cardData.bedrooms);
+
+    // Update badge with actual data (FMR-only mode)
+    const badge = cardBadges.get(cardElement);
+    if (badge && (badge as any).updateFmrContent) {
+      (badge as any).updateFmrContent(fmrMonthly, false, false, !isExpandedView);
+    } else if (badge && (badge as any).updateContent) {
+      // Fallback: show N/A using existing rendering
+      (badge as any).updateContent(null, false, false, false);
+    }
+    return;
+  }
 
   // Check cache first for card views
   let cashFlow: number | null = null;
@@ -704,6 +968,15 @@ async function processCards(viewType: 'list' | 'map', site: 'redfin' | 'zillow')
           continue;
         }
 
+        // If the badge is from a different mode, force reprocess so it swaps cleanly.
+        const rawMode = (existingBadge as any).dataset?.fmrMode as string | undefined;
+        const existingMode: BadgeMode = rawMode === 'fmr' ? 'fmr' : 'cashFlow';
+        if (existingMode !== currentBadgeMode) {
+          existingBadge.remove();
+          processPromises.push(processCard(cardElement, viewType, site).catch(() => {}));
+          continue;
+        }
+
         // Badge exists, verify it's still valid
         const badgeParent = existingBadge.parentElement;
         if (!badgeParent || !cardElement.contains(badgeParent)) {
@@ -714,11 +987,13 @@ async function processCards(viewType: 'list' | 'map', site: 'redfin' | 'zillow')
           );
         } else {
           // Badge exists and is valid - check if we have cached HOA data to update it
-          if (cardData.price !== null && cardData.bedrooms !== null) {
-            const cached = getCachedCashFlow(cardData.address, cardData.price, cardData.bedrooms, false);
-            if (cached && cached.hasHOA && (existingBadge as any).updateContent) {
-              // Update badge with cached HOA data (remove tooltip)
-              (existingBadge as any).updateContent(cached.cashFlow, false, false, false);
+          if (currentBadgeMode === 'cashFlow') {
+            if (cardData.price !== null && cardData.bedrooms !== null) {
+              const cached = getCachedCashFlow(cardData.address, cardData.price, cardData.bedrooms, false);
+              if (cached && cached.hasHOA && (existingBadge as any).updateContent) {
+                // Update badge with cached HOA data (remove tooltip)
+                (existingBadge as any).updateContent(cached.cashFlow, false, false, false);
+              }
             }
           }
         }
@@ -748,9 +1023,16 @@ async function isSiteEnabled(site: string): Promise<boolean> {
   return true;
 }
 
-async function processPage() {
+async function processPage(options?: { skipWait?: boolean }) {
+  // Ensure we have the user's selected mode before processing anything.
+  if (!hasLoadedInitialMode) {
+    await loadInitialBadgeMode();
+  }
+
   // Wait a bit for page to load (especially for SPAs like Redfin)
-  await new Promise(resolve => setTimeout(resolve, 1000));
+  if (!options?.skipWait) {
+    await new Promise(resolve => setTimeout(resolve, 1000));
+  }
   
   const site = window.location.hostname.toLowerCase();
   
@@ -843,20 +1125,24 @@ async function processPage() {
     // Check for expanded view (fs-chip-container)
     const expandedView = document.querySelector('[data-testid="fs-chip-container"]');
     if (expandedView) {
-      const expandedData = extractPropertyDataFromZillowExpanded(expandedView as HTMLElement);
+      if (currentBadgeMode === 'fmr') {
+        // FMR-only mode: keep expanded view simple and reuse the normal card processing path.
+        await processCard(expandedView as HTMLElement, 'map', 'zillow');
+      } else {
+        const expandedData = extractPropertyDataFromZillowExpanded(expandedView as HTMLElement);
       
-      if (expandedData.address) {
-        const expandedKey = getCardDataKey(expandedData.address, expandedData.price, expandedData.bedrooms);
-        const lastExpandedKey = (expandedView as any).dataset?.[CARD_KEY_DATASET_FIELD] as string | undefined;
+        if (expandedData.address) {
+          const expandedKey = getCardDataKey(expandedData.address, expandedData.price, expandedData.bedrooms);
+          const lastExpandedKey = (expandedView as any).dataset?.[CARD_KEY_DATASET_FIELD] as string | undefined;
 
-        // Find address element (h1 in AddressWrapper)
-        // Try multiple selectors for AddressWrapper
-        let addressElement: HTMLElement | null = null;
-        const addressWrappers = [
-          expandedView.querySelector('.styles__AddressWrapper-fshdp-8-112-0__sc-13x5vko-0'),
-          expandedView.querySelector('[class*="AddressWrapper"]'),
-          expandedView.querySelector('[class*="address-wrapper"]'),
-        ].filter(Boolean) as HTMLElement[];
+          // Find address element (h1 in AddressWrapper)
+          // Try multiple selectors for AddressWrapper
+          let addressElement: HTMLElement | null = null;
+          const addressWrappers = [
+            expandedView.querySelector('.styles__AddressWrapper-fshdp-8-112-0__sc-13x5vko-0'),
+            expandedView.querySelector('[class*="AddressWrapper"]'),
+            expandedView.querySelector('[class*="address-wrapper"]'),
+          ].filter(Boolean) as HTMLElement[];
         
         for (const addressWrapper of addressWrappers) {
           const h1 = addressWrapper.querySelector('h1');
@@ -878,7 +1164,7 @@ async function processPage() {
           }
         }
         
-        if (addressElement) {
+          if (addressElement) {
           // If Zillow reused this expanded container for a new listing, never keep the old badge
           const existingBadge = expandedView.querySelector('.fmr-badge') as HTMLElement;
           const isSameListing = lastExpandedKey === expandedKey;
@@ -957,6 +1243,7 @@ async function processPage() {
             (badge as any).updateContent(cashFlow, false, false, false);
           }
           try { (expandedView as any).dataset[HOA_PENDING_DATASET_FIELD] = '0'; } catch {}
+          }
         }
       }
     }
@@ -1209,8 +1496,14 @@ async function processPage() {
     // Extract property data after page has had time to load
     const propertyData = extractPropertyData();
     
-    // Check if we have sufficient data
-    const hasData = hasSufficientData(address, propertyData.bedrooms, propertyData.price);
+    // Get user preferences to check mode
+    const preferences = await getPreferences();
+    currentBadgeMode = normalizeBadgeMode((preferences as any).mode);
+    
+    // Check if we have sufficient data based on mode
+    const hasCashFlowData = hasSufficientData(address, propertyData.bedrooms, propertyData.price);
+    const hasFmrData = hasSufficientDataForFmr(address, propertyData.bedrooms);
+    const hasData = currentBadgeMode === 'fmr' ? hasFmrData : hasCashFlowData;
     
     if (!hasData) {
       // Inject insufficient info badge
@@ -1218,42 +1511,69 @@ async function processPage() {
       return;
     }
 
-    // On detail pages, never show non-HOA cached value even briefly.
-    // Check if we already have HOA-aware cached result first.
-    let cachedHoaCashFlow: number | null = null;
-    if (propertyData.price !== null && propertyData.bedrooms !== null) {
-      const cachedHoa = getCachedCashFlow(address, propertyData.price, propertyData.bedrooms, true);
-      if (cachedHoa && cachedHoa.hasHOA) {
-        cachedHoaCashFlow = cachedHoa.cashFlow;
+    if (currentBadgeMode === 'fmr') {
+      // FMR-only mode: check for cached FMR data first
+      let cachedFmrMonthly: number | null = null;
+      if (propertyData.bedrooms !== null) {
+        const zipCode = extractZipFromAddress(address);
+        if (zipCode) {
+          const cachedZip = getCachedZipData(zipCode);
+          const cachedFmrOnly = getCachedFmrOnlyZipData(zipCode);
+          const fmrData = cachedZip?.fmrData ?? cachedFmrOnly;
+          if (fmrData) {
+            cachedFmrMonthly = getRentForBedrooms(fmrData, propertyData.bedrooms);
+          }
+        }
       }
-    }
 
-    // Inject badge: show cached HOA result if available, otherwise show loading
-    // This prevents the "cached non-HOA -> loading -> HOA-aware" flicker
-    if (cachedHoaCashFlow !== null) {
-      await injectBadge(addressElement, cachedHoaCashFlow, address, false, undefined, undefined, false, false);
+      // Inject badge: show cached FMR if available, otherwise show loading
+      if (cachedFmrMonthly !== null) {
+        await injectBadge(addressElement, null, address, false, undefined, propertyData, false, false);
+        // Update badge with cached FMR immediately
+        if (badgeElement && (badgeElement as any).updateFmrContent) {
+          (badgeElement as any).updateFmrContent(cachedFmrMonthly, false, false, false);
+        }
+      } else {
+        await injectBadge(addressElement, null, address, true, undefined, propertyData, false, false);
+      }
+
+      // Calculate and display FMR (if not already cached)
+      if (cachedFmrMonthly === null) {
+        const fmrMonthly = await calculateFmrMonthly(address, propertyData.bedrooms);
+        
+        // Update badge with FMR data
+        if (badgeElement && (badgeElement as any).updateFmrContent) {
+          (badgeElement as any).updateFmrContent(fmrMonthly, false, false, false);
+        }
+      }
     } else {
-      await injectBadge(addressElement, null, address, true, undefined, undefined, false, false);
-    }
-    
-    // Get user preferences
-    const preferences = await getPreferences();
-    
-    // Calculate cash flow (HOA is available on detail pages)
-    // Always recalculate to ensure we have the latest result (cache might be stale)
-    const cashFlow = await calculateCashFlow(
-      address,
-      propertyData.bedrooms,
-      propertyData.price,
-      preferences,
-      propertyData.hoaMonthly,
-      false, // checkCache: skip cache check to always recalculate with HOA (prevents flicker)
-      true // isExpandedView (detail pages are expanded views)
-    );
+      // Cash flow mode: existing logic
+      // On detail pages, never show non-HOA cached value even briefly.
+      // Check if we already have HOA-aware cached result first.
+      let cachedHoaCashFlow: number | null = null;
+      if (propertyData.price !== null && propertyData.bedrooms !== null) {
+        const cachedHoa = getCachedCashFlow(address, propertyData.price, propertyData.bedrooms, true);
+        if (cachedHoa && cachedHoa.hasHOA) {
+          cachedHoaCashFlow = cachedHoa.cashFlow;
+        }
+      }
 
-    // Update badge with actual data (HOA is available on detail pages)
-    if (badgeElement && (badgeElement as any).updateContent) {
-      (badgeElement as any).updateContent(cashFlow, false, false, false);
+      // Calculate cash flow (HOA is available on detail pages)
+      // Always recalculate to ensure we have the latest result (cache might be stale)
+      const cashFlow = await calculateCashFlow(
+        address,
+        propertyData.bedrooms,
+        propertyData.price,
+        preferences,
+        propertyData.hoaMonthly,
+        false, // checkCache: skip cache check to always recalculate with HOA (prevents flicker)
+        true // isExpandedView (detail pages are expanded views)
+      );
+
+      // Update badge with actual data (HOA is available on detail pages)
+      if (badgeElement && (badgeElement as any).updateContent) {
+        (badgeElement as any).updateContent(cashFlow, false, false, false);
+      }
     }
   } catch (error) {
     console.error('[FMR Extension] Error:', error);
@@ -1529,6 +1849,9 @@ async function openMiniView(address: string, zipCode: string, purchasePrice: num
  * Initialize content script
  */
 function init() {
+  // Setup mode change listener first
+  setupModeChangeListener();
+  
   // Process page when DOM is ready
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {

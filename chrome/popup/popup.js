@@ -53,6 +53,7 @@ async function init() {
   const prefs = await getPreferences();
 
   // Populate form fields
+  document.getElementById('display-mode').value = prefs.mode || 'cashFlow';
   document.getElementById('dp-mode').value = prefs.downPaymentMode || 'percent';
   document.getElementById('down-payment-percent').value = String(prefs.downPaymentPercent);
   document.getElementById('down-payment-amount').value = String(prefs.downPaymentAmount || 0);
@@ -95,6 +96,9 @@ async function init() {
     }
   });
 
+  const displayMode = document.getElementById('display-mode');
+  displayMode.addEventListener('change', updateConditionalFields);
+
   const dpMode = document.getElementById('dp-mode');
   dpMode.addEventListener('change', updateConditionalFields);
 
@@ -108,6 +112,36 @@ async function init() {
 }
 
 function updateConditionalFields() {
+  const displayMode = document.getElementById('display-mode').value;
+  const isFmrMode = displayMode === 'fmr';
+  
+  // Show/hide cash flow related sections based on mode
+  const financialSection = document.getElementById('financial-params-section');
+  const propertyMgmtSection = document.getElementById('property-management-section');
+  const customExpensesSection = document.getElementById('custom-expenses-section');
+  const rateOverridesSection = document.getElementById('rate-overrides-section');
+  
+  if (financialSection) {
+    financialSection.style.display = isFmrMode ? 'none' : 'block';
+    financialSection.style.opacity = isFmrMode ? '0' : '1';
+    financialSection.style.transition = 'opacity 0.2s ease, display 0.2s ease';
+  }
+  if (propertyMgmtSection) {
+    propertyMgmtSection.style.display = isFmrMode ? 'none' : 'block';
+    propertyMgmtSection.style.opacity = isFmrMode ? '0' : '1';
+    propertyMgmtSection.style.transition = 'opacity 0.2s ease, display 0.2s ease';
+  }
+  if (customExpensesSection) {
+    customExpensesSection.style.display = isFmrMode ? 'none' : 'block';
+    customExpensesSection.style.opacity = isFmrMode ? '0' : '1';
+    customExpensesSection.style.transition = 'opacity 0.2s ease, display 0.2s ease';
+  }
+  if (rateOverridesSection) {
+    rateOverridesSection.style.display = isFmrMode ? 'none' : 'block';
+    rateOverridesSection.style.opacity = isFmrMode ? '0' : '1';
+    rateOverridesSection.style.transition = 'opacity 0.2s ease, display 0.2s ease';
+  }
+  
   const dpMode = document.getElementById('dp-mode').value;
   const dpPercentGroup = document.getElementById('dp-percent-group');
   const dpAmountGroup = document.getElementById('dp-amount-group');
@@ -143,6 +177,7 @@ function updateConditionalFields() {
 
 async function saveFormData() {
   const prefs = {
+    mode: document.getElementById('display-mode').value,
     downPaymentMode: document.getElementById('dp-mode').value,
     downPaymentPercent: parseFloat(document.getElementById('down-payment-percent').value) || DEFAULT_PREFERENCES.downPaymentPercent,
     downPaymentAmount: parseFloat(document.getElementById('down-payment-amount').value) || DEFAULT_PREFERENCES.downPaymentAmount,

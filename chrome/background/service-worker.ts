@@ -7,6 +7,7 @@ chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === 'install') {
     // Set default preferences on first install
     chrome.storage.sync.set({
+      mode: 'cashFlow',
       bedrooms: null,
       purchasePrice: null,
       downPaymentPercent: 20,
