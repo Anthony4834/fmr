@@ -12,6 +12,7 @@ export interface MiniViewProps {
   hoaMonthly: number | null; // Detected HOA from page, or null if not available
   onClose: () => void;
   overlay?: HTMLElement; // Overlay element to hide/show during dragging
+  sourceSite?: string; // Source site (e.g., 'zillow', 'redfin', 'realtor', 'homes')
 }
 
 export function createMiniViewElement(props: MiniViewProps): HTMLElement {
@@ -291,7 +292,18 @@ export function createMiniViewElement(props: MiniViewProps): HTMLElement {
   const configJson = JSON.stringify(config);
   const configBase64 = btoa(configJson);
 
-  iframe.src = `https://fmr.fyi/zip/${props.zipCode}?config=${encodeURIComponent(configBase64)}`;
+  // Build URL with referrer parameters
+  const urlParams = new URLSearchParams();
+  urlParams.set('config', configBase64);
+  urlParams.set('ref', 'chrome-extension');
+  if (props.sourceSite) {
+    urlParams.set('source', props.sourceSite);
+  }
+
+  iframe.src = `https://fmr.fyi/zip/${props.zipCode}?${urlParams.toString()}`;
+  // Set referrer policy to ensure referrer header is sent (for Vercel analytics)
+  // 'origin' sends the origin (e.g., https://zillow.com) as the referrer
+  iframe.setAttribute('referrerpolicy', 'origin');
   iframe.style.cssText = `
     flex: 1;
     border: none;

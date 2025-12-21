@@ -1870,6 +1870,19 @@ async function openMiniView(address: string, zipCode: string, purchasePrice: num
   // Get user preferences to pass to the main app
   const preferences = await getPreferences();
 
+  // Detect source site from hostname
+  const hostname = window.location.hostname.toLowerCase();
+  let sourceSite: string | undefined;
+  if (hostname.includes('zillow.com')) {
+    sourceSite = 'zillow';
+  } else if (hostname.includes('redfin.com')) {
+    sourceSite = 'redfin';
+  } else if (hostname.includes('realtor.com')) {
+    sourceSite = 'realtor';
+  } else if (hostname.includes('homes.com')) {
+    sourceSite = 'homes';
+  }
+
   // Create overlay
   const overlay = document.createElement('div');
   overlay.className = 'fmr-mini-view-overlay';
@@ -1892,6 +1905,7 @@ async function openMiniView(address: string, zipCode: string, purchasePrice: num
     bedrooms,
     hoaMonthly, // Pass detected HOA (null if not available, 0 if explicitly no HOA, or the actual amount)
     overlay, // Pass overlay reference so it can be hidden during dragging
+    sourceSite, // Pass source site for referrer tracking
     onClose: () => {
       overlay.remove();
       miniViewContainer = null;
