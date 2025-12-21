@@ -829,11 +829,22 @@ async function processCard(cardElement: HTMLElement, viewType: 'list' | 'map', s
     const rawMode = (existingBadge as any).dataset?.fmrMode as string | undefined;
     const existingMode: BadgeMode = rawMode === 'fmr' ? 'fmr' : 'cashFlow'; // default old badges to cashFlow
     const modeMatches = existingMode === currentBadgeMode;
+    
+    // Check if badge shows "Insufficient data" - if so, treat as final state (don't reprocess)
+    const badgeText = existingBadge.textContent || '';
+    const showsInsufficientData = badgeText.includes('Insufficient data');
 
     if (isSameListing && !isOrphaned && modeMatches) {
-      return;
+      // If badge shows insufficient data, don't reprocess (it's a final state)
+      if (showsInsufficientData) {
+        return;
+      }
+      // Otherwise check if badge has valid data
+      if (badgeHasValidData(existingBadge as HTMLElement)) {
+        return;
+      }
     }
-    // Badge exists but listing changed or is orphaned; remove and reprocess
+    // Badge exists but listing changed, is orphaned, mode changed, or needs update; remove and reprocess
     existingBadge.remove();
   }
 
@@ -986,6 +997,13 @@ async function processCards(viewType: 'list' | 'map', site: 'redfin' | 'zillow')
             processCard(cardElement, viewType, site).catch(() => {})
           );
         } else {
+          // Check if badge shows "Insufficient data" - if so, don't reprocess (it's a final state)
+          const badgeText = existingBadge.textContent || '';
+          if (badgeText.includes('Insufficient data')) {
+            // Badge shows insufficient data, skip reprocessing
+            continue;
+          }
+          
           // Badge exists and is valid - check if we have cached HOA data to update it
           if (currentBadgeMode === 'cashFlow') {
             if (cardData.price !== null && cardData.bedrooms !== null) {
@@ -1168,6 +1186,16 @@ async function processPage(options?: { skipWait?: boolean }) {
           // If Zillow reused this expanded container for a new listing, never keep the old badge
           const existingBadge = expandedView.querySelector('.fmr-badge') as HTMLElement;
           const isSameListing = lastExpandedKey === expandedKey;
+          
+          // Check if existing badge shows "Insufficient data" - if so, don't reprocess (it's a final state)
+          if (existingBadge && isSameListing) {
+            const badgeText = existingBadge.textContent || '';
+            if (badgeText.includes('Insufficient data')) {
+              // Badge already shows insufficient data for this listing, skip reprocessing
+              return;
+            }
+          }
+          
           if (existingBadge && !isSameListing) {
             existingBadge.remove();
             cardBadges.delete(expandedView as HTMLElement);
@@ -1178,8 +1206,19 @@ async function processPage(options?: { skipWait?: boolean }) {
             (expandedView as any).dataset[CARD_KEY_DATASET_FIELD] = expandedKey;
           } catch {}
           
+          // Get current mode (ensure it's loaded) - use currentBadgeMode if available, otherwise fetch
+          if (!hasLoadedInitialMode) {
+            await loadInitialBadgeMode();
+          }
+          
+          // Get preferences to ensure mode is current
+          const prefs = await getPreferences();
+          const mode = normalizeBadgeMode((prefs as any).mode);
+          
           // Check if we have sufficient data
-          const hasData = hasSufficientData(expandedData.address, expandedData.bedrooms, expandedData.price);
+          const hasCashFlowData = hasSufficientData(expandedData.address, expandedData.bedrooms, expandedData.price);
+          const hasFmrData = hasSufficientDataForFmr(expandedData.address, expandedData.bedrooms);
+          const hasData = mode === 'fmr' ? hasFmrData : hasCashFlowData;
           
           if (!hasData) {
             // Clear HOA pending flag
@@ -1315,6 +1354,15 @@ async function processPage(options?: { skipWait?: boolean }) {
                 cardBadges.delete(expandedView as HTMLElement);
               }
 
+              // Check if existing badge shows "Insufficient data" - if so, don't reprocess (it's a final state)
+              if (isSameListing && existingBadge) {
+                const badgeText = existingBadge.textContent || '';
+                if (badgeText.includes('Insufficient data')) {
+                  // Badge already shows insufficient data for this listing, skip reprocessing
+                  return; // Return early from the timeout callback
+                }
+              }
+
               // If we already have HOA-aware cached value and badge is valid, skip
               if (isSameListing && existingBadge && badgeHasValidData(existingBadge)) {
                 // ok
@@ -1352,7 +1400,9 @@ async function processPage(options?: { skipWait?: boolean }) {
                     (expandedView as any).dataset[CARD_KEY_DATASET_FIELD] = expandedKey;
                   } catch {}
 
-                  const hasData = hasSufficientData(expandedData.address, expandedData.bedrooms, expandedData.price);
+                  const hasCashFlowData = hasSufficientData(expandedData.address, expandedData.bedrooms, expandedData.price);
+                  const hasFmrData = hasSufficientDataForFmr(expandedData.address, expandedData.bedrooms);
+                  const hasData = currentBadgeMode === 'fmr' ? hasFmrData : hasCashFlowData;
                   if (!hasData) {
                     try { (expandedView as any).dataset[HOA_PENDING_DATASET_FIELD] = '0'; } catch {}
                     injectBadge(addressElement, null, expandedData.address, false, expandedView as HTMLElement, {
@@ -1456,6 +1506,18 @@ async function processPage(options?: { skipWait?: boolean }) {
   // Skip if already processed
   const addressKey = `${window.location.href}-${address}`;
   if (processedAddresses.has(addressKey)) {
+    // Check if badge already exists and shows insufficient data - if so, don't reprocess
+    const existingBadge = document.querySelector('.fmr-badge') as HTMLElement;
+    if (existingBadge) {
+      const badgeText = existingBadge.textContent || '';
+      if (badgeText.includes('Insufficient data')) {
+        return; // Badge already shows insufficient data, don't reprocess
+      }
+      // If badge has valid data, also don't reprocess
+      if (badgeHasValidData(existingBadge)) {
+        return;
+      }
+    }
     return;
   }
   
@@ -1543,7 +1605,12 @@ async function processPage(options?: { skipWait?: boolean }) {
         
         // Update badge with FMR data
         if (badgeElement && (badgeElement as any).updateFmrContent) {
-          (badgeElement as any).updateFmrContent(fmrMonthly, false, false, false);
+          // If fmrMonthly is null (missing data), show insufficient data instead of N/A to prevent reprocessing
+          if (fmrMonthly === null) {
+            (badgeElement as any).updateFmrContent(null, false, true, false); // insufficientInfo = true
+          } else {
+            (badgeElement as any).updateFmrContent(fmrMonthly, false, false, false);
+          }
         }
       }
     } else {
@@ -1572,14 +1639,19 @@ async function processPage(options?: { skipWait?: boolean }) {
 
       // Update badge with actual data (HOA is available on detail pages)
       if (badgeElement && (badgeElement as any).updateContent) {
-        (badgeElement as any).updateContent(cashFlow, false, false, false);
+        // If cashFlow is null (missing market data), show insufficient data instead of N/A to prevent reprocessing
+        if (cashFlow === null) {
+          (badgeElement as any).updateContent(null, false, true, false); // insufficientInfo = true
+        } else {
+          (badgeElement as any).updateContent(cashFlow, false, false, false);
+        }
       }
     }
   } catch (error) {
     console.error('[FMR Extension] Error:', error);
-    // Update badge to show error state
+    // Update badge to show error state (show insufficient data to prevent reprocessing)
     if (badgeElement && (badgeElement as any).updateContent) {
-      (badgeElement as any).updateContent(null, false, false);
+      (badgeElement as any).updateContent(null, false, true, false); // insufficientInfo = true
     }
   }
 }
