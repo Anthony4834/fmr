@@ -84,3 +84,6 @@ If you see `medianScore: 108.5` in the server logs, the query isn't using `score
 2. **Check server console** for debug logs
 3. **Check browser console** for API response
 4. **Hard refresh browser** after server restart
+
+
+

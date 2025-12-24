@@ -415,21 +415,21 @@ export default function IdealPurchasePriceCard({
   if (!data || !canRenderForData(data)) return null;
 
   return (
-    <div className="w-full bg-white rounded-lg border border-[#e5e5e5] p-4 sm:p-6 md:p-8">
+    <div className="w-full bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] p-4 sm:p-6 md:p-8">
       <div className="mb-4">
-        <h3 className="text-base sm:text-lg font-semibold text-[#0a0a0a] mb-1">Purchase Price Calculator</h3>
-        <p className="text-xs text-[#737373]">Based on HUD rent + your assumptions</p>
+        <h3 className="text-base sm:text-lg font-semibold text-[var(--text-primary)] mb-1">Purchase Price Calculator</h3>
+        <p className="text-xs text-[var(--text-tertiary)]">Based on HUD rent + your assumptions</p>
       </div>
 
       {/* Mode selector - hidden when extension config is present */}
       {!extensionConfig && (
         <div className="mb-4">
           <label className="block">
-            <div className="text-xs font-semibold text-[#0a0a0a] mb-1">Calculation mode</div>
+            <div className="text-xs font-semibold text-[var(--text-primary)] mb-1">Calculation mode</div>
             <select
               value={prefs.mode}
               onChange={(e) => setPrefs((p) => ({ ...p, mode: e.target.value as 'cashflow' | 'maxprice' }))}
-              className="w-full px-3 py-2 rounded-lg border border-[#e5e5e5] bg-white text-sm"
+              className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--text-primary)] focus:ring-opacity-20 focus:border-[var(--border-secondary)] transition-colors"
             >
               <option value="cashflow">Calculate Cash Flow</option>
               <option value="maxprice">Calculate Max Price</option>
@@ -439,11 +439,11 @@ export default function IdealPurchasePriceCard({
       )}
 
       {/* Output */}
-      <div className="rounded-lg border border-[#e5e5e5] bg-[#fafafa] p-3 sm:p-4">
+      <div className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-content)] p-3 sm:p-4">
         {prefs.mode === 'cashflow' ? (
           <>
-            <div className="text-xs text-[#737373] mb-1">Monthly cash flow</div>
-            <div className="text-2xl font-semibold text-[#0a0a0a] tabular-nums">
+            <div className="text-xs text-[var(--text-tertiary)] mb-1">Monthly cash flow</div>
+            <div className="text-2xl font-semibold text-[var(--text-primary)] tabular-nums">
               {result && 'monthlyCashFlow' in result 
                 ? formatCurrency((result as any).monthlyCashFlow)
                 : '—'}
@@ -451,25 +451,25 @@ export default function IdealPurchasePriceCard({
           </>
         ) : (
           <>
-            <div className="text-xs text-[#737373] mb-1">Maximum purchase price</div>
-            <div className="text-2xl font-semibold text-[#0a0a0a] tabular-nums">
+            <div className="text-xs text-[var(--text-tertiary)] mb-1">Maximum purchase price</div>
+            <div className="text-2xl font-semibold text-[var(--text-primary)] tabular-nums">
               {result && 'purchasePrice' in result ? formatCurrency((result as any).purchasePrice) : '—'}
             </div>
           </>
         )}
-        <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-[#525252]">
+        <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-[var(--text-secondary)]">
           <div>
-            <div className="text-[#737373]">Rent</div>
+            <div className="text-[var(--text-tertiary)]">Rent</div>
             <div className="font-medium tabular-nums">{rentMonthlyRaw ? formatCurrency(rentMonthlyRaw) : '—'}</div>
           </div>
           <div>
-            <div className="text-[#737373]">Down payment</div>
+            <div className="text-[var(--text-tertiary)]">Down payment</div>
             <div className="font-medium tabular-nums">
               {result ? formatCurrency(downPaymentDollars) : '—'}
             </div>
           </div>
           <div>
-            <div className="text-[#737373]">Loan</div>
+            <div className="text-[var(--text-tertiary)]">Loan</div>
             <div className="font-medium tabular-nums">
               {result 
                 ? (prefs.mode === 'cashflow' && 'loanAmount' in result
@@ -479,7 +479,7 @@ export default function IdealPurchasePriceCard({
             </div>
           </div>
           <div>
-            <div className="text-[#737373]">Mortgage</div>
+            <div className="text-[var(--text-tertiary)]">Mortgage</div>
             <div className="font-medium tabular-nums">
               {result 
                 ? (prefs.mode === 'cashflow' && 'monthlyMortgagePayment' in result
@@ -491,7 +491,7 @@ export default function IdealPurchasePriceCard({
             </div>
           </div>
           <div>
-            <div className="text-[#737373]">Expenses</div>
+            <div className="text-[var(--text-tertiary)]">Expenses</div>
             <div className="font-medium tabular-nums">
               {result 
                 ? (prefs.mode === 'cashflow' && 'monthlyExpenses' in result
@@ -527,37 +527,37 @@ export default function IdealPurchasePriceCard({
         </div>
 
         {/* Collapsible details section */}
-        <div className="mt-3 border-t border-[#e5e5e5] pt-3">
+        <div className="mt-3 border-t border-[var(--border-color)] pt-3">
           <button
             type="button"
             onClick={() => setDetailsExpanded(!detailsExpanded)}
-            className="w-full flex items-center justify-between text-xs text-[#525252] hover:text-[#0a0a0a] transition-colors"
+            className="w-full flex items-center justify-between text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
           >
             <span>Details</span>
             <span className="tabular-nums">{detailsExpanded ? '−' : '+'}</span>
           </button>
           {detailsExpanded && (
-            <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-[#525252]">
+            <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-[var(--text-secondary)]">
               <div>
-                <div className="text-[#737373]">Insurance</div>
+                <div className="text-[var(--text-tertiary)]">Insurance</div>
                 <div className="font-medium tabular-nums">
                   {formatCurrency(parseNumberOrZero(prefs.insuranceMonthly))}
                 </div>
               </div>
               <div>
-                <div className="text-[#737373]">HOA</div>
+                <div className="text-[var(--text-tertiary)]">HOA</div>
                 <div className="font-medium tabular-nums">
                   {formatCurrency(parseNumberOrZero(prefs.hoaMonthly))}
                 </div>
               </div>
               <div>
-                <div className="text-[#737373]">Property management</div>
+                <div className="text-[var(--text-tertiary)]">Property management</div>
                 <div className="font-medium tabular-nums">
                   {formatCurrency(propertyManagementCost)}
                 </div>
               </div>
               <div>
-                <div className="text-[#737373]">Taxes</div>
+                <div className="text-[var(--text-tertiary)]">Taxes</div>
                 <div className="font-medium tabular-nums">
                   {result && 'monthlyTaxes' in result
                     ? formatCurrency((result as any).monthlyTaxes)
@@ -567,13 +567,13 @@ export default function IdealPurchasePriceCard({
                 </div>
               </div>
               <div>
-                <div className="text-[#737373]">Tax rate</div>
+                <div className="text-[var(--text-tertiary)]">Tax rate</div>
                 <div className="font-medium tabular-nums">
                   {marketLoading && !prefs.overrideTaxRate ? 'Loading…' : formatPct(taxRateAnnualPct)}
                 </div>
               </div>
               <div>
-                <div className="text-[#737373]">Mortgage rate</div>
+                <div className="text-[var(--text-tertiary)]">Mortgage rate</div>
                 <div className="font-medium tabular-nums">
                   {marketLoading && !prefs.overrideMortgageRate ? 'Loading…' : formatPct(mortgageRateAnnualPct)}
                 </div>
@@ -590,7 +590,7 @@ export default function IdealPurchasePriceCard({
                 
                 return (
                   <div key={item.id}>
-                    <div className="text-[#737373]">{item.label}</div>
+                    <div className="text-[var(--text-tertiary)]">{item.label}</div>
                     <div className="font-medium tabular-nums">
                       {formatCurrency(itemValue)}
                     </div>
@@ -602,7 +602,7 @@ export default function IdealPurchasePriceCard({
         </div>
 
         {!result && (
-          <div className="mt-3 text-xs text-[#737373] leading-relaxed">
+          <div className="mt-3 text-xs text-[var(--text-tertiary)] leading-relaxed">
             {rentMonthly === null
               ? 'Missing rent for the selected bedroom count.'
               : (marketLoading && !prefs.overrideTaxRate && !prefs.overrideMortgageRate)
@@ -616,11 +616,11 @@ export default function IdealPurchasePriceCard({
       <div className="mt-4 space-y-3">
         <div className="grid grid-cols-2 gap-2">
           <label className="block">
-            <div className="text-xs font-semibold text-[#0a0a0a] mb-1">Bedrooms</div>
+            <div className="text-xs font-semibold text-[var(--text-primary)] mb-1">Bedrooms</div>
             <select
               value={prefs.bedrooms}
               onChange={(e) => setPrefs((p) => ({ ...p, bedrooms: Number(e.target.value) }))}
-              className="w-full px-3 py-2 rounded-lg border border-[#e5e5e5] bg-white text-sm"
+              className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--text-primary)] focus:ring-opacity-20 focus:border-[var(--border-secondary)] transition-colors"
             >
               {Array.from({ length: 9 }, (_, i) => i).map((b) => (
                 <option key={b} value={b}>
@@ -632,24 +632,24 @@ export default function IdealPurchasePriceCard({
 
           {prefs.mode === 'cashflow' ? (
             <label className="block">
-              <div className="text-xs font-semibold text-[#0a0a0a] mb-1">Purchase price</div>
+              <div className="text-xs font-semibold text-[var(--text-primary)] mb-1">Purchase price</div>
               <input
                 type="text"
                 inputMode="numeric"
                 value={prefs.purchasePrice}
                 onChange={(e) => setPrefs((p) => ({ ...p, purchasePrice: sanitizeNumericInput(e.target.value) }))}
-                className="w-full px-3 py-2 rounded-lg border border-[#e5e5e5] bg-white text-sm tabular-nums"
+                className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] text-sm tabular-nums text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--text-primary)] focus:ring-opacity-20 focus:border-[var(--border-secondary)] transition-colors"
               />
             </label>
           ) : extensionConfig ? null : (
             <label className="block">
-              <div className="text-xs font-semibold text-[#0a0a0a] mb-1">Cash flow</div>
+              <div className="text-xs font-semibold text-[var(--text-primary)] mb-1">Cash flow</div>
               <input
                 type="text"
                 inputMode="numeric"
                 value={prefs.desiredCashFlow}
                 onChange={(e) => setPrefs((p) => ({ ...p, desiredCashFlow: sanitizeNumericInput(e.target.value) }))}
-                className="w-full px-3 py-2 rounded-lg border border-[#e5e5e5] bg-white text-sm tabular-nums"
+                className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] text-sm tabular-nums text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--text-primary)] focus:ring-opacity-20 focus:border-[var(--border-secondary)] transition-colors"
               />
             </label>
           )}
@@ -657,11 +657,11 @@ export default function IdealPurchasePriceCard({
 
         <div className="grid grid-cols-2 gap-2">
           <label className="block">
-            <div className="text-xs font-semibold text-[#0a0a0a] mb-1">Down payment</div>
+            <div className="text-xs font-semibold text-[var(--text-primary)] mb-1">Down payment</div>
             <select
               value={prefs.downPaymentMode}
               onChange={(e) => setPrefs((p) => ({ ...p, downPaymentMode: e.target.value as any }))}
-              className="w-full px-3 py-2 rounded-lg border border-[#e5e5e5] bg-white text-sm"
+              className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--text-primary)] focus:ring-opacity-20 focus:border-[var(--border-secondary)] transition-colors"
             >
               <option value="percent">%</option>
               <option value="amount">$</option>
@@ -670,24 +670,24 @@ export default function IdealPurchasePriceCard({
 
           {prefs.downPaymentMode === 'percent' ? (
             <label className="block">
-              <div className="text-xs font-semibold text-[#0a0a0a] mb-1">Down %</div>
+              <div className="text-xs font-semibold text-[var(--text-primary)] mb-1">Down %</div>
               <input
                 type="text"
                 inputMode="decimal"
                 value={prefs.downPaymentPercent}
                 onChange={(e) => setPrefs((p) => ({ ...p, downPaymentPercent: sanitizeNumericInput(e.target.value, true) }))}
-                className="w-full px-3 py-2 rounded-lg border border-[#e5e5e5] bg-white text-sm tabular-nums"
+                className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] text-sm tabular-nums text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--text-primary)] focus:ring-opacity-20 focus:border-[var(--border-secondary)] transition-colors"
               />
             </label>
           ) : (
             <label className="block">
-              <div className="text-xs font-semibold text-[#0a0a0a] mb-1">Down $</div>
+              <div className="text-xs font-semibold text-[var(--text-primary)] mb-1">Down $</div>
               <input
                 type="text"
                 inputMode="numeric"
                 value={prefs.downPaymentAmount}
                 onChange={(e) => setPrefs((p) => ({ ...p, downPaymentAmount: sanitizeNumericInput(e.target.value) }))}
-                className="w-full px-3 py-2 rounded-lg border border-[#e5e5e5] bg-white text-sm tabular-nums"
+                className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] text-sm tabular-nums text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--text-primary)] focus:ring-opacity-20 focus:border-[var(--border-secondary)] transition-colors"
               />
             </label>
           )}
@@ -695,34 +695,34 @@ export default function IdealPurchasePriceCard({
 
         <div className="grid grid-cols-2 gap-2">
           <label className="block">
-            <div className="text-xs font-semibold text-[#0a0a0a] mb-1">Insurance / mo</div>
+            <div className="text-xs font-semibold text-[var(--text-primary)] mb-1">Insurance / mo</div>
             <input
               type="text"
               inputMode="numeric"
               value={prefs.insuranceMonthly}
               onChange={(e) => setPrefs((p) => ({ ...p, insuranceMonthly: sanitizeNumericInput(e.target.value) }))}
-              className="w-full px-3 py-2 rounded-lg border border-[#e5e5e5] bg-white text-sm tabular-nums"
+              className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] text-sm tabular-nums text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--text-primary)] focus:ring-opacity-20 focus:border-[var(--border-secondary)] transition-colors"
             />
           </label>
           <label className="block">
-            <div className="text-xs font-semibold text-[#0a0a0a] mb-1">HOA / mo</div>
+            <div className="text-xs font-semibold text-[var(--text-primary)] mb-1">HOA / mo</div>
             <input
               type="text"
               inputMode="numeric"
               value={prefs.hoaMonthly}
               onChange={(e) => setPrefs((p) => ({ ...p, hoaMonthly: sanitizeNumericInput(e.target.value) }))}
-              className="w-full px-3 py-2 rounded-lg border border-[#e5e5e5] bg-white text-sm tabular-nums"
+              className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] text-sm tabular-nums text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--text-primary)] focus:ring-opacity-20 focus:border-[var(--border-secondary)] transition-colors"
             />
           </label>
         </div>
 
         <div className="grid grid-cols-2 gap-2">
           <label className="block">
-            <div className="text-xs font-semibold text-[#0a0a0a] mb-1">Property management</div>
+            <div className="text-xs font-semibold text-[var(--text-primary)] mb-1">Property management</div>
             <select
               value={prefs.propertyManagementMode}
               onChange={(e) => setPrefs((p) => ({ ...p, propertyManagementMode: e.target.value as 'percent' | 'amount' }))}
-              className="w-full px-3 py-2 rounded-lg border border-[#e5e5e5] bg-white text-sm"
+              className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--text-primary)] focus:ring-opacity-20 focus:border-[var(--border-secondary)] transition-colors"
             >
               <option value="percent">%</option>
               <option value="amount">$</option>
@@ -731,24 +731,24 @@ export default function IdealPurchasePriceCard({
 
           {prefs.propertyManagementMode === 'percent' ? (
             <label className="block">
-              <div className="text-xs font-semibold text-[#0a0a0a] mb-1">PM %</div>
+              <div className="text-xs font-semibold text-[var(--text-primary)] mb-1">PM %</div>
               <input
                 type="text"
                 inputMode="decimal"
                 value={prefs.propertyManagementPercent}
                 onChange={(e) => setPrefs((p) => ({ ...p, propertyManagementPercent: sanitizeNumericInput(e.target.value, true) }))}
-                className="w-full px-3 py-2 rounded-lg border border-[#e5e5e5] bg-white text-sm tabular-nums"
+                className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] text-sm tabular-nums text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--text-primary)] focus:ring-opacity-20 focus:border-[var(--border-secondary)] transition-colors"
               />
             </label>
           ) : (
             <label className="block">
-              <div className="text-xs font-semibold text-[#0a0a0a] mb-1">PM $ / mo</div>
+              <div className="text-xs font-semibold text-[var(--text-primary)] mb-1">PM $ / mo</div>
               <input
                 type="text"
                 inputMode="numeric"
                 value={prefs.propertyManagementAmount}
                 onChange={(e) => setPrefs((p) => ({ ...p, propertyManagementAmount: sanitizeNumericInput(e.target.value) }))}
-                className="w-full px-3 py-2 rounded-lg border border-[#e5e5e5] bg-white text-sm tabular-nums"
+                className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] text-sm tabular-nums text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--text-primary)] focus:ring-opacity-20 focus:border-[var(--border-secondary)] transition-colors"
               />
             </label>
           )}
@@ -756,8 +756,8 @@ export default function IdealPurchasePriceCard({
 
         {/* Custom Line Items - only shown when extension config is present */}
         {extensionConfig && customLineItems.length > 0 && (
-          <div className="pt-2 border-t border-[#e5e5e5] space-y-2">
-            <div className="text-xs font-semibold text-[#0a0a0a] mb-2">Custom Expenses</div>
+          <div className="pt-2 border-t border-[var(--border-color)] space-y-2">
+            <div className="text-xs font-semibold text-[var(--text-primary)] mb-2">Custom Expenses</div>
             {customLineItems.map((item) => {
               const itemValue = item.method === 'amount' 
                 ? item.value 
@@ -768,10 +768,10 @@ export default function IdealPurchasePriceCard({
                     : (downPaymentDollars * (item.value / 100));
               
               return (
-                <div key={item.id} className="flex items-center justify-between p-2 bg-[#fafafa] rounded border border-[#e5e5e5]">
+                <div key={item.id} className="flex items-center justify-between p-2 bg-[var(--bg-tertiary)] rounded border border-[var(--border-color)]">
                   <div className="flex-1">
-                    <div className="text-xs font-medium text-[#0a0a0a]">{item.label}</div>
-                    <div className="text-xs text-[#737373]">
+                    <div className="text-xs font-medium text-[var(--text-primary)]">{item.label}</div>
+                    <div className="text-xs text-[var(--text-tertiary)]">
                       {item.method === 'amount' 
                         ? `${formatCurrency(item.value)}/month`
                         : `${item.value}% of ${
@@ -781,7 +781,7 @@ export default function IdealPurchasePriceCard({
                           }`}
                     </div>
                   </div>
-                  <div className="text-xs font-semibold text-[#525252] tabular-nums">
+                  <div className="text-xs font-semibold text-[var(--text-secondary)] tabular-nums">
                     {formatCurrency(itemValue)}
                   </div>
                 </div>
@@ -790,9 +790,9 @@ export default function IdealPurchasePriceCard({
           </div>
         )}
 
-        <div className="pt-2 border-t border-[#e5e5e5] space-y-2">
+        <div className="pt-2 border-t border-[var(--border-color)] space-y-2">
           <div className="flex items-center justify-between gap-2">
-            <div className="text-xs font-semibold text-[#0a0a0a]">Market inputs</div>
+            <div className="text-xs font-semibold text-[var(--text-primary)]">Market inputs</div>
             <div
               className="flex items-center"
               title={
@@ -814,14 +814,14 @@ export default function IdealPurchasePriceCard({
             </div>
           </div>
 
-          {marketError && <div className="text-xs text-[#dc2626]">{marketError}</div>}
+          {marketError && <div className="text-xs text-[var(--map-color-low)]">{marketError}</div>}
           {!marketError && market && (market.propertyTaxRateAnnualPct === null || market.mortgageRateAnnualPct === null) && (
-            <div className="text-xs text-[#737373]">
-              Market data loaded, but one or more values couldn’t be parsed — using your saved defaults (toggle override to change).
+            <div className="text-xs text-[var(--text-tertiary)]">
+              Market data loaded, but one or more values couldn't be parsed — using your saved defaults (toggle override to change).
             </div>
           )}
 
-          <label className="flex items-center gap-2 text-xs text-[#525252]">
+          <label className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
             <input
               type="checkbox"
               checked={prefs.overrideTaxRate}
@@ -836,12 +836,12 @@ export default function IdealPurchasePriceCard({
               value={prefs.taxRateAnnualPct}
               disabled={!prefs.overrideTaxRate}
               onChange={(e) => setPrefs((p) => ({ ...p, taxRateAnnualPct: sanitizeNumericInput(e.target.value, true) }))}
-              className="w-full px-3 py-2 rounded-lg border border-[#e5e5e5] bg-white text-sm tabular-nums disabled:bg-[#fafafa]"
+              className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] text-sm tabular-nums text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--text-primary)] focus:ring-opacity-20 focus:border-[var(--border-secondary)] disabled:bg-[var(--bg-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             />
-            <div className="text-xs text-[#737373] truncate"> </div>
+            <div className="text-xs text-[var(--text-tertiary)] truncate"> </div>
           </div>
 
-          <label className="flex items-center gap-2 text-xs text-[#525252]">
+          <label className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
             <input
               type="checkbox"
               checked={prefs.overrideMortgageRate}
@@ -856,9 +856,9 @@ export default function IdealPurchasePriceCard({
               value={prefs.mortgageRateAnnualPct}
               disabled={!prefs.overrideMortgageRate}
               onChange={(e) => setPrefs((p) => ({ ...p, mortgageRateAnnualPct: sanitizeNumericInput(e.target.value, true) }))}
-              className="w-full px-3 py-2 rounded-lg border border-[#e5e5e5] bg-white text-sm tabular-nums disabled:bg-[#fafafa]"
+              className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] text-sm tabular-nums text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--text-primary)] focus:ring-opacity-20 focus:border-[var(--border-secondary)] disabled:bg-[var(--bg-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             />
-            <div className="text-xs text-[#737373] truncate"> </div>
+            <div className="text-xs text-[var(--text-tertiary)] truncate"> </div>
           </div>
         </div>
       </div>

@@ -19,12 +19,12 @@ export default function SearchBar({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className="w-full h-9 pl-9 pr-9 rounded-md border border-[#e5e5e5] bg-white text-xs text-[#0a0a0a] placeholder:text-[#a3a3a3] focus:outline-none focus:ring-2 focus:ring-[#0a0a0a] focus:border-transparent transition-colors"
+          className="w-full h-9 pl-9 pr-9 rounded-md border border-[var(--border-color)] bg-[var(--bg-secondary)] text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--text-primary)] focus:border-transparent transition-colors"
           aria-label={placeholder}
         />
         {/* Search icon */}
         <svg
-          className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#737373] pointer-events-none"
+          className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-tertiary)] pointer-events-none"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -41,7 +41,7 @@ export default function SearchBar({
         {value && (
           <button
             onClick={() => onChange('')}
-            className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#737373] hover:text-[#0a0a0a] transition-colors"
+            className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors"
             aria-label="Clear search"
           >
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">

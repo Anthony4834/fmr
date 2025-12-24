@@ -140,3 +140,6 @@ zip_metro_mapping AS (
 - `scripts/analyze-zip-demand-mapping.ts` - Analysis script
 - `ZIP_DEMAND_MAPPING_ANALYSIS.md` - This document
 - `scripts/compute-investment-scores.ts` - Needs update for county fallback
+
+
+

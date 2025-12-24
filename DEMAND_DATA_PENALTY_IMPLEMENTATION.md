@@ -117,3 +117,6 @@ After re-running investment score computation:
 - `scripts/compute-investment-scores.ts` - Main implementation
 - `DEMAND_COVERAGE_FINAL_ANALYSIS.md` - Coverage analysis
 - `DEMAND_COVERAGE_ANALYSIS.md` - Initial analysis
+
+
+

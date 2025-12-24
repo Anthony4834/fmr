@@ -4,14 +4,214 @@
 
 @import 'leaflet/dist/leaflet.css';
 
+/* Prevent flash of unstyled content - hide until theme is applied */
+html:not([data-theme]) {
+  visibility: hidden;
+}
+
+/* Default theme variables (light mode) - applied when no data-theme is set */
+:root {
+  /* Background colors */
+  --bg-primary: #fafafa;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f5f5f5;
+  --bg-hover: #f5f5f5;
+  --bg-content: #fafafa;
+
+  /* Text colors */
+  --text-primary: #0a0a0a;
+  --text-secondary: #525252;
+  --text-tertiary: #737373;
+  --text-muted: #a3a3a3;
+
+  /* Border colors */
+  --border-color: #e5e5e5;
+  --border-secondary: #d4d4d4;
+
+  /* Accent colors */
+  --accent-primary: #f59e0b;
+  --accent-secondary: #f97316;
+  --accent-success: #22c55e;
+  --accent-success-dark: #16a34a;
+
+  /* Special colors */
+  --warning-bg: #fef3c7;
+  --warning-border: #fcd34d;
+  --warning-text: #92400e;
+  --warning-text-secondary: #a16207;
+
+  /* Scrollbar */
+  --scrollbar-thumb: #d4d4d4;
+  --scrollbar-thumb-hover: #a3a3a3;
+
+  /* Map colors */
+  --map-bg: #fafafa;
+  --map-color-low: #fca5a5;
+  --map-color-medium: #44e37e;
+  --map-color-high: #16a34a;
+  --map-stroke-low: #ffffff;
+  --map-stroke-high: #525252;
+  --map-stroke-hover: #0a0a0a;
+
+  /* Badge colors */
+  --badge-safmr-bg: #f0fdf4;
+  --badge-safmr-text: #16a34a;
+  --badge-fmr-bg: #eff6ff;
+  --badge-fmr-text: #2563eb;
+
+  /* Dark section backgrounds */
+  --dark-bg-primary: #0a0a0a;
+  --dark-bg-secondary: #111111;
+  --dark-bg-tertiary: #1a1a1a;
+  --dark-bg-quaternary: #2a2a2a;
+  --dark-text-primary: #ffffff;
+  --dark-text-secondary: rgba(255, 255, 255, 0.8);
+  --dark-text-tertiary: rgba(255, 255, 255, 0.6);
+  --dark-text-muted: rgba(255, 255, 255, 0.5);
+  --dark-border-color: rgba(255, 255, 255, 0.1);
+  --dark-border-secondary: rgba(255, 255, 255, 0.08);
+  --dark-border-tertiary: rgba(255, 255, 255, 0.05);
+}
+
+/* Theme CSS Variables - Light mode (explicit) */
+:root[data-theme='light'] {
+  /* Background colors */
+  --bg-primary: #fafafa;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f5f5f5;
+  --bg-hover: #f5f5f5;
+  --bg-content: #fafafa; /* For investment score and calculation results boxes */
+
+  /* Text colors */
+  --text-primary: #0a0a0a;
+  --text-secondary: #525252;
+  --text-tertiary: #737373;
+  --text-muted: #a3a3a3;
+
+  /* Border colors */
+  --border-color: #e5e5e5;
+  --border-secondary: #d4d4d4;
+
+  /* Accent colors */
+  --accent-primary: #f59e0b;
+  --accent-secondary: #f97316;
+  --accent-success: #22c55e;
+  --accent-success-dark: #16a34a;
+
+  /* Badge colors */
+  --badge-safmr-bg: #f0fdf4;
+  --badge-safmr-text: #16a34a;
+  --badge-fmr-bg: #eff6ff;
+  --badge-fmr-text: #2563eb;
+
+  /* Special colors */
+  --warning-bg: #fef3c7;
+  --warning-border: #fcd34d;
+  --warning-text: #92400e;
+  --warning-text-secondary: #a16207;
+
+  /* Scrollbar */
+  --scrollbar-thumb: #d4d4d4;
+  --scrollbar-thumb-hover: #a3a3a3;
+
+  /* Map colors */
+  --map-bg: #fafafa; /* Map background - light gray for light mode */
+  --map-color-low: #fca5a5; /* Light red: <95 or no data */
+  --map-color-medium: #44e37e; /* Light green: >= 95 and < 130 */
+  --map-color-high: #16a34a; /* Dark green: >= 130 */
+  --map-stroke-low: #ffffff; /* Stroke color for low score regions */
+  --map-stroke-high: #525252; /* Stroke color for high score regions */
+  --map-stroke-hover: #0a0a0a; /* Stroke color on hover */
+
+  /* Dark section backgrounds (for landing pages) */
+  --dark-bg-primary: #0a0a0a;
+  --dark-bg-secondary: #111111;
+  --dark-bg-tertiary: #1a1a1a;
+  --dark-bg-quaternary: #2a2a2a;
+  --dark-text-primary: #ffffff;
+  --dark-text-secondary: rgba(255, 255, 255, 0.8);
+  --dark-text-tertiary: rgba(255, 255, 255, 0.6);
+  --dark-text-muted: rgba(255, 255, 255, 0.5);
+  --dark-border-color: rgba(255, 255, 255, 0.1);
+  --dark-border-secondary: rgba(255, 255, 255, 0.08);
+  --dark-border-tertiary: rgba(255, 255, 255, 0.05);
+}
+
+:root[data-theme='dark'] {
+  /* Background colors */
+  --bg-primary: #0a0a0a;
+  --bg-secondary: #111111;
+  --bg-tertiary: #1a1a1a;
+  --bg-hover: #1a1a1a;
+  --bg-content: #1a1a1a; /* For investment score and calculation results boxes (darker than secondary in dark mode) */
+
+  /* Text colors - using #EDEDED (237,237,237) for reduced contrast */
+  --text-primary: #ededed;
+  --text-secondary: rgba(237, 237, 237, 0.8);
+  --text-tertiary: rgba(237, 237, 237, 0.6);
+  --text-muted: rgba(237, 237, 237, 0.5);
+
+  /* Border colors */
+  --border-color: rgba(237, 237, 237, 0.1);
+  --border-secondary: rgba(237, 237, 237, 0.08);
+
+  /* Accent colors */
+  --accent-primary: #f59e0b;
+  --accent-secondary: #f97316;
+  --accent-success: #22c55e;
+  --accent-success-dark: #16a34a;
+
+  /* Badge colors */
+  --badge-safmr-bg: #14532d;
+  --badge-safmr-text: #4ade80;
+  --badge-fmr-bg: #1e3a8a;
+  --badge-fmr-text: #93c5fd;
+
+  /* Special colors */
+  --warning-bg: rgba(254, 243, 199, 0.2);
+  --warning-border: rgba(252, 211, 77, 0.3);
+  --warning-text: #fbbf24;
+  --warning-text-secondary: #fcd34d;
+
+  /* Scrollbar */
+  --scrollbar-thumb: rgba(237, 237, 237, 0.2);
+  --scrollbar-thumb-hover: rgba(237, 237, 237, 0.3);
+
+  --map-bg: #111111;
+
+  /* Fills (shifted darker / less "neon") */
+  --map-color-low: #cf5b5b;
+  --map-color-medium: #2fb67f;
+  --map-color-high: #136b33;
+
+  /* Strokes */
+  --map-stroke-low: #0a0a0a;    /* subtle, crisp edge */
+  --map-stroke-high: #9aa3ad;   /* cool light-gray outline for darker fills */
+  --map-stroke-hover: #60a5fa;  /* calm blue hover (clean, elegant, visible) */
+  /* Dark section backgrounds (same as primary in dark mode) */
+  --dark-bg-primary: #0a0a0a;
+  --dark-bg-secondary: #111111;
+  --dark-bg-tertiary: #1a1a1a;
+  --dark-bg-quaternary: #2a2a2a;
+  --dark-text-primary: #ededed;
+  --dark-text-secondary: rgba(237, 237, 237, 0.8);
+  --dark-text-tertiary: rgba(237, 237, 237, 0.6);
+  --dark-text-muted: rgba(237, 237, 237, 0.5);
+  --dark-border-color: rgba(237, 237, 237, 0.1);
+  --dark-border-secondary: rgba(237, 237, 237, 0.08);
+  --dark-border-tertiary: rgba(237, 237, 237, 0.05);
+}
+
 @layer base {
   * {
-    @apply border-[#e5e5e5];
+    border-color: var(--border-color);
   }
   
   body {
-    @apply text-[#0a0a0a] bg-[#fafafa];
+    color: var(--text-primary);
+    background-color: var(--bg-primary);
     font-feature-settings: 'rlig' 1, 'calt' 1;
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
 }
 
@@ -32,12 +232,29 @@
   }
   
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #d4d4d4;
+    background: var(--scrollbar-thumb);
     border-radius: 4px;
   }
   
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #a3a3a3;
+    background: var(--scrollbar-thumb-hover);
+  }
+
+  /* Tabular numbers for aligned digits */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 

@@ -104,3 +104,6 @@ After deploying these changes:
 - All changes use `COALESCE(score_with_demand, score)` for backward compatibility
 - If `score_with_demand` is NULL (old data), falls back to `score`
 - After re-running investment score computation, all records will have `score_with_demand`
+
+
+

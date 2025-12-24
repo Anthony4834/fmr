@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState, useEffect, useLayoutEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import SearchInput from './SearchInput';
 import FMRResults from './FMRResults';
 import PercentageBadge from './PercentageBadge';
@@ -11,6 +12,7 @@ import { buildCitySlug, buildCountySlug } from '@/lib/location-slugs';
 import { STATES } from '@/lib/states';
 import IdealPurchasePriceCard from './IdealPurchasePriceCard';
 import InvestorScoreInfoButton from './InvestorScoreInfoButton';
+import ThemeSwitcher from './ThemeSwitcher';
 import NewBadge from './NewBadge';
 import { formatCountyName } from '@/lib/county-utils';
 
@@ -778,22 +780,22 @@ export default function HomeClient(props: {
   };
 
   return (
-    <main className="min-h-screen bg-[#fafafa] antialiased">
+    <main className="min-h-screen bg-[var(--bg-primary)] antialiased">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-8 sm:py-8 md:py-10 lg:py-10">
         {/* Header */}
         <div className="mb-4 sm:mb-6 lg:mb-4 flex-shrink-0">
           <div className="mb-2 sm:mb-3 lg:mb-2 flex items-start justify-between gap-3 flex-wrap">
             <button onClick={handleReset} className="text-left hover:opacity-70 transition-opacity">
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#0a0a0a] mb-1 tracking-tight">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[var(--text-primary)] mb-1 tracking-tight">
                 fmr.fyi
               </h1>
-              <p className="text-xs text-[#737373] font-medium tracking-wide uppercase">Fair Market Rent Data</p>
+              <p className="text-xs text-[var(--text-tertiary)] font-medium tracking-wide uppercase">Fair Market Rent Data</p>
             </button>
             <a
               href="https://chromewebstore.google.com/detail/fmrfyi-%E2%80%93-fair-market-rent/gkemjakehildeolcagbibhmbcddkkflb"
               target="_blank"
               rel="noopener noreferrer"
-              className="group inline-flex items-center gap-2 px-3 py-2 bg-[#0a0a0a] text-white text-xs sm:text-sm font-medium rounded-lg hover:opacity-90 transition-opacity duration-200 flex-shrink-0"
+              className="group inline-flex items-center gap-2 px-3 py-2 bg-[var(--text-primary)] text-[var(--bg-primary)] text-xs sm:text-sm font-medium rounded-lg hover:opacity-90 transition-opacity duration-200 flex-shrink-0"
             >
               <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 0C8.21 0 4.831 1.757 2.632 4.501l3.953 6.848A5.454 5.454 0 0 1 12 6.545h10.691A12 12 0 0 0 12 0zM1.931 5.47A11.943 11.943 0 0 0 0 12c0 6.012 4.42 10.991 10.189 11.864l3.953-6.847a5.45 5.45 0 0 1-6.865-2.29zm13.342 2.166a5.446 5.446 0 0 1 1.45 7.09l.002.001h-.002l-3.953 6.848c.062.002.124.006.187.006 6.627 0 12-5.373 12-12 0-.807-.084-1.594-.236-2.355H15.273zM12 16.364a4.364 4.364 0 1 1 0-8.728 4.364 4.364 0 0 1 0 8.728z"/>
@@ -815,17 +817,20 @@ export default function HomeClient(props: {
             </a>
           </div>
           <div className="flex items-center justify-between gap-4 flex-wrap">
-            <p className="text-sm sm:text-base text-[#525252] max-w-2xl">
+            <p className="text-sm sm:text-base text-[var(--text-secondary)] max-w-2xl">
               Search HUD Fair Market Rent data by address, city, ZIP code, county, or parish
             </p>
+            <div className="flex items-center gap-3">
             <InvestorScoreInfoButton />
+              <ThemeSwitcher />
+            </div>
           </div>
         </div>
 
         <div className="flex flex-col gap-3 sm:gap-4">
           {/* Search Input - Always visible */}
           <div className="flex-shrink-0">
-            <div className="bg-white rounded-lg border border-[#e5e5e5] p-4 sm:p-6">
+            <div className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] p-4 sm:p-6">
               <SearchInput onSelect={handleSearch} />
             </div>
           </div>
@@ -835,7 +840,7 @@ export default function HomeClient(props: {
               {/* Main Results Card */}
               <div
                 ref={mainCardRef}
-                className="flex-1 bg-white rounded-lg border border-[#e5e5e5] p-4 sm:p-6 md:p-8 w-full"
+                className="flex-1 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] p-4 sm:p-6 md:p-8 w-full"
               >
                 <FMRResults
                   data={viewFmrData}
@@ -858,31 +863,33 @@ export default function HomeClient(props: {
               {/* Right Panel - Sticky Container */}
               <div className="w-full lg:w-[420px] flex-shrink-0 lg:sticky lg:top-8 lg:self-start">
                 <div className="flex flex-col gap-3 sm:gap-4">
-                  {/* Ideal Purchase Price Card */}
-                  <div ref={calculatorRef}>
-                    <IdealPurchasePriceCard data={viewFmrData} extensionConfig={parsedExtensionConfig} />
-                  </div>
+                  {/* Ideal Purchase Price Card - only show when ZIP codes list is not showing */}
+                  {!(!drilldownZip && (zipRankings && zipRankings.length > 0 || zipScoresLoading)) && (
+                    <div ref={calculatorRef} className="m-0 p-0">
+                      <IdealPurchasePriceCard data={viewFmrData} extensionConfig={parsedExtensionConfig} />
+                    </div>
+                  )}
 
                   {/* ZIP Code Ranking Card (hide when drilled into a ZIP) */}
                   {!drilldownZip && (zipRankings && zipRankings.length > 0 || zipScoresLoading) && (
-                    <div className="w-full flex-shrink-0 bg-white rounded-lg border border-[#e5e5e5] p-4 sm:p-6 md:p-8 flex flex-col max-h-[calc(100vh-14rem)]">
-                      <div className="mb-4 sm:mb-6 flex-shrink-0">
-                        <h3 className="text-base sm:text-lg font-semibold text-[#0a0a0a] mb-1">ZIP Codes</h3>
-                        <p className="text-xs text-[#737373]">
-                          {viewFmrData?.source === 'safmr' 
+                    <div className="m-0 p-0">
+                      <div className="w-full bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] p-4 sm:p-6 md:p-8">
+                      <div className="mb-4">
+                        <h3 className="text-base sm:text-lg font-semibold text-[var(--text-primary)] mb-1">ZIP Codes</h3>
+                        <p className="text-xs text-[var(--text-tertiary)]">
+                          {viewFmrData?.source === 'safmr'
                             ? 'Ranked by Investment Score (vs area median)'
                             : 'Ranked by average FMR (vs county median)'}
                         </p>
                       </div>
                       {zipScoresLoading ? (
-                        <div className="space-y-1 flex-1 overflow-y-auto custom-scrollbar">
+                        <div className="space-y-1">
                           {[...Array(5)].map((_, i) => (
-                            <div key={i} className="h-12 bg-[#e5e5e5] rounded animate-pulse" />
+                            <div key={i} className="h-12 bg-[var(--border-color)] rounded animate-pulse" />
                           ))}
                         </div>
                       ) : zipRankings && zipRankings.length > 0 ? (
-                        <>
-                          <div className="space-y-1 overflow-y-auto flex-1 min-h-0 pr-2 -mr-2 custom-scrollbar">
+                        <div className="space-y-1 max-h-[400px] overflow-y-auto pr-2 -mr-2 custom-scrollbar">
                             {zipRankings.map((zip, index) => {
                               const isSelected = drilldownZip === zip.zipCode;
                               const isScoreBased = viewFmrData?.source === 'safmr' && zip.score !== undefined;
@@ -897,15 +904,15 @@ export default function HomeClient(props: {
                                   onClick={() => handleZipDrilldown(zip.zipCode)}
                                   className={`w-full flex items-center justify-between py-2 sm:py-2.5 px-2.5 sm:px-3 rounded-md border transition-colors group text-left ${
                                     isSelected
-                                      ? 'bg-[#fafafa] border-[#d4d4d4]'
-                                      : 'border-transparent hover:bg-[#fafafa] hover:border-[#e5e5e5]'
+                                      ? 'bg-[var(--bg-hover)] border-[var(--border-secondary)]'
+                                      : 'border-transparent hover:bg-[var(--bg-hover)] hover:border-[var(--border-color)]'
                                   }`}
                                 >
                                   <div className="flex items-center gap-2 sm:gap-3">
-                                    <span className="text-xs font-medium text-[#737373] w-4 sm:w-5 tabular-nums shrink-0">
+                                    <span className="text-xs font-medium text-[var(--text-tertiary)] w-4 sm:w-5 tabular-nums shrink-0">
                                       {index + 1}
                                     </span>
-                                    <span className="font-medium text-[#0a0a0a] text-sm">{zip.zipCode}</span>
+                                    <span className="font-medium text-[var(--text-primary)] text-sm">{zip.zipCode}</span>
                                   </div>
                                   {isScoreBased && zip.score !== null && zip.score !== undefined ? (
                                     <div className="flex items-center gap-2 shrink-0">
@@ -923,9 +930,9 @@ export default function HomeClient(props: {
                                 </button>
                               );
                             })}
-                          </div>
-                        </>
+                        </div>
                       ) : null}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -943,63 +950,63 @@ export default function HomeClient(props: {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-2 sm:gap-4">
-                    <a
+                    <Link
                       href="/map"
-                      className="bg-white rounded-lg border border-[#e5e5e5] p-5 sm:p-6 flex flex-col hover:border-[#e5e5e5] hover:-translate-y-0.5 hover:shadow-[0_4px_12px_-2px_rgba(0,0,0,0.1)] transition-all duration-200"
+                      className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] p-5 sm:p-6 flex flex-col hover:border-[var(--border-color)] hover:-translate-y-0.5 hover:shadow-[0_4px_12px_-2px_rgba(0,0,0,0.1)] transition-all duration-200"
                     >
-                      <div className="text-xs font-semibold text-[#525252]">Interactive</div>
-                      <h3 className="text-base sm:text-lg font-semibold text-[#0a0a0a] mt-1">Investment Score Map</h3>
-                      <p className="text-sm text-[#737373] mt-2">
+                      <div className="text-xs font-semibold text-[var(--text-secondary)]">Interactive</div>
+                      <h3 className="text-base sm:text-lg font-semibold text-[var(--text-primary)] mt-1">Investment Score Map</h3>
+                      <p className="text-sm text-[var(--text-tertiary)] mt-2">
                         Visualize Investment Scores across the US.
                       </p>
-                      <div className="mt-auto pt-4 text-sm font-medium text-[#0a0a0a]">Open map →</div>
-                    </a>
+                      <div className="mt-auto pt-4 text-sm font-medium text-[var(--text-primary)]">Open map →</div>
+                    </Link>
 
-                    <a
+                    <Link
                       href="/explorer"
-                      className="bg-white rounded-lg border border-[#e5e5e5] p-5 sm:p-6 flex flex-col hover:border-[#e5e5e5] hover:-translate-y-0.5 hover:shadow-[0_4px_12px_-2px_rgba(0,0,0,0.1)] transition-all duration-200"
+                      className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] p-5 sm:p-6 flex flex-col hover:border-[var(--border-color)] hover:-translate-y-0.5 hover:shadow-[0_4px_12px_-2px_rgba(0,0,0,0.1)] transition-all duration-200"
                     >
-                      <div className="text-xs font-semibold text-[#525252]">Rankings</div>
-                      <h3 className="text-base sm:text-lg font-semibold text-[#0a0a0a] mt-1">Market Explorer</h3>
-                      <p className="text-sm text-[#737373] mt-2">
+                      <div className="text-xs font-semibold text-[var(--text-secondary)]">Rankings</div>
+                      <h3 className="text-base sm:text-lg font-semibold text-[var(--text-primary)] mt-1">Market Explorer</h3>
+                      <p className="text-sm text-[var(--text-tertiary)] mt-2">
                         Search states, counties, cities, and ZIPs by Investment Score.
                       </p>
-                      <div className="mt-auto pt-4 text-sm font-medium text-[#0a0a0a]">Browse rankings →</div>
-                    </a>
+                      <div className="mt-auto pt-4 text-sm font-medium text-[var(--text-primary)]">Browse rankings →</div>
+                    </Link>
 
-                    <a
+                    <Link
                       href="/insights"
-                      className="bg-white rounded-lg border border-[#e5e5e5] p-5 sm:p-6 flex flex-col hover:border-[#e5e5e5] hover:-translate-y-0.5 hover:shadow-[0_4px_12px_-2px_rgba(0,0,0,0.1)] transition-all duration-200"
+                      className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] p-5 sm:p-6 flex flex-col hover:border-[var(--border-color)] hover:-translate-y-0.5 hover:shadow-[0_4px_12px_-2px_rgba(0,0,0,0.1)] transition-all duration-200"
                     >
-                      <div className="text-xs font-semibold text-[#525252]">Trends</div>
-                      <h3 className="text-base sm:text-lg font-semibold text-[#0a0a0a] mt-1">Market Intelligence</h3>
-                      <p className="text-sm text-[#737373] mt-2">
+                      <div className="text-xs font-semibold text-[var(--text-secondary)]">Trends</div>
+                      <h3 className="text-base sm:text-lg font-semibold text-[var(--text-primary)] mt-1">Market Intelligence</h3>
+                      <p className="text-sm text-[var(--text-tertiary)] mt-2">
                         Find markets with noteworthy outliers.
                       </p>
-                      <div className="mt-auto pt-4 text-sm font-medium text-[#0a0a0a]">View insights →</div>
-                    </a>
+                      <div className="mt-auto pt-4 text-sm font-medium text-[var(--text-primary)]">View insights →</div>
+                    </Link>
                   </div>
                 </section>
 
                 {/* Snapshot + context */}
                 <section>
-                  <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col">
-                    <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex items-start justify-between gap-3">
+                  <div className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] overflow-hidden flex flex-col">
+                    <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[var(--border-color)] bg-[var(--bg-tertiary)] flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a] mb-0.5">
+                        <h3 className="text-xs sm:text-sm font-semibold text-[var(--text-primary)] mb-0.5">
                           Top markets by Investment Score
                         </h3>
-                        <p className="text-xs text-[#737373]">{indexedText}</p>
+                        <p className="text-xs text-[var(--text-tertiary)]">{indexedText}</p>
                       </div>
-                      <a
+                      <Link
                         href={`/explorer?geoTab=${marketPreviewType}`}
-                        className="text-xs font-semibold text-[#0a0a0a] hover:opacity-70 whitespace-nowrap"
+                        className="text-xs font-semibold text-[var(--text-primary)] hover:opacity-70 whitespace-nowrap"
                       >
                         View all →
-                      </a>
+                      </Link>
                     </div>
 
-                    <div className="px-3 sm:px-4 py-2 border-b border-[#e5e5e5] bg-white">
+                    <div className="px-3 sm:px-4 py-2 border-b border-[var(--border-color)] bg-[var(--bg-secondary)]">
                       <div ref={tabBarRef} className="relative flex gap-1 overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-0">
                         {(['state', 'county', 'city', 'zip'] as MarketPreviewType[]).map((t, index) => {
                           const active = marketPreviewType === t;
@@ -1014,8 +1021,8 @@ export default function HomeClient(props: {
                               onClick={() => setMarketPreviewType(t)}
                               className={`px-3 py-1.5 text-xs font-medium rounded transition-colors whitespace-nowrap relative ${
                                 active
-                                  ? 'text-[#0a0a0a]'
-                                  : 'text-[#737373] hover:text-[#0a0a0a]'
+                                  ? 'text-[var(--text-primary)]'
+                                  : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
                               }`}
                             >
                               {label}
@@ -1024,7 +1031,7 @@ export default function HomeClient(props: {
                         })}
                         {/* Animated bottom bar */}
                         <div
-                          className="absolute bottom-0 h-0.5 bg-[#0a0a0a] transition-all duration-300 ease-out"
+                          className="absolute bottom-0 h-0.5 bg-[var(--text-primary)] transition-all duration-300 ease-out"
                           style={{
                             left: `${tabBarStyle.left}px`,
                             width: `${tabBarStyle.width}px`,
@@ -1033,32 +1040,32 @@ export default function HomeClient(props: {
                       </div>
                     </div>
 
-                    <div className="divide-y divide-[#e5e5e5]">
+                    <div className="divide-y divide-[var(--border-color)]">
                       {marketPreviewStatus === 'loading' && (
                         [...Array(8)].map((_, i) => (
                           <div key={i} className="px-3 sm:px-4 py-2 sm:py-2.5">
                             <div className="flex items-start justify-between gap-2 sm:gap-3">
                               <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
-                                <div className="h-3 bg-[#e5e5e5] rounded w-4 shrink-0 animate-pulse"></div>
+                                <div className="h-3 bg-[var(--border-color)] rounded w-4 shrink-0 animate-pulse"></div>
                                 <div className="min-w-0 flex-1">
-                                  <div className="h-3.5 sm:h-4 bg-[#e5e5e5] rounded w-28 sm:w-36 mb-1 sm:mb-1.5 animate-pulse"></div>
-                                  <div className="h-3 bg-[#e5e5e5] rounded w-24 sm:w-32 animate-pulse"></div>
+                                  <div className="h-3.5 sm:h-4 bg-[var(--border-color)] rounded w-28 sm:w-36 mb-1 sm:mb-1.5 animate-pulse"></div>
+                                  <div className="h-3 bg-[var(--border-color)] rounded w-24 sm:w-32 animate-pulse"></div>
                                 </div>
                               </div>
-                              <div className="h-3.5 sm:h-4 bg-[#e5e5e5] rounded w-12 sm:w-16 ml-auto animate-pulse"></div>
+                              <div className="h-3.5 sm:h-4 bg-[var(--border-color)] rounded w-12 sm:w-16 ml-auto animate-pulse"></div>
                             </div>
                           </div>
                         ))
                       )}
 
                       {marketPreviewStatus === 'error' && (
-                        <div className="px-3 sm:px-4 py-3 text-xs text-[#991b1b]">
+                        <div className="px-3 sm:px-4 py-3 text-xs text-red-600 dark:text-red-400">
                           {marketPreviewError || 'Failed to load market snapshot.'}
                         </div>
                       )}
 
                       {marketPreviewStatus === 'success' && marketPreviewItems.length === 0 && (
-                        <div className="px-3 sm:px-4 py-6 text-xs text-[#737373]">
+                        <div className="px-3 sm:px-4 py-6 text-xs text-[var(--text-tertiary)]">
                           No results available.
                         </div>
                       )}
@@ -1071,49 +1078,60 @@ export default function HomeClient(props: {
                           const scoreColor = getTextColorForScore(item.medianScore);
                           const key = `${marketPreviewType}:${item.stateCode || ''}:${item.countyName || ''}:${item.cityName || ''}:${item.zipCode || ''}:${index}`;
 
-                          return (
-                            <a
-                              key={key}
-                              href={href || undefined}
-                              className="block px-3 sm:px-4 py-2 sm:py-2.5 hover:bg-[#fafafa] transition-colors"
-                            >
-                              <div className="flex items-start justify-between gap-2 sm:gap-3">
-                                <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
-                                  <span className="text-xs text-[#a3a3a3] font-medium shrink-0 tabular-nums">
-                                    #{item.rank || index + 1}
-                                  </span>
-                                  <div className="min-w-0">
-                                    <div className="font-medium text-[#0a0a0a] text-xs sm:text-sm truncate">
-                                      {label}
-                                    </div>
-                                    {!!sub && (
-                                      <div className="text-xs text-[#737373] truncate mt-0.5">
-                                        {sub}
-                                      </div>
-                                    )}
-                                    {item.zipCount > 1 && (
-                                      <div className="text-xs text-[#a3a3a3] mt-0.5">
-                                        {item.zipCount} ZIPs
-                                      </div>
-                                    )}
+                          const content = (
+                            <div className="flex items-start justify-between gap-2 sm:gap-3">
+                              <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
+                                <span className="text-xs text-[var(--text-muted)] font-medium shrink-0 tabular-nums">
+                                  #{item.rank || index + 1}
+                                </span>
+                                <div className="min-w-0">
+                                  <div className="font-medium text-[var(--text-primary)] text-xs sm:text-sm truncate">
+                                    {label}
                                   </div>
-                                </div>
-                                <div className="text-right shrink-0">
-                                  {item.medianScore !== null ? (
-                                    <div
-                                      className="font-semibold text-xs sm:text-sm tabular-nums"
-                                      style={{ color: scoreColor }}
-                                    >
-                                      {Math.round(item.medianScore)}
+                                  {!!sub && (
+                                    <div className="text-xs text-[var(--text-tertiary)] truncate mt-0.5">
+                                      {sub}
                                     </div>
-                                  ) : (
-                                    <div className="font-semibold text-[#737373] text-xs sm:text-sm tabular-nums">
-                                      —
+                                  )}
+                                  {item.zipCount > 1 && (
+                                    <div className="text-xs text-[var(--text-muted)] mt-0.5">
+                                      {item.zipCount} ZIPs
                                     </div>
                                   )}
                                 </div>
                               </div>
-                            </a>
+                              <div className="text-right shrink-0">
+                                {item.medianScore !== null ? (
+                                  <div
+                                    className="font-semibold text-xs sm:text-sm tabular-nums"
+                                    style={{ color: scoreColor }}
+                                  >
+                                    {Math.round(item.medianScore)}
+                                  </div>
+                                ) : (
+                                  <div className="font-semibold text-[var(--text-tertiary)] text-xs sm:text-sm tabular-nums">
+                                    —
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+
+                          return href ? (
+                            <Link
+                              key={key}
+                              href={href}
+                              className="block px-3 sm:px-4 py-2 sm:py-2.5 hover:bg-[var(--bg-hover)] transition-colors"
+                            >
+                              {content}
+                            </Link>
+                          ) : (
+                            <div
+                              key={key}
+                              className="block px-3 sm:px-4 py-2 sm:py-2.5"
+                            >
+                              {content}
+                            </div>
                           );
                         })
                       )}
@@ -1132,17 +1150,17 @@ export default function HomeClient(props: {
           </div>
         )}
 
-        <div className="mt-6 sm:mt-8 lg:mt-4 pt-3 sm:pt-4 lg:pt-3 border-t border-[#e5e5e5] flex-shrink-0">
+        <div className="mt-6 sm:mt-8 lg:mt-4 pt-3 sm:pt-4 lg:pt-3 border-t border-[var(--border-color)] flex-shrink-0">
           <div className="mb-2 sm:mb-3 lg:mb-2">
-            <p className="text-xs font-medium text-[#0a0a0a] mb-0.5">fmr.fyi</p>
-            <p className="text-xs text-[#737373]">Fair Market Rent data made simple</p>
+            <p className="text-xs font-medium text-[var(--text-primary)] mb-0.5">fmr.fyi</p>
+            <p className="text-xs text-[var(--text-tertiary)]">Fair Market Rent data made simple</p>
           </div>
           <div className="space-y-1 sm:space-y-1.5">
-            <p className="text-xs text-[#737373]">
+            <p className="text-xs text-[var(--text-tertiary)]">
               Data source:{' '}
-              <span className="text-[#525252] font-medium">U.S. Department of Housing and Urban Development (HUD)</span>
+              <span className="text-[var(--text-secondary)] font-medium">U.S. Department of Housing and Urban Development (HUD)</span>
             </p>
-            <p className="text-xs text-[#a3a3a3]">Fiscal Year 2026 • Updated October 2025</p>
+            <p className="text-xs text-[var(--text-muted)]">Fiscal Year 2026 • Updated October 2025</p>
           </div>
         </div>
       </div>

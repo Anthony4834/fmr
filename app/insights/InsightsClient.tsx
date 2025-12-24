@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import PercentageBadge from '@/app/components/PercentageBadge';
 import InvestorScoreInfoButton from '@/app/components/InvestorScoreInfoButton';
+import ThemeSwitcher from '@/app/components/ThemeSwitcher';
 import SearchInput from '@/app/components/SearchInput';
 import { buildCitySlug, buildCountySlug } from '@/lib/location-slugs';
 
@@ -380,7 +381,7 @@ export default function InsightsClient() {
   };
 
   return (
-    <main className="min-h-screen bg-[#fafafa]">
+    <main className="min-h-screen bg-[var(--bg-primary)]">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
@@ -390,33 +391,36 @@ export default function InsightsClient() {
         <div className="mb-4 sm:mb-6 lg:mb-4">
           <div className="mb-2 sm:mb-3 lg:mb-2">
             <a href="/" className="block hover:opacity-70 transition-opacity">
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#0a0a0a] mb-1 tracking-tight">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[var(--text-primary)] mb-1 tracking-tight">
                 fmr.fyi
               </h1>
-              <p className="text-xs text-[#737373] font-medium tracking-wide uppercase">Fair Market Rent Data</p>
+              <p className="text-xs text-[var(--text-tertiary)] font-medium tracking-wide uppercase">Fair Market Rent Data</p>
             </a>
           </div>
           <div className="flex items-center justify-between gap-4 flex-wrap">
-            <p className="text-sm sm:text-base text-[#525252] max-w-2xl">
+            <p className="text-sm sm:text-base text-[var(--text-secondary)] max-w-2xl">
               Search HUD Fair Market Rent data by address, city, ZIP code, county, or parish
             </p>
-            <InvestorScoreInfoButton />
+            <div className="flex items-center gap-3">
+              <InvestorScoreInfoButton />
+              <ThemeSwitcher />
+            </div>
           </div>
         </div>
 
         <div className="flex flex-col gap-2 sm:gap-3">
           {/* Main search (same as homepage) */}
-          <div className="bg-white rounded-lg border border-[#e5e5e5] p-4 sm:p-6">
+          <div className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] p-4 sm:p-6">
             <SearchInput onSelect={handleSearch} />
           </div>
 
           {/* Breadcrumbs */}
-          <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-[#737373] flex-wrap">
-            <a href="/" className="hover:text-[#0a0a0a] transition-colors">
+          <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-[var(--text-tertiary)] flex-wrap">
+            <a href="/" className="hover:text-[var(--text-primary)] transition-colors">
               Home
             </a>
-            <span className="text-[#a3a3a3]">/</span>
-            <span aria-current="page" className="text-[#0a0a0a] font-medium">
+            <span className="text-[var(--text-muted)]">/</span>
+            <span aria-current="page" className="text-[var(--text-primary)] font-medium">
               Insights
             </span>
           </nav>
@@ -424,20 +428,20 @@ export default function InsightsClient() {
           <h2 className="sr-only">Market Intelligence</h2>
 
           {/* Type Tabs */}
-          <div className="flex gap-0.5 sm:gap-1 border-b border-[#e5e5e5] mb-2 overflow-x-auto">
+          <div className="flex gap-0.5 sm:gap-1 border-b border-[var(--border-color)] mb-2 overflow-x-auto">
           {(['zip', 'city', 'county'] as GeoType[]).map((type) => (
             <button
               key={type}
               onClick={() => setActiveType(type)}
               className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium transition-colors relative whitespace-nowrap shrink-0 ${
                 activeType === type
-                  ? 'text-[#0a0a0a]'
-                  : 'text-[#737373] hover:text-[#0a0a0a]'
+                  ? 'text-[var(--text-primary)]'
+                  : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
               }`}
             >
               {getTabLabel(type)}
               {activeType === type && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#0a0a0a]"></span>
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--text-primary)]"></span>
               )}
             </button>
           ))}
@@ -446,11 +450,11 @@ export default function InsightsClient() {
           {/* Filters */}
           <div className="mb-3 flex flex-wrap items-center gap-2 sm:gap-3">
           <div className="flex items-center gap-2">
-            <div className="text-xs font-semibold text-[#525252]">State</div>
+            <div className="text-xs font-semibold text-[var(--text-secondary)]">State</div>
             <select
               value={stateFilter}
               onChange={(e) => setStateFilter(e.target.value)}
-              className="h-8 px-2.5 rounded-md border border-[#e5e5e5] bg-white text-xs text-[#0a0a0a] focus:outline-none focus:ring-2 focus:ring-[#0a0a0a] focus:border-transparent"
+              className="h-8 px-2.5 rounded-md border border-[var(--border-color)] bg-[var(--bg-secondary)] text-xs text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--text-primary)] focus:border-transparent"
             >
               <option value="">All</option>
               {STATE_OPTIONS.map((s) => (
@@ -460,11 +464,11 @@ export default function InsightsClient() {
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="text-xs font-semibold text-[#525252]">BR</div>
+            <div className="text-xs font-semibold text-[var(--text-secondary)]">BR</div>
             <select
               value={bedroomFilter === null ? '' : String(bedroomFilter)}
               onChange={(e) => setBedroomFilter(e.target.value === '' ? null : parseInt(e.target.value, 10))}
-              className="h-8 px-2.5 rounded-md border border-[#e5e5e5] bg-white text-xs text-[#0a0a0a] focus:outline-none focus:ring-2 focus:ring-[#0a0a0a] focus:border-transparent"
+              className="h-8 px-2.5 rounded-md border border-[var(--border-color)] bg-[var(--bg-secondary)] text-xs text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--text-primary)] focus:border-transparent"
             >
               <option value="">All</option>
               <option value="0">0</option>
@@ -478,7 +482,7 @@ export default function InsightsClient() {
 
           {/* Non-blocking error banner */}
           {error && !showHardError && (
-            <div className="-mt-2 rounded-md border border-[#fecaca] bg-[#fef2f2] px-3 py-2 text-xs text-[#991b1b]">
+            <div className="-mt-2 rounded-md border border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950 px-3 py-2 text-xs text-red-600 dark:text-red-400">
               Failed to load insights data{error ? `: ${error}` : ''}.
             </div>
           )}
@@ -494,29 +498,29 @@ export default function InsightsClient() {
               ].map((header, i) => (
                 <div
                   key={i}
-                  className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col flex-1 min-h-0"
+                  className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] overflow-hidden flex flex-col flex-1 min-h-0"
                 >
-                  <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa]">
+                  <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[var(--border-color)] bg-[var(--bg-tertiary)]">
                     <div className="flex items-center justify-between gap-2">
-                      <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a] mb-0.5">{header.title}</h3>
-                      <div className="h-3.5 w-3.5 sm:h-4 sm:w-4 rounded-full border-2 border-[#d4d4d4] border-t-transparent animate-spin shrink-0" />
+                      <h3 className="text-xs sm:text-sm font-semibold text-[var(--text-primary)] mb-0.5">{header.title}</h3>
+                      <div className="h-3.5 w-3.5 sm:h-4 sm:w-4 rounded-full border-2 border-[var(--border-secondary)] border-t-transparent animate-spin shrink-0" />
                     </div>
-                    <p className="text-xs text-[#737373]">{header.subtitle}</p>
+                    <p className="text-xs text-[var(--text-tertiary)]">{header.subtitle}</p>
                   </div>
-                  <div className="divide-y divide-[#e5e5e5]">
+                  <div className="divide-y divide-[var(--border-color)]">
                     {[...Array(8)].map((_, j) => (
                       <div key={j} className="px-3 sm:px-4 py-2 sm:py-2.5">
                         <div className="flex items-start justify-between gap-2 sm:gap-3">
                           <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
-                            <div className="h-3 bg-[#e5e5e5] rounded w-4 shrink-0 animate-pulse"></div>
+                            <div className="h-3 bg-[var(--border-color)] rounded w-4 shrink-0 animate-pulse"></div>
                             <div className="min-w-0 flex-1">
-                              <div className="h-3.5 sm:h-4 bg-[#e5e5e5] rounded w-28 sm:w-36 mb-1 sm:mb-1.5 animate-pulse"></div>
-                              <div className="h-3 bg-[#e5e5e5] rounded w-24 sm:w-32 animate-pulse"></div>
+                              <div className="h-3.5 sm:h-4 bg-[var(--border-color)] rounded w-28 sm:w-36 mb-1 sm:mb-1.5 animate-pulse"></div>
+                              <div className="h-3 bg-[var(--border-color)] rounded w-24 sm:w-32 animate-pulse"></div>
                             </div>
                           </div>
                           <div className="text-right shrink-0">
-                            <div className="h-3.5 sm:h-4 bg-[#e5e5e5] rounded w-12 sm:w-16 ml-auto mb-1 animate-pulse"></div>
-                            <div className="h-3 bg-[#e5e5e5] rounded w-16 sm:w-20 ml-auto animate-pulse"></div>
+                            <div className="h-3.5 sm:h-4 bg-[var(--border-color)] rounded w-12 sm:w-16 ml-auto mb-1 animate-pulse"></div>
+                            <div className="h-3 bg-[var(--border-color)] rounded w-16 sm:w-20 ml-auto animate-pulse"></div>
                           </div>
                         </div>
                       </div>
@@ -527,27 +531,27 @@ export default function InsightsClient() {
             </div>
 
             {/* Right Column Skeleton */}
-            <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col h-full min-h-0">
-              <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa]">
+            <div className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] overflow-hidden flex flex-col h-full min-h-0">
+              <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[var(--border-color)] bg-[var(--bg-tertiary)]">
                 <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a]">Movers</h3>
-                  <div className="h-3.5 w-3.5 sm:h-4 sm:w-4 rounded-full border-2 border-[#d4d4d4] border-t-transparent animate-spin shrink-0" />
+                  <h3 className="text-xs sm:text-sm font-semibold text-[var(--text-primary)]">Movers</h3>
+                  <div className="h-3.5 w-3.5 sm:h-4 sm:w-4 rounded-full border-2 border-[var(--border-secondary)] border-t-transparent animate-spin shrink-0" />
                 </div>
               </div>
-              <div className="divide-y divide-[#e5e5e5] overflow-hidden flex-1 min-h-0">
+              <div className="divide-y divide-[var(--border-color)] overflow-hidden flex-1 min-h-0">
                 {[...Array(8)].map((_, j) => (
                   <div key={j} className="px-3 sm:px-4 py-2 sm:py-2.5">
                     <div className="flex items-start justify-between gap-2 sm:gap-3">
                       <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
-                        <div className="h-3 bg-[#e5e5e5] rounded w-4 shrink-0 animate-pulse"></div>
+                        <div className="h-3 bg-[var(--border-color)] rounded w-4 shrink-0 animate-pulse"></div>
                         <div className="min-w-0 flex-1">
-                          <div className="h-3.5 sm:h-4 bg-[#e5e5e5] rounded w-28 sm:w-36 mb-1 sm:mb-1.5 animate-pulse"></div>
-                          <div className="h-3 bg-[#e5e5e5] rounded w-24 sm:w-32 animate-pulse"></div>
+                          <div className="h-3.5 sm:h-4 bg-[var(--border-color)] rounded w-28 sm:w-36 mb-1 sm:mb-1.5 animate-pulse"></div>
+                          <div className="h-3 bg-[var(--border-color)] rounded w-24 sm:w-32 animate-pulse"></div>
                         </div>
                       </div>
                       <div className="text-right shrink-0">
-                        <div className="h-3.5 sm:h-4 bg-[#e5e5e5] rounded w-12 sm:w-16 ml-auto mb-1 animate-pulse"></div>
-                        <div className="h-3 bg-[#e5e5e5] rounded w-16 sm:w-20 ml-auto animate-pulse"></div>
+                        <div className="h-3.5 sm:h-4 bg-[var(--border-color)] rounded w-12 sm:w-16 ml-auto mb-1 animate-pulse"></div>
+                        <div className="h-3 bg-[var(--border-color)] rounded w-16 sm:w-20 ml-auto animate-pulse"></div>
                       </div>
                     </div>
                   </div>
@@ -568,13 +572,13 @@ export default function InsightsClient() {
               ].map((header, i) => (
                 <div
                   key={i}
-                  className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col flex-1 min-h-0"
+                  className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] overflow-hidden flex flex-col flex-1 min-h-0"
                 >
-                  <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa]">
-                    <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a] mb-0.5">{header.title}</h3>
-                    <p className="text-xs text-[#737373]">{header.subtitle}</p>
+                  <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[var(--border-color)] bg-[var(--bg-tertiary)]">
+                    <h3 className="text-xs sm:text-sm font-semibold text-[var(--text-primary)] mb-0.5">{header.title}</h3>
+                    <p className="text-xs text-[var(--text-tertiary)]">{header.subtitle}</p>
                   </div>
-                  <div className="flex-1 flex flex-col items-center justify-center text-xs sm:text-sm text-[#737373] gap-2 sm:gap-3 py-6 sm:py-8">
+                  <div className="flex-1 flex flex-col items-center justify-center text-xs sm:text-sm text-[var(--text-tertiary)] gap-2 sm:gap-3 py-6 sm:py-8">
                     <div>Failed to load</div>
                     <button
                       type="button"
@@ -583,7 +587,7 @@ export default function InsightsClient() {
                         cacheRef.current = {};
                         setRefreshNonce((n) => n + 1);
                       }}
-                      className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md border border-[#e5e5e5] bg-white text-[#0a0a0a] text-xs font-medium hover:bg-[#fafafa]"
+                      className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-xs font-medium hover:bg-[var(--bg-hover)]"
                     >
                       Retry
                     </button>
@@ -593,11 +597,11 @@ export default function InsightsClient() {
             </div>
 
             {/* Right Column Error */}
-            <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col h-full min-h-0">
-              <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa]">
-                <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a]">Movers</h3>
+            <div className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] overflow-hidden flex flex-col h-full min-h-0">
+              <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[var(--border-color)] bg-[var(--bg-tertiary)]">
+                <h3 className="text-xs sm:text-sm font-semibold text-[var(--text-primary)]">Movers</h3>
               </div>
-              <div className="flex-1 flex flex-col items-center justify-center text-xs sm:text-sm text-[#737373] gap-2 sm:gap-3 py-6 sm:py-8">
+              <div className="flex-1 flex flex-col items-center justify-center text-xs sm:text-sm text-[var(--text-tertiary)] gap-2 sm:gap-3 py-6 sm:py-8">
                 <div>Failed to load</div>
                 <button
                   type="button"
@@ -606,7 +610,7 @@ export default function InsightsClient() {
                     cacheRef.current = {};
                     setRefreshNonce((n) => n + 1);
                   }}
-                  className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md border border-[#e5e5e5] bg-white text-[#0a0a0a] text-xs font-medium hover:bg-[#fafafa]"
+                  className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-xs font-medium hover:bg-[var(--bg-hover)]"
                 >
                   Retry
                 </button>
@@ -621,12 +625,12 @@ export default function InsightsClient() {
             {/* Left Column: Most Expensive + Most Affordable stacked */}
             <div className="flex flex-col gap-4 h-full min-h-0">
               {/* Most Expensive */}
-              <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col flex-1 min-h-0">
-                <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa]">
-                  <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a] mb-0.5">Most Expensive</h3>
-                  <p className="text-xs text-[#737373]">Top 15 by avg FMR</p>
+              <div className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] overflow-hidden flex flex-col flex-1 min-h-0">
+                <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[var(--border-color)] bg-[var(--bg-tertiary)]">
+                  <h3 className="text-xs sm:text-sm font-semibold text-[var(--text-primary)] mb-0.5">Most Expensive</h3>
+                  <p className="text-xs text-[var(--text-tertiary)]">Top 15 by avg FMR</p>
                 </div>
-                <div className="divide-y divide-[#e5e5e5] overflow-y-auto flex-1 min-h-0 custom-scrollbar">
+                <div className="divide-y divide-[var(--border-color)] overflow-y-auto flex-1 min-h-0 custom-scrollbar">
                   {topItems.slice(0, 15).map((item, index) => {
                     const location = formatLocation(item);
                     const href = hrefForInsight(item);
@@ -634,29 +638,29 @@ export default function InsightsClient() {
                       <a
                         key={`${activeType}:${item.zipCode || item.cityName || item.areaName}:${index}`}
                         href={href || undefined}
-                        className="block px-3 sm:px-4 py-1.5 sm:py-2 hover:bg-[#fafafa] transition-colors"
+                        className="block px-3 sm:px-4 py-1.5 sm:py-2 hover:bg-[var(--bg-hover)] transition-colors"
                       >
                         <div className="flex items-start justify-between gap-2 sm:gap-3">
                           <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
-                            <span className="text-xs text-[#a3a3a3] font-medium shrink-0 tabular-nums">#{index + 1}</span>
+                            <span className="text-xs text-[var(--text-muted)] font-medium shrink-0 tabular-nums">#{index + 1}</span>
                             <div className="min-w-0">
-                              <div className="font-medium text-[#0a0a0a] text-xs sm:text-sm truncate">{getItemLabel(item)}</div>
+                              <div className="font-medium text-[var(--text-primary)] text-xs sm:text-sm truncate">{getItemLabel(item)}</div>
                               {location && (
-                                <div className="text-xs text-[#737373] truncate mt-0.5">{location}</div>
+                                <div className="text-xs text-[var(--text-tertiary)] truncate mt-0.5">{location}</div>
                               )}
                               {item.zipCount && (
-                                <div className="text-xs text-[#a3a3a3] mt-0.5">{item.zipCount} ZIPs</div>
+                                <div className="text-xs text-[var(--text-muted)] mt-0.5">{item.zipCount} ZIPs</div>
                               )}
                             </div>
                           </div>
                           <div className="text-right shrink-0">
                             {item.rentPerBedroom2BR ? (
-                              <div className="font-semibold text-[#0a0a0a] text-xs sm:text-sm tabular-nums">${item.rentPerBedroom2BR.toFixed(0)}/br</div>
+                              <div className="font-semibold text-[var(--text-primary)] text-xs sm:text-sm tabular-nums">${item.rentPerBedroom2BR.toFixed(0)}/br</div>
                             ) : (
-                              <div className="font-semibold text-[#0a0a0a] text-xs sm:text-sm tabular-nums">2BR: {formatCurrency(item.bedroom2 || 0)}</div>
+                              <div className="font-semibold text-[var(--text-primary)] text-xs sm:text-sm tabular-nums">2BR: {formatCurrency(item.bedroom2 || 0)}</div>
                             )}
                             {item.bedroom0 && item.bedroom4 && (
-                              <div className="text-xs text-[#737373] mt-0.5 tabular-nums">
+                              <div className="text-xs text-[var(--text-tertiary)] mt-0.5 tabular-nums">
                                 {formatCurrency(item.bedroom0)} - {formatCurrency(item.bedroom4)}
                               </div>
                             )}
@@ -669,12 +673,12 @@ export default function InsightsClient() {
               </div>
 
               {/* Most Affordable */}
-              <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col flex-1 min-h-0">
-                <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa]">
-                  <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a] mb-0.5">Most Affordable</h3>
-                  <p className="text-xs text-[#737373]">Top 15 by avg FMR</p>
+              <div className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] overflow-hidden flex flex-col flex-1 min-h-0">
+                <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[var(--border-color)] bg-[var(--bg-tertiary)]">
+                  <h3 className="text-xs sm:text-sm font-semibold text-[var(--text-primary)] mb-0.5">Most Affordable</h3>
+                  <p className="text-xs text-[var(--text-tertiary)]">Top 15 by avg FMR</p>
                 </div>
-                <div className="divide-y divide-[#e5e5e5] overflow-y-auto flex-1 min-h-0 custom-scrollbar">
+                <div className="divide-y divide-[var(--border-color)] overflow-y-auto flex-1 min-h-0 custom-scrollbar">
                   {bottomItems.slice(0, 15).map((item, index) => {
                     const location = formatLocation(item);
                     const href = hrefForInsight(item);
@@ -682,29 +686,29 @@ export default function InsightsClient() {
                       <a
                         key={`${activeType}:${item.zipCode || item.cityName || item.areaName}:${index}`}
                         href={href || undefined}
-                        className="block px-3 sm:px-4 py-1.5 sm:py-2 hover:bg-[#fafafa] transition-colors"
+                        className="block px-3 sm:px-4 py-1.5 sm:py-2 hover:bg-[var(--bg-hover)] transition-colors"
                       >
                         <div className="flex items-start justify-between gap-2 sm:gap-3">
                           <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
-                            <span className="text-xs text-[#a3a3a3] font-medium shrink-0 tabular-nums">#{index + 1}</span>
+                            <span className="text-xs text-[var(--text-muted)] font-medium shrink-0 tabular-nums">#{index + 1}</span>
                             <div className="min-w-0">
-                              <div className="font-medium text-[#0a0a0a] text-xs sm:text-sm truncate">{getItemLabel(item)}</div>
+                              <div className="font-medium text-[var(--text-primary)] text-xs sm:text-sm truncate">{getItemLabel(item)}</div>
                               {location && (
-                                <div className="text-xs text-[#737373] truncate mt-0.5">{location}</div>
+                                <div className="text-xs text-[var(--text-tertiary)] truncate mt-0.5">{location}</div>
                               )}
                               {item.zipCount && (
-                                <div className="text-xs text-[#a3a3a3] mt-0.5">{item.zipCount} ZIPs</div>
+                                <div className="text-xs text-[var(--text-muted)] mt-0.5">{item.zipCount} ZIPs</div>
                               )}
                             </div>
                           </div>
                           <div className="text-right shrink-0">
                             {item.rentPerBedroom2BR ? (
-                              <div className="font-semibold text-[#0a0a0a] text-xs sm:text-sm tabular-nums">${item.rentPerBedroom2BR.toFixed(0)}/br</div>
+                              <div className="font-semibold text-[var(--text-primary)] text-xs sm:text-sm tabular-nums">${item.rentPerBedroom2BR.toFixed(0)}/br</div>
                             ) : (
-                              <div className="font-semibold text-[#0a0a0a] text-xs sm:text-sm tabular-nums">2BR: {formatCurrency(item.bedroom2 || 0)}</div>
+                              <div className="font-semibold text-[var(--text-primary)] text-xs sm:text-sm tabular-nums">2BR: {formatCurrency(item.bedroom2 || 0)}</div>
                             )}
                             {item.bedroom0 && item.bedroom4 && (
-                              <div className="text-xs text-[#737373] mt-0.5 tabular-nums">
+                              <div className="text-xs text-[var(--text-tertiary)] mt-0.5 tabular-nums">
                                 {formatCurrency(item.bedroom0)} - {formatCurrency(item.bedroom4)}
                               </div>
                             )}
@@ -718,10 +722,10 @@ export default function InsightsClient() {
             </div>
 
             {/* Right Column: Movers (full height) */}
-            <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col h-full min-h-0">
-              <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa]">
+            <div className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] overflow-hidden flex flex-col h-full min-h-0">
+              <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[var(--border-color)] bg-[var(--bg-tertiary)]">
                 <div className="flex items-center justify-between gap-2 mb-1.5">
-                  <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a]">Movers</h3>
+                  <h3 className="text-xs sm:text-sm font-semibold text-[var(--text-primary)]">Movers</h3>
                   <div className="flex gap-1">
                     {['rising', 'falling', 'jumps'].map((tab) => (
                       <button
@@ -730,8 +734,8 @@ export default function InsightsClient() {
                         onClick={() => setSideTab(tab as 'rising' | 'falling' | 'jumps')}
                         className={`px-2 py-1 rounded-md text-xs font-semibold border transition-colors ${
                           sideTab === tab
-                            ? 'bg-white border-[#d4d4d4] text-[#0a0a0a]'
-                            : 'bg-[#fafafa] border-[#e5e5e5] text-[#737373] hover:text-[#0a0a0a]'
+                            ? 'bg-[var(--bg-secondary)] border-[var(--border-secondary)] text-[var(--text-primary)]'
+                            : 'bg-[var(--bg-tertiary)] border-[var(--border-color)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
                         }`}
                       >
                         {tab === 'jumps' ? 'Jumps' : tab === 'rising' ? 'Rising' : 'Falling'}
@@ -739,11 +743,11 @@ export default function InsightsClient() {
                     ))}
                   </div>
                 </div>
-                <p className="text-xs text-[#737373]">
+                <p className="text-xs text-[var(--text-tertiary)]">
                   {sideTab === 'jumps' ? 'Top 20 per BR price jumps' : sideTab === 'rising' ? 'Top 20 highest YoY increases' : 'Top 20 highest YoY decreases'}
                 </p>
               </div>
-              <div className="divide-y divide-[#e5e5e5] overflow-y-auto flex-1 min-h-0 custom-scrollbar">
+              <div className="divide-y divide-[var(--border-color)] overflow-y-auto flex-1 min-h-0 custom-scrollbar">
                 {sideTab === 'jumps' && filteredAnomalies && filteredAnomalies.length > 0 ? (
                   filteredAnomalies.slice(0, 20).map((anomaly, index) => {
                     const getBedroomValue = (size: number) => {
@@ -770,32 +774,32 @@ export default function InsightsClient() {
                       <a
                         key={`${activeType}:${anomaly.zipCode || anomaly.cityName || anomaly.areaName}:${index}`}
                         href={href || undefined}
-                        className="block px-3 sm:px-4 py-1.5 sm:py-2 hover:bg-[#fafafa] transition-colors"
+                        className="block px-3 sm:px-4 py-1.5 sm:py-2 hover:bg-[var(--bg-hover)] transition-colors"
                       >
                         <div className="flex items-start justify-between gap-2 sm:gap-3">
                           <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
-                            <span className="text-xs text-[#a3a3a3] font-medium shrink-0 tabular-nums">#{index + 1}</span>
+                            <span className="text-xs text-[var(--text-muted)] font-medium shrink-0 tabular-nums">#{index + 1}</span>
                             <div className="min-w-0">
-                              <div className="font-medium text-[#0a0a0a] text-xs sm:text-sm truncate">{getItemLabel(anomaly)}</div>
+                              <div className="font-medium text-[var(--text-primary)] text-xs sm:text-sm truncate">{getItemLabel(anomaly)}</div>
                               {anomaly.countyName && (
-                                <div className="text-xs text-[#737373] truncate mt-0.5">
+                                <div className="text-xs text-[var(--text-tertiary)] truncate mt-0.5">
                                   {anomaly.countyName.includes('County') ? anomaly.countyName : `${anomaly.countyName} County`}
                                   {anomaly.stateCode && `, ${anomaly.stateCode}`}
                                 </div>
                               )}
                               {!anomaly.countyName && (
-                                <div className="text-xs text-[#737373] truncate mt-0.5">{formatLocation(anomaly)}</div>
+                                <div className="text-xs text-[var(--text-tertiary)] truncate mt-0.5">{formatLocation(anomaly)}</div>
                               )}
                             </div>
                           </div>
                           <div className="text-right shrink-0">
-                            <div className="font-semibold text-[#7c3aed] text-xs sm:text-sm tabular-nums">{stepLabel}</div>
-                            <div className="font-semibold text-[#16a34a] text-xs sm:text-sm tabular-nums mt-0.5">
+                            <div className="font-semibold text-purple-600 dark:text-purple-400 text-xs sm:text-sm tabular-nums">{stepLabel}</div>
+                            <div className="font-semibold text-[var(--accent-success)] text-xs sm:text-sm tabular-nums mt-0.5">
                               {jumpText}
                             </div>
-                            <div className="text-xs text-[#a3a3a3] mt-0.5 tabular-nums">{natAvgText}</div>
+                            <div className="text-xs text-[var(--text-muted)] mt-0.5 tabular-nums">{natAvgText}</div>
                             {fmrText !== '—' && (
-                              <div className="text-xs text-[#a3a3a3] mt-0.5 tabular-nums">{fmrText}</div>
+                              <div className="text-xs text-[var(--text-muted)] mt-0.5 tabular-nums">{fmrText}</div>
                             )}
                           </div>
                         </div>
@@ -812,24 +816,24 @@ export default function InsightsClient() {
                       <a
                         key={`rising:${activeType}:${item.zipCode || item.cityName || item.areaName}:${index}`}
                         href={href || undefined}
-                        className="block px-3 sm:px-4 py-1.5 sm:py-2 hover:bg-[#fafafa] transition-colors"
+                        className="block px-3 sm:px-4 py-1.5 sm:py-2 hover:bg-[var(--bg-hover)] transition-colors"
                       >
                         <div className="flex items-start justify-between gap-2 sm:gap-3">
                           <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
-                            <span className="text-xs text-[#a3a3a3] font-medium shrink-0 tabular-nums">#{index + 1}</span>
+                            <span className="text-xs text-[var(--text-muted)] font-medium shrink-0 tabular-nums">#{index + 1}</span>
                             <div className="min-w-0">
-                              <div className="font-medium text-[#0a0a0a] text-xs sm:text-sm truncate">{getItemLabel(item)}</div>
+                              <div className="font-medium text-[var(--text-primary)] text-xs sm:text-sm truncate">{getItemLabel(item)}</div>
                               {item.countyName && (
-                                <div className="text-xs text-[#737373] truncate mt-0.5">
+                                <div className="text-xs text-[var(--text-tertiary)] truncate mt-0.5">
                                   {item.countyName.includes('County') ? item.countyName : `${item.countyName} County`}
                                   {item.stateCode && `, ${item.stateCode}`}
                                 </div>
                               )}
                               {!item.countyName && location && (
-                                <div className="text-xs text-[#737373] truncate mt-0.5">{location}</div>
+                                <div className="text-xs text-[var(--text-tertiary)] truncate mt-0.5">{location}</div>
                               )}
                               {item.zipCount && (
-                                <div className="text-xs text-[#a3a3a3] mt-0.5">{item.zipCount} ZIPs</div>
+                                <div className="text-xs text-[var(--text-muted)] mt-0.5">{item.zipCount} ZIPs</div>
                               )}
                             </div>
                           </div>
@@ -837,9 +841,9 @@ export default function InsightsClient() {
                             <div className="text-xs sm:text-sm">
                               <PercentageBadge value={item.yoyPercent} />
                             </div>
-                            <div className="text-xs text-[#737373] mt-0.5">{bedroomLabel}</div>
+                            <div className="text-xs text-[var(--text-tertiary)] mt-0.5">{bedroomLabel}</div>
                             {item.bedroom0 && item.bedroom4 && (
-                              <div className="text-xs text-[#a3a3a3] mt-0.5 tabular-nums">
+                              <div className="text-xs text-[var(--text-muted)] mt-0.5 tabular-nums">
                                 {formatCurrency(item.bedroom0)} - {formatCurrency(item.bedroom4)}
                               </div>
                             )}
@@ -858,34 +862,34 @@ export default function InsightsClient() {
                       <a
                         key={`falling:${activeType}:${item.zipCode || item.cityName || item.areaName}:${index}`}
                         href={href || undefined}
-                        className="block px-3 sm:px-4 py-1.5 sm:py-2 hover:bg-[#fafafa] transition-colors"
+                        className="block px-3 sm:px-4 py-1.5 sm:py-2 hover:bg-[var(--bg-hover)] transition-colors"
                       >
                         <div className="flex items-start justify-between gap-2 sm:gap-3">
                           <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
-                            <span className="text-xs text-[#a3a3a3] font-medium shrink-0 tabular-nums">#{index + 1}</span>
+                            <span className="text-xs text-[var(--text-muted)] font-medium shrink-0 tabular-nums">#{index + 1}</span>
                             <div className="min-w-0">
-                              <div className="font-medium text-[#0a0a0a] text-xs sm:text-sm truncate">{getItemLabel(item)}</div>
+                              <div className="font-medium text-[var(--text-primary)] text-xs sm:text-sm truncate">{getItemLabel(item)}</div>
                               {item.countyName && (
-                                <div className="text-xs text-[#737373] truncate mt-0.5">
+                                <div className="text-xs text-[var(--text-tertiary)] truncate mt-0.5">
                                   {item.countyName.includes('County') ? item.countyName : `${item.countyName} County`}
                                   {item.stateCode && `, ${item.stateCode}`}
                                 </div>
                               )}
                               {!item.countyName && location && (
-                                <div className="text-xs text-[#737373] truncate mt-0.5">{location}</div>
+                                <div className="text-xs text-[var(--text-tertiary)] truncate mt-0.5">{location}</div>
                               )}
                               {item.zipCount && (
-                                <div className="text-xs text-[#a3a3a3] mt-0.5">{item.zipCount} ZIPs</div>
+                                <div className="text-xs text-[var(--text-muted)] mt-0.5">{item.zipCount} ZIPs</div>
                               )}
                             </div>
                           </div>
                           <div className="text-right shrink-0">
-                            <div className="font-semibold text-[#dc2626] text-xs sm:text-sm tabular-nums">
+                            <div className="font-semibold text-red-600 dark:text-red-400 text-xs sm:text-sm tabular-nums">
                               {item.yoyPercent.toFixed(1)}%
                             </div>
-                            <div className="text-xs text-[#737373] mt-0.5">{bedroomLabel}</div>
+                            <div className="text-xs text-[var(--text-tertiary)] mt-0.5">{bedroomLabel}</div>
                             {item.bedroom0 && item.bedroom4 && (
-                              <div className="text-xs text-[#a3a3a3] mt-0.5 tabular-nums">
+                              <div className="text-xs text-[var(--text-muted)] mt-0.5 tabular-nums">
                                 {formatCurrency(item.bedroom0)} - {formatCurrency(item.bedroom4)}
                               </div>
                             )}
@@ -895,7 +899,7 @@ export default function InsightsClient() {
                     );
                   })
                 ) : (
-                  <div className="px-3 sm:px-4 py-6 sm:py-8 text-xs text-[#737373] text-center">No data available</div>
+                  <div className="px-3 sm:px-4 py-6 sm:py-8 text-xs text-[var(--text-tertiary)] text-center">No data available</div>
                 )}
               </div>
             </div>

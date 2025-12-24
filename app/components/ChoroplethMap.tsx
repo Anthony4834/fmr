@@ -105,19 +105,20 @@ export default function ChoroplethMap({ stateCode, year, highlightFips, onCounty
     };
   }, [stateCode, year]);
 
+  // Standardized colors that work in both light and dark mode
   const getColorForScore = (score: number | null): string => {
     if (score === null || score === undefined || score < 95) {
-      return '#fca5a5'; // Light red: <95 or no data
+      return '#fca5a5'; // Light red: <95 or no data (standardized)
     }
     if (score >= 130) {
-      return '#16a34a'; // Dark green: >= 130
+      return '#16a34a'; // Dark green: >= 130 (standardized)
     }
-    return '#44e37e'; // Light green: >= 95 and < 130
+    return '#44e37e'; // Light green: >= 95 and < 130 (standardized)
   };
 
   const getColor = (fips: string): string => {
     const county = countyData.get(fips);
-    if (!county) return '#e5e5e5'; // Gray for no data
+    if (!county) return '#e5e5e5'; // Gray for no data (standardized)
     const score = county.medianScore ?? county.avgScore ?? null;
     return getColorForScore(score);
   };
@@ -125,11 +126,12 @@ export default function ChoroplethMap({ stateCode, year, highlightFips, onCounty
   const style = (feature: any) => {
     const fips = feature.id || feature.properties?.FIPS || feature.properties?.fips || '';
     const fipsStr = String(fips).padStart(5, '0');
+    
     return {
       fillColor: getColor(fipsStr),
       weight: 1,
       opacity: 1,
-      color: '#fff',
+      color: '#ffffff', // White stroke for all regions (standardized)
       dashArray: '',
       fillOpacity: 1,
     };
@@ -195,7 +197,7 @@ export default function ChoroplethMap({ stateCode, year, highlightFips, onCounty
         layer.setStyle({
           weight: 3,
           opacity: 1,
-          color: '#0a0a0a',
+          color: '#ffffff', // White hover stroke (standardized)
           fillOpacity: 0.95,
         });
         layer.bringToFront?.();
@@ -208,16 +210,16 @@ export default function ChoroplethMap({ stateCode, year, highlightFips, onCounty
 
   if (loading || !geojson) {
     return (
-      <div className="h-full w-full flex items-center justify-center bg-[#fafafa] rounded-lg">
-        <div className="text-xs text-[#737373]">Loading map...</div>
+      <div className="h-full w-full flex items-center justify-center bg-[var(--map-bg)] rounded-lg">
+        <div className="text-xs text-[var(--text-tertiary)]">Loading map...</div>
       </div>
     );
   }
 
   if (!bounds) {
     return (
-      <div className="h-full w-full flex items-center justify-center bg-[#fafafa] rounded-lg">
-        <div className="text-xs text-[#737373]">No map data available</div>
+      <div className="h-full w-full flex items-center justify-center bg-[var(--map-bg)] rounded-lg">
+        <div className="text-xs text-[var(--text-tertiary)]">No map data available</div>
       </div>
     );
   }

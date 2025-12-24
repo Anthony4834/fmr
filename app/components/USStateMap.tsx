@@ -30,14 +30,21 @@ interface USStateMapProps {
 
 type MapLevel = 'county' | 'state';
 
+// Helper function to get CSS variable value safely
+function getCSSVariable(variableName: string, fallback: string): string {
+  if (typeof window === 'undefined') return fallback;
+  const value = getComputedStyle(document.documentElement).getPropertyValue(variableName).trim();
+  return value || fallback;
+}
+
 function getColorForScore(score: number | null): string {
   if (score === null || score === undefined || score < 95) {
-    return '#fca5a5'; // Light red: <95 or no data
+    return getCSSVariable('--map-color-low', '#fca5a5'); // Light red: <95 or no data
   }
   if (score >= 130) {
-    return '#16a34a'; // Dark green: >= 130
+    return getCSSVariable('--map-color-high', '#16a34a'); // Dark green: >= 130
   }
-  return '#44e37e'; // Light green: >= 95 and < 130
+  return getCSSVariable('--map-color-medium', '#44e37e'); // Light green: >= 95 and < 130
 }
 
 const countyGeoUrl = 'https://cdn.jsdelivr.net/npm/us-atlas@3/counties-10m.json';
@@ -320,8 +327,8 @@ export default function USStateMap({ year }: USStateMapProps) {
   const mapContent = (
     <div 
       ref={mapContainerRef}
-      className={`relative w-full bg-[#fafafa] overflow-hidden ${
-        isFullscreen ? 'h-screen' : 'h-[500px] sm:h-[600px] rounded-lg border border-[#e5e5e5]'
+      className={`relative w-full bg-[var(--map-bg)] overflow-hidden ${
+        isFullscreen ? 'h-screen' : 'h-[500px] sm:h-[600px] rounded-lg border border-[var(--border-color)]'
       }`}
       onMouseMove={(e) => {
         const rect = e.currentTarget.getBoundingClientRect();
@@ -338,16 +345,16 @@ export default function USStateMap({ year }: USStateMapProps) {
     >
       {/* Loading overlay - stays visible during map type switches */}
       {loading && (
-        <div className="absolute inset-0 z-20 bg-[#fafafa] flex items-center justify-center">
-          <p className="text-[#737373]">Loading map...</p>
+        <div className="absolute inset-0 z-20 bg-[var(--map-bg)] flex items-center justify-center">
+          <p className="text-[var(--text-tertiary)]">Loading map...</p>
         </div>
       )}
       {/* County/State selector and Fullscreen button - positioned inside map */}
       <div className="absolute top-3 right-3 z-30 flex items-center gap-2">
-        <div ref={switchContainerRef} className="relative inline-flex border border-[#e5e5e5] rounded bg-white shadow-sm overflow-hidden">
+        <div ref={switchContainerRef} className="relative inline-flex border border-[var(--border-color)] rounded bg-[var(--bg-tertiary)] shadow-sm overflow-hidden">
           {/* Animated sliding indicator */}
           <div
-            className="absolute top-0 bottom-0 bg-[#f5f5f5] transition-all duration-300 ease-out"
+            className="absolute top-0 bottom-0 bg-[var(--bg-hover)] transition-all duration-300 ease-out"
             style={{
               left: `${switchIndicatorStyle.left}px`,
               width: `${switchIndicatorStyle.width}px`,
@@ -360,8 +367,8 @@ export default function USStateMap({ year }: USStateMapProps) {
             onClick={() => setMapLevel('county')}
             className={`relative px-2.5 py-2 text-xs font-medium transition-colors duration-200 ${
               mapLevel === 'county'
-                ? 'text-[#0a0a0a]'
-                : 'text-[#737373] hover:text-[#0a0a0a]'
+                ? 'text-[var(--text-primary)]'
+                : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
             }`}
           >
             County
@@ -373,8 +380,8 @@ export default function USStateMap({ year }: USStateMapProps) {
             onClick={() => setMapLevel('state')}
             className={`relative px-2.5 py-2 text-xs font-medium transition-colors duration-200 ${
               mapLevel === 'state'
-                ? 'text-[#0a0a0a]'
-                : 'text-[#737373] hover:text-[#0a0a0a]'
+                ? 'text-[var(--text-primary)]'
+                : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
             }`}
           >
             State
@@ -382,7 +389,7 @@ export default function USStateMap({ year }: USStateMapProps) {
         </div>
         <button
           onClick={() => setIsFullscreen(!isFullscreen)}
-          className="px-2.5 py-2 text-xs font-medium rounded border border-[#e5e5e5] bg-white shadow-sm text-[#0a0a0a] hover:bg-[#fafafa] transition-colors"
+          className="px-2.5 py-2 text-xs font-medium rounded border border-[var(--border-color)] bg-[var(--bg-tertiary)] shadow-sm text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors"
           aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
         >
           {isFullscreen ? (
@@ -498,6 +505,7 @@ export default function USStateMap({ year }: USStateMapProps) {
                 {/* Second layer: strokes only - render white strokes first, then black on top */}
                 {(() => {
                   // Sort geographies: red (white stroke) first, then green (black stroke)
+                  const lowColor = getCSSVariable('--map-color-low', '#fca5a5');
                   const sortedGeos = [...geographies].sort((a, b) => {
                     const getIsRed = (geo: any) => {
                       if (mapLevel === 'county') {
@@ -506,12 +514,12 @@ export default function USStateMap({ year }: USStateMapProps) {
                           : '';
                         const county = fips ? countyScoreMap.get(fips) : undefined;
                         const scoreValue = county?.medianScore ?? county?.avgScore ?? null;
-                        return getColorForScore(scoreValue) === '#fca5a5';
+                        return getColorForScore(scoreValue) === lowColor;
                       } else {
                         const stateCode = getStateCode(geo);
                         const state = stateCode ? stateScoreMap.get(stateCode) : undefined;
                         const scoreValue = state?.medianScore ?? state?.avgScore ?? null;
-                        return getColorForScore(scoreValue) === '#fca5a5';
+                        return getColorForScore(scoreValue) === lowColor;
                       }
                     };
                     const aIsRed = getIsRed(a);
@@ -532,14 +540,20 @@ export default function USStateMap({ year }: USStateMapProps) {
                       const scoreValue = county?.medianScore ?? county?.avgScore ?? null;
                       const fillColor = getColorForScore(scoreValue);
                       const isHovered = hoveredCounty === fips;
-                      const isRed = fillColor === '#fca5a5';
+                      const isRed = fillColor === lowColor;
+
+                      const strokeColor = isHovered 
+                        ? getCSSVariable('--map-stroke-hover', '#0a0a0a')
+                        : (isRed 
+                          ? getCSSVariable('--map-stroke-low', '#ffffff')
+                          : getCSSVariable('--map-stroke-high', '#525252'));
 
                       return (
                         <Geography
                           key={`stroke-${geo.rsmKey}`}
                           geography={geo}
                           fill="none"
-                          stroke={isHovered ? '#0a0a0a' : (isRed ? '#ffffff' : '#525252')}
+                          stroke={strokeColor}
                           strokeWidth={isHovered ? 1.5 : 0.3}
                           style={{
                             default: { outline: 'none', pointerEvents: 'none' },
@@ -554,14 +568,20 @@ export default function USStateMap({ year }: USStateMapProps) {
                       const scoreValue = state?.medianScore ?? state?.avgScore ?? null;
                       const fillColor = getColorForScore(scoreValue);
                       const isHovered = hoveredState === stateCode;
-                      const isRed = fillColor === '#fca5a5';
+                      const isRed = fillColor === lowColor;
+
+                      const strokeColor = isHovered 
+                        ? getCSSVariable('--map-stroke-hover', '#0a0a0a')
+                        : (isRed 
+                          ? getCSSVariable('--map-stroke-low', '#ffffff')
+                          : getCSSVariable('--map-stroke-high', '#525252'));
 
                       return (
                         <Geography
                           key={`stroke-${geo.rsmKey}`}
                           geography={geo}
                           fill="none"
-                          stroke={isHovered ? '#0a0a0a' : (isRed ? '#ffffff' : '#525252')}
+                          stroke={strokeColor}
                           strokeWidth={isHovered ? 1.5 : 0.3}
                           style={{
                             default: { outline: 'none', pointerEvents: 'none' },
@@ -587,7 +607,7 @@ export default function USStateMap({ year }: USStateMapProps) {
             const newZoom = Math.min(safeZoom * 1.5, 4);
             setPosition({ coordinates: safeCoordinates, zoom: newZoom });
           }}
-          className="px-2.5 py-2 text-xs font-medium rounded border border-[#e5e5e5] bg-white shadow-sm text-[#0a0a0a] hover:bg-[#fafafa] transition-colors"
+          className="px-2.5 py-2 text-xs font-medium rounded border border-[var(--border-color)] bg-[var(--bg-tertiary)] shadow-sm text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors"
           aria-label="Zoom in"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -599,7 +619,7 @@ export default function USStateMap({ year }: USStateMapProps) {
             const newZoom = Math.max(safeZoom / 1.5, 0.5);
             setPosition({ coordinates: safeCoordinates, zoom: newZoom });
           }}
-          className="px-2.5 py-2 text-xs font-medium rounded border border-[#e5e5e5] bg-white shadow-sm text-[#0a0a0a] hover:bg-[#fafafa] transition-colors"
+          className="px-2.5 py-2 text-xs font-medium rounded border border-[var(--border-color)] bg-[var(--bg-tertiary)] shadow-sm text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors"
           aria-label="Zoom out"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -610,7 +630,7 @@ export default function USStateMap({ year }: USStateMapProps) {
           onClick={() => {
             setPosition({ coordinates: DEFAULT_US_CENTER, zoom: 1 });
           }}
-          className="px-2.5 py-2 text-xs font-medium rounded border border-[#e5e5e5] bg-white shadow-sm text-[#0a0a0a] hover:bg-[#fafafa] transition-colors"
+          className="px-2.5 py-2 text-xs font-medium rounded border border-[var(--border-color)] bg-[var(--bg-tertiary)] shadow-sm text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors"
           aria-label="Reset zoom"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -669,7 +689,7 @@ export default function USStateMap({ year }: USStateMapProps) {
     return (
       <div
         ref={fullscreenRef}
-        className="fixed inset-0 z-50 bg-[#fafafa]"
+        className="fixed inset-0 z-50 bg-[var(--map-bg)]"
         onClick={(e) => {
           // Close fullscreen if clicking on the overlay background (not the map)
           if (e.target === fullscreenRef.current) {

@@ -153,3 +153,6 @@ The implementation of county-level metro fallback and CBSA mappings has been **h
 - **67% reduction** in investment_score records missing demand
 
 The remaining 7% of records without demand data are primarily in rural/remote areas with limited data availability, which may require alternative approaches or acceptance as a limitation of the current data sources.
+
+
+

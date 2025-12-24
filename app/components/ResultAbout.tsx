@@ -43,51 +43,51 @@ export default function ResultAbout({ data }: { data: FMRResult }) {
   const cityLink = parsedCity ? `/city/${buildCitySlug(parsedCity.city, parsedCity.st)}` : null;
 
   return (
-    <details className="rounded-lg border border-[#e5e5e5] bg-white">
-      <summary className="cursor-pointer select-none px-3 sm:px-4 py-2.5 sm:py-3 text-sm font-semibold text-[#0a0a0a] hover:bg-[#fafafa]">
+    <details className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)]">
+      <summary className="cursor-pointer select-none px-3 sm:px-4 py-2.5 sm:py-3 text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-hover)]">
         About this result
-        <span className="ml-2 text-xs font-medium text-[#737373]">(HUD FMR/SAFMR details)</span>
+        <span className="ml-2 text-xs font-medium text-[var(--text-tertiary)]">(HUD FMR/SAFMR details)</span>
       </summary>
-      <div className="px-3 sm:px-4 pb-3 sm:pb-4 text-sm text-[#525252] leading-relaxed">
+      <div className="px-3 sm:px-4 pb-3 sm:pb-4 text-sm text-[var(--text-secondary)] leading-relaxed">
         <p className="mt-2">
-          This page shows <span className="font-semibold text-[#0a0a0a]">HUD Fair Market Rent</span> data for{' '}
-          <span className="font-semibold text-[#0a0a0a]">{queriedLocation}</span>
+          This page shows <span className="font-semibold text-[var(--text-primary)]">HUD Fair Market Rent</span> data for{' '}
+          <span className="font-semibold text-[var(--text-primary)]">{queriedLocation}</span>
           {stateCode ? ` (${stateCode})` : ''} for {yearLabel}. Fair Market Rent (FMR) is a HUD benchmark used to determine
           payment standards for programs like the Housing Choice Voucher (Section 8) program.
         </p>
         <p className="mt-2">
           Values are shown for 0–4 bedroom units. In some metro areas HUD publishes{' '}
-          <span className="font-semibold text-[#0a0a0a]">Small Area FMR (SAFMR)</span> at the ZIP-code level; otherwise the
+          <span className="font-semibold text-[var(--text-primary)]">Small Area FMR (SAFMR)</span> at the ZIP-code level; otherwise the
           county/metropolitan-area FMR applies. This result is labeled{' '}
-          <span className="font-semibold text-[#0a0a0a]">{data.source === 'safmr' ? 'SAFMR' : 'FMR'}</span> based on HUD’s
+          <span className="font-semibold text-[var(--text-primary)]">{data.source === 'safmr' ? 'SAFMR' : 'FMR'}</span> based on HUD's
           designation for the area and the available data.
         </p>
         <p className="mt-2">
           Tip: use these numbers as a starting point and confirm local program rules (payment standards may differ from
-          HUD’s published FMR). If you’re comparing neighborhoods, SAFMR ZIP ranges can highlight variation within the same
+          HUD's published FMR). If you're comparing neighborhoods, SAFMR ZIP ranges can highlight variation within the same
           county.
         </p>
 
         <div className="mt-3 flex flex-wrap gap-2 text-xs">
-          <a className="px-2.5 py-1 rounded-md border border-[#e5e5e5] bg-white hover:bg-[#fafafa]" href="/what-is-fmr">
+          <a className="px-2.5 py-1 rounded-md border border-[var(--border-color)] bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)]" href="/what-is-fmr">
             What is FMR?
           </a>
-          <a className="px-2.5 py-1 rounded-md border border-[#e5e5e5] bg-white hover:bg-[#fafafa]" href="/what-is-fmr#safmr">
+          <a className="px-2.5 py-1 rounded-md border border-[var(--border-color)] bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)]" href="/what-is-fmr#safmr">
             What is SAFMR?
           </a>
-          <a className="px-2.5 py-1 rounded-md border border-[#e5e5e5] bg-white hover:bg-[#fafafa]" href="/data-sources">
+          <a className="px-2.5 py-1 rounded-md border border-[var(--border-color)] bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)]" href="/data-sources">
             Data sources
           </a>
-          <a className="px-2.5 py-1 rounded-md border border-[#e5e5e5] bg-white hover:bg-[#fafafa]" href="/incomplete-geos">
+          <a className="px-2.5 py-1 rounded-md border border-[var(--border-color)] bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)]" href="/incomplete-geos">
             Incomplete geos
           </a>
           {countyLink && queriedType !== 'county' && (
-            <a className="px-2.5 py-1 rounded-md border border-[#e5e5e5] bg-white hover:bg-[#fafafa]" href={countyLink}>
+            <a className="px-2.5 py-1 rounded-md border border-[var(--border-color)] bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)]" href={countyLink}>
               View county page
             </a>
           )}
           {cityLink && queriedType !== 'city' && (
-            <a className="px-2.5 py-1 rounded-md border border-[#e5e5e5] bg-white hover:bg-[#fafafa]" href={cityLink}>
+            <a className="px-2.5 py-1 rounded-md border border-[var(--border-color)] bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)]" href={cityLink}>
               View city page
             </a>
           )}
@@ -95,14 +95,14 @@ export default function ResultAbout({ data }: { data: FMRResult }) {
 
         {data.zipCodes && data.zipCodes.length > 0 && (
           <div className="mt-3">
-            <div className="text-xs font-semibold text-[#0a0a0a] mb-1">Related ZIPs</div>
+            <div className="text-xs font-semibold text-[var(--text-primary)] mb-1">Related ZIPs</div>
             <div className="flex flex-wrap gap-2">
               {data.zipCodes.slice(0, 10).map((z) => {
                 const zipHref = `/zip/${z}${data.stateCode ? `?state=${data.stateCode}` : ''}`;
                 return (
                   <a
                     key={z}
-                    className="text-xs px-2.5 py-1 rounded-md border border-[#e5e5e5] bg-white hover:bg-[#fafafa] font-mono"
+                    className="text-xs px-2.5 py-1 rounded-md border border-[var(--border-color)] bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] font-mono text-[var(--text-primary)]"
                     href={zipHref}
                   >
                     {z}
@@ -116,6 +116,9 @@ export default function ResultAbout({ data }: { data: FMRResult }) {
     </details>
   );
 }
+
+
+
 
 
 

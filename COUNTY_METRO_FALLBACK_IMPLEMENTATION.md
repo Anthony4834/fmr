@@ -69,3 +69,6 @@ bun scripts/compute-investment-scores.ts
 - The county fallback only applies when other ZIPs in the same county have metro mappings
 - Metro name normalization ensures proper matching with ZORDI region names
 - Priority order (CBSA > ZORI > County) ensures most reliable data is used first
+
+
+

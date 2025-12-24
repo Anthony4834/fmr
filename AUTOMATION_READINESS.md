@@ -174,3 +174,6 @@ bun scripts/compute-investment-scores.ts
 All fallback mechanisms (county-level, CBSA mappings, demand penalty) are built into the code and will work automatically when the cron job runs each month. No manual intervention needed for monthly updates.
 
 **Only yearly FMR/SAFMR updates require manual steps**, which is expected since that data is published yearly, not monthly.
+
+
+

@@ -109,19 +109,19 @@ export default function InvestorScoreModal({ isOpen, onClose }: InvestorScoreMod
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={descId}
-        className="relative bg-white rounded-lg shadow-xl max-w-xl w-full max-h-[85vh] sm:max-h-[80vh] my-4 sm:my-0 overflow-hidden flex flex-col"
+        className="relative bg-[var(--bg-secondary)] rounded-lg shadow-xl max-w-xl w-full max-h-[85vh] sm:max-h-[80vh] my-4 sm:my-0 overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-4 sm:px-6 py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0 flex items-center justify-between gap-3">
-          <h2 id={titleId} className="text-lg font-semibold text-[#0a0a0a]">
+        <div className="px-4 sm:px-6 py-3 border-b border-[var(--border-color)] bg-[var(--bg-tertiary)] flex-shrink-0 flex items-center justify-between gap-3">
+          <h2 id={titleId} className="text-lg font-semibold text-[var(--text-primary)]">
             How Investment Score Works
           </h2>
           <button
             ref={closeBtnRef}
             type="button"
             onClick={onClose}
-            className="shrink-0 rounded-md p-1.5 text-[#737373] hover:text-[#0a0a0a] hover:bg-black/5 transition-colors focus:outline-none focus:ring-2 focus:ring-black/30"
+            className="shrink-0 rounded-md p-1.5 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--text-primary)] focus:ring-opacity-20"
             aria-label="Close"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -133,48 +133,48 @@ export default function InvestorScoreModal({ isOpen, onClose }: InvestorScoreMod
         {/* Content */}
         <div className="px-4 sm:px-6 py-3 overflow-y-auto flex-1 space-y-3">
           {/* TL;DR */}
-          <p id={descId} className="text-sm text-[#525252]">
-            A standardized way to compare rental investment potential across U.S. locations, combining <strong>cash-flow yield</strong> with <strong>market demand</strong>.
+          <p id={descId} className="text-sm text-[var(--text-secondary)]">
+            A standardized way to compare rental investment potential across U.S. locations, combining <strong className="text-[var(--text-primary)]">cash-flow yield</strong> with <strong className="text-[var(--text-primary)]">market demand</strong>.
           </p>
 
           {/* Score Scale */}
-          <div className="rounded-lg border border-[#e5e5e5] p-3 sm:p-4 bg-white">
-            <div className="text-xs font-medium text-[#737373] uppercase tracking-wide mb-2">Score Scale</div>
+          <div className="rounded-lg border border-[var(--border-color)] p-3 sm:p-4 bg-[var(--bg-secondary)]">
+            <div className="text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wide mb-2">Score Scale</div>
             <div className="space-y-1.5 text-sm">
               <div className="flex items-center gap-2">
                 <span className="w-3 h-3 rounded-sm bg-[#ef4444]" />
-                <span className="text-[#525252]"><strong>&lt;95</strong> Below average</span>
+                <span className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">&lt;95</strong> Below average</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="w-3 h-3 rounded-sm bg-[#f59e0b]" />
-                <span className="text-[#525252]"><strong>95-99</strong> Near median</span>
+                <span className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">95-99</strong> Near median</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="w-3 h-3 rounded-sm bg-[#22c55e]" />
-                <span className="text-[#525252]"><strong>100-129</strong> Above average</span>
+                <span className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">100-129</strong> Above average</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="w-3 h-3 rounded-sm bg-[#16a34a]" />
-                <span className="text-[#525252]"><strong>130+</strong> High yield potential</span>
+                <span className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">130+</strong> High yield potential</span>
               </div>
             </div>
-            <p className="text-xs text-[#737373] mt-2">100 = median market. Capped at 300.</p>
+            <p className="text-xs text-[var(--text-tertiary)] mt-2">100 = median market. Capped at 300.</p>
           </div>
 
           {/* Two-Part Formula */}
           <div>
-            <div className="text-xs font-medium text-[#737373] uppercase tracking-wide mb-2">The Formula</div>
-            <div className="text-sm text-[#525252] space-y-2">
-              <div className="rounded-lg border border-[#e5e5e5] p-2.5 bg-[#fafafa]">
-                <div className="font-medium text-[#0a0a0a] mb-1">1. Base Score (Net Yield)</div>
+            <div className="text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wide mb-2">The Formula</div>
+            <div className="text-sm text-[var(--text-secondary)] space-y-2">
+              <div className="rounded-lg border border-[var(--border-color)] p-2.5 bg-[var(--bg-tertiary)]">
+                <div className="font-medium text-[var(--text-primary)] mb-1">1. Base Score (Net Yield)</div>
                 <p className="text-xs leading-relaxed">
-                  Calculates how much rent you keep after property taxes, relative to home price. Uses <strong>HUD Fair Market Rent</strong>, <strong>Zillow ZHVI</strong>, and <strong>ACS tax rates</strong>.
+                  Calculates how much rent you keep after property taxes, relative to home price. Uses <strong className="text-[var(--text-primary)]">HUD Fair Market Rent</strong>, <strong className="text-[var(--text-primary)]">Zillow ZHVI</strong>, and <strong className="text-[var(--text-primary)]">ACS tax rates</strong>.
                 </p>
               </div>
-              <div className="rounded-lg border border-[#e5e5e5] p-2.5 bg-[#fafafa]">
-                <div className="font-medium text-[#0a0a0a] mb-1">2. Demand Adjustment</div>
+              <div className="rounded-lg border border-[var(--border-color)] p-2.5 bg-[var(--bg-tertiary)]">
+                <div className="font-medium text-[var(--text-primary)] mb-1">2. Demand Adjustment</div>
                 <p className="text-xs leading-relaxed">
-                  Adjusts score based on rental market conditions using <strong>Zillow ZORDI</strong> (metro demand index) and <strong>ZORI</strong> (rent growth). Strong demand can boost scores up to +5%; weak demand can reduce by up to -30%.
+                  Adjusts score based on rental market conditions using <strong className="text-[var(--text-primary)]">Zillow ZORDI</strong> (metro demand index) and <strong className="text-[var(--text-primary)]">ZORI</strong> (rent growth). Strong demand can boost scores up to +5%; weak demand can reduce by up to -30%.
                 </p>
               </div>
             </div>
@@ -182,33 +182,33 @@ export default function InvestorScoreModal({ isOpen, onClose }: InvestorScoreMod
 
           {/* Data Sources */}
           <div>
-            <div className="text-xs font-medium text-[#737373] uppercase tracking-wide mb-2">Data Sources</div>
+            <div className="text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wide mb-2">Data Sources</div>
             <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="rounded border border-[#e5e5e5] p-2 bg-white">
-                <div className="font-medium text-[#0a0a0a]">Rent</div>
-                <div className="text-[#737373]">HUD FMR/SAFMR</div>
+              <div className="rounded border border-[var(--border-color)] p-2 bg-[var(--bg-secondary)]">
+                <div className="font-medium text-[var(--text-primary)]">Rent</div>
+                <div className="text-[var(--text-tertiary)]">HUD FMR/SAFMR</div>
               </div>
-              <div className="rounded border border-[#e5e5e5] p-2 bg-white">
-                <div className="font-medium text-[#0a0a0a]">Home Value</div>
-                <div className="text-[#737373]">Zillow ZHVI</div>
+              <div className="rounded border border-[var(--border-color)] p-2 bg-[var(--bg-secondary)]">
+                <div className="font-medium text-[var(--text-primary)]">Home Value</div>
+                <div className="text-[var(--text-tertiary)]">Zillow ZHVI</div>
               </div>
-              <div className="rounded border border-[#e5e5e5] p-2 bg-white">
-                <div className="font-medium text-[#0a0a0a]">Property Tax</div>
-                <div className="text-[#737373]">ACS 5-Year</div>
+              <div className="rounded border border-[var(--border-color)] p-2 bg-[var(--bg-secondary)]">
+                <div className="font-medium text-[var(--text-primary)]">Property Tax</div>
+                <div className="text-[var(--text-tertiary)]">ACS 5-Year</div>
               </div>
-              <div className="rounded border border-[#e5e5e5] p-2 bg-white">
-                <div className="font-medium text-[#0a0a0a]">Demand</div>
-                <div className="text-[#737373]">Zillow ZORDI/ZORI</div>
+              <div className="rounded border border-[var(--border-color)] p-2 bg-[var(--bg-secondary)]">
+                <div className="font-medium text-[var(--text-primary)]">Demand</div>
+                <div className="text-[var(--text-tertiary)]">Zillow ZORDI/ZORI</div>
               </div>
             </div>
           </div>
 
           {/* Accordion: Full Math */}
-          <div className="border-t border-[#e5e5e5] pt-3">
+          <div className="border-t border-[var(--border-color)] pt-3">
             <button
               type="button"
               onClick={() => setShowMath((v) => !v)}
-              className="w-full flex items-center justify-between text-sm font-medium text-[#0a0a0a] py-1 hover:text-[#525252] transition-colors focus:outline-none focus:ring-2 focus:ring-black/20 rounded"
+              className="w-full flex items-center justify-between text-sm font-medium text-[var(--text-primary)] py-1 hover:text-[var(--text-secondary)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--text-primary)] focus:ring-opacity-20 rounded"
               aria-expanded={showMath}
               aria-controls={mathId}
             >
@@ -227,43 +227,43 @@ export default function InvestorScoreModal({ isOpen, onClose }: InvestorScoreMod
             <div
               id={mathId}
               hidden={!showMath}
-              className="mt-2 space-y-3 text-xs text-[#525252]"
+              className="mt-2 space-y-3 text-xs text-[var(--text-secondary)]"
             >
               {/* Net Yield Calculation */}
-              <div className="rounded border border-[#e5e5e5] p-3 bg-[#fafafa]">
-                <div className="font-semibold text-[#0a0a0a] mb-2">Net Yield Calculation</div>
-                <div className="space-y-1 font-mono text-[11px] bg-white p-2 rounded border border-[#e5e5e5]">
+              <div className="rounded border border-[var(--border-color)] p-3 bg-[var(--bg-tertiary)]">
+                <div className="font-semibold text-[var(--text-primary)] mb-2">Net Yield Calculation</div>
+                <div className="space-y-1 font-mono text-[11px] bg-[var(--bg-secondary)] p-2 rounded border border-[var(--border-color)]">
                   <div>Annual Rent = FMR × 12</div>
                   <div>Annual Taxes = Property Value × Tax Rate</div>
                   <div>Net Yield = (Rent - Taxes) / Value</div>
-                  <div className="pt-1 border-t border-[#e5e5e5] mt-1">Base Score = (Net Yield / Median) × 100</div>
+                  <div className="pt-1 border-t border-[var(--border-color)] mt-1">Base Score = (Net Yield / Median) × 100</div>
                 </div>
               </div>
 
               {/* Demand Score */}
-              <div className="rounded border border-[#e5e5e5] p-3 bg-[#fafafa]">
-                <div className="font-semibold text-[#0a0a0a] mb-2">Demand Score (0-100)</div>
+              <div className="rounded border border-[var(--border-color)] p-3 bg-[var(--bg-tertiary)]">
+                <div className="font-semibold text-[var(--text-primary)] mb-2">Demand Score (0-100)</div>
                 <div className="space-y-1">
-                  <div><strong>50%</strong> Demand Level — ZORDI percentile rank</div>
-                  <div><strong>30%</strong> Demand Momentum — ZORDI 3-month change</div>
-                  <div><strong>20%</strong> Rent Pressure — ZORI year-over-year growth</div>
+                  <div><strong className="text-[var(--text-primary)]">50%</strong> Demand Level — ZORDI percentile rank</div>
+                  <div><strong className="text-[var(--text-primary)]">30%</strong> Demand Momentum — ZORDI 3-month change</div>
+                  <div><strong className="text-[var(--text-primary)]">20%</strong> Rent Pressure — ZORI year-over-year growth</div>
                 </div>
               </div>
 
               {/* Demand Multiplier */}
-              <div className="rounded border border-[#e5e5e5] p-3 bg-[#fafafa]">
-                <div className="font-semibold text-[#0a0a0a] mb-2">Demand Multiplier</div>
+              <div className="rounded border border-[var(--border-color)] p-3 bg-[var(--bg-tertiary)]">
+                <div className="font-semibold text-[var(--text-primary)] mb-2">Demand Multiplier</div>
                 <div className="space-y-1">
-                  <div><strong>High yield + strong demand:</strong> up to +5% boost</div>
-                  <div><strong>High yield + weak demand:</strong> up to -30% penalty</div>
-                  <div><strong>Low yield + strong demand:</strong> no change</div>
-                  <div><strong>Low yield + weak demand:</strong> up to -30% penalty</div>
+                  <div><strong className="text-[var(--text-primary)]">High yield + strong demand:</strong> up to +5% boost</div>
+                  <div><strong className="text-[var(--text-primary)]">High yield + weak demand:</strong> up to -30% penalty</div>
+                  <div><strong className="text-[var(--text-primary)]">Low yield + strong demand:</strong> no change</div>
+                  <div><strong className="text-[var(--text-primary)]">Low yield + weak demand:</strong> up to -30% penalty</div>
                 </div>
               </div>
 
               {/* Quality Controls */}
-              <div className="rounded border border-[#e5e5e5] p-3 bg-[#fafafa]">
-                <div className="font-semibold text-[#0a0a0a] mb-2">Quality Controls</div>
+              <div className="rounded border border-[var(--border-color)] p-3 bg-[var(--bg-tertiary)]">
+                <div className="font-semibold text-[var(--text-primary)] mb-2">Quality Controls</div>
                 <ul className="space-y-1 ml-3 list-disc">
                   <li>Price floor: minimum $100k property value</li>
                   <li>Rent cap: max 18% rent-to-price ratio</li>
@@ -276,17 +276,17 @@ export default function InvestorScoreModal({ isOpen, onClose }: InvestorScoreMod
           </div>
 
           {/* Not Included */}
-          <div className="text-xs text-[#737373] border-t border-[#e5e5e5] pt-3">
-            <strong>Not included:</strong> mortgage costs, insurance, repairs, vacancy, HOA, appreciation. Use as a screening tool, not a complete pro forma.
+          <div className="text-xs text-[var(--text-tertiary)] border-t border-[var(--border-color)] pt-3">
+            <strong className="text-[var(--text-primary)]">Not included:</strong> mortgage costs, insurance, repairs, vacancy, HOA, appreciation. Use as a screening tool, not a complete pro forma.
           </div>
         </div>
 
         {/* Footer */}
-        <div className="px-4 sm:px-6 py-2.5 border-t border-[#e5e5e5] bg-[#fafafa] flex items-center justify-end flex-shrink-0">
+        <div className="px-4 sm:px-6 py-2.5 border-t border-[var(--border-color)] bg-[var(--bg-tertiary)] flex items-center justify-end flex-shrink-0">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-1.5 bg-[#0a0a0a] text-white text-sm font-medium rounded-md hover:bg-[#262626] transition-colors focus:outline-none focus:ring-2 focus:ring-black/30"
+            className="px-4 py-1.5 bg-[var(--text-primary)] text-[var(--bg-primary)] text-sm font-medium rounded-md hover:bg-[var(--text-secondary)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--text-primary)] focus:ring-opacity-20"
           >
             Got it
           </button>
@@ -295,3 +295,7 @@ export default function InvestorScoreModal({ isOpen, onClose }: InvestorScoreMod
     </div>
   );
 }
+
+
+
+

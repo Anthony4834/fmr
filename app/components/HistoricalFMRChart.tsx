@@ -53,6 +53,13 @@ export default function HistoricalFMRChart({
 
   const historyByYear = useMemo(() => new Map(sortedHistory.map((p) => [p.year, p])), [sortedHistory]);
 
+  // Helper function to get CSS variable value safely
+  const getCSSVariable = (variableName: string, fallback: string): string => {
+    if (typeof window === 'undefined') return fallback;
+    const value = getComputedStyle(document.documentElement).getPropertyValue(variableName).trim();
+    return value || fallback;
+  };
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -81,6 +88,10 @@ export default function HistoricalFMRChart({
       };
     });
 
+    const textColor = getCSSVariable('--text-primary', '#0a0a0a');
+    const gridColor = getCSSVariable('--border-color', '#f5f5f5');
+    const tickColor = getCSSVariable('--text-tertiary', '#737373');
+
     chartRef.current = new Chart(canvas, {
       type: 'line',
       data: { labels, datasets },
@@ -95,7 +106,7 @@ export default function HistoricalFMRChart({
               usePointStyle: true,
               boxWidth: 10,
               padding: 12,
-              color: '#0a0a0a',
+              color: textColor,
               font: { size: 12, weight: 600 },
             },
           },
@@ -116,13 +127,13 @@ export default function HistoricalFMRChart({
         },
         scales: {
           x: {
-            grid: { color: '#f5f5f5' },
-            ticks: { color: '#737373' },
+            grid: { color: gridColor },
+            ticks: { color: tickColor },
           },
           y: {
-            grid: { color: '#f5f5f5' },
+            grid: { color: gridColor },
             ticks: {
-              color: '#737373',
+              color: tickColor,
               callback: (val) => {
                 const num = typeof val === 'number' ? val : Number(val);
                 if (!Number.isFinite(num)) return '';
@@ -143,10 +154,10 @@ export default function HistoricalFMRChart({
   }, [historyByYear, years]);
 
   return (
-    <div className="mt-4 sm:mt-5 border border-[#e5e5e5] rounded-xl bg-white p-3 sm:p-4">
+    <div className="mt-4 sm:mt-5 border border-[var(--border-color)] rounded-xl bg-[var(--bg-secondary)] p-3 sm:p-4">
       <div className="mb-3">
-        <div className="text-sm font-semibold text-[#0a0a0a]">Historical</div>
-        <div className="text-xs text-[#737373]">See FMR trends since FY2022</div>
+        <div className="text-sm font-semibold text-[var(--text-primary)]">Historical</div>
+        <div className="text-xs text-[var(--text-tertiary)]">See FMR trends since FY2022</div>
       </div>
 
       <div className="relative w-full h-[260px]">

@@ -13,13 +13,14 @@ import Tooltip from './Tooltip';
 import ScoreGauge from './ScoreGauge';
 import InvestorScoreInfoIcon from './InvestorScoreInfoIcon';
 import InvestorScoreInfoButton from './InvestorScoreInfoButton';
+import ThemeSwitcher from './ThemeSwitcher';
 import { formatCountyName } from '@/lib/county-utils';
 
 // Dynamically import ChoroplethMap to avoid SSR issues with Leaflet
 const ChoroplethMap = dynamic(() => import('./ChoroplethMap'), {
   ssr: false,
   loading: () => (
-    <div className="h-40 rounded-lg border border-dashed border-[#d4d4d4] bg-[#fafafa] flex items-center justify-center text-xs text-[#737373]">
+    <div className="h-40 rounded-lg border border-dashed border-[var(--border-color)] bg-[var(--map-bg)] flex items-center justify-center text-xs text-[var(--text-tertiary)]">
       Loading map...
     </div>
   ),
@@ -261,24 +262,32 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
     };
   }, [props.stateCode, displayYear]);
 
+  // Helper function to get CSS variable value safely
+  const getCSSVariable = (variableName: string, fallback: string): string => {
+    if (typeof window === 'undefined') return fallback;
+    const value = getComputedStyle(document.documentElement).getPropertyValue(variableName).trim();
+    return value || fallback;
+  };
+
   function getColorForScore(score: number | null): string {
     if (score === null || score === undefined || score < 95) {
-      return '#fca5a5'; // Light red: <95 or no data
+      return getCSSVariable('--map-color-low', '#fca5a5'); // Light red: <95 or no data
     }
     if (score >= 130) {
-      return '#16a34a'; // Dark green: >= 130
+      return getCSSVariable('--map-color-high', '#16a34a'); // Dark green: >= 130
     }
-    return '#44e37e'; // Light green: >= 95 and < 130
+    return getCSSVariable('--map-color-medium', '#44e37e'); // Light green: >= 95 and < 130
   }
 
   function getTextColorForScore(score: number | null): string {
+    // Use the same colors as map fills for consistency
     if (score === null || score === undefined || score < 95) {
-      return '#b91c1c'; // Dark red for text: <95 or no data (improved contrast for readability)
+      return getCSSVariable('--map-color-low', '#fca5a5');
     }
     if (score >= 130) {
-      return '#14532d'; // Darker green for text: >= 130 (improved legibility for small/bold labels)
+      return getCSSVariable('--map-color-high', '#16a34a');
     }
-    return '#16a34a'; // Darker green for text: >= 95 and < 130 (improved contrast, easier on eyes)
+    return getCSSVariable('--map-color-medium', '#44e37e');
   }
 
   const handleSearch = (value: string, type: 'zip' | 'city' | 'county' | 'address' | 'state') => {
@@ -322,38 +331,41 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
   );
 
   return (
-    <main className="min-h-screen bg-[#fafafa] antialiased">
+    <main className="min-h-screen bg-[var(--bg-primary)] antialiased">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-10 sm:py-8 md:py-10 lg:py-10">
         {/* Header */}
         <div className="mb-4 sm:mb-6 lg:mb-4 flex-shrink-0">
           <div className="mb-2 sm:mb-3 lg:mb-2">
             <button onClick={handleReset} className="text-left hover:opacity-70 transition-opacity">
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#0a0a0a] mb-1 tracking-tight">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[var(--text-primary)] mb-1 tracking-tight">
                 fmr.fyi
               </h1>
-              <p className="text-xs text-[#737373] font-medium tracking-wide uppercase">Fair Market Rent Data</p>
+              <p className="text-xs text-[var(--text-tertiary)] font-medium tracking-wide uppercase">Fair Market Rent Data</p>
             </button>
           </div>
           <div className="flex items-center justify-between gap-4 flex-wrap">
-            <p className="text-sm sm:text-base text-[#525252] max-w-2xl">
+            <p className="text-sm sm:text-base text-[var(--text-secondary)] max-w-2xl">
               Search HUD Fair Market Rent data by address, city, ZIP code, or county
             </p>
-            <InvestorScoreInfoButton />
+            <div className="flex items-center gap-3">
+              <InvestorScoreInfoButton />
+              <ThemeSwitcher />
+            </div>
           </div>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 items-start">
           {/* Primary card */}
-          <div className="flex-1 bg-white rounded-lg border border-[#e5e5e5] p-4 sm:p-6 md:p-8 w-full">
+          <div className="flex-1 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] p-4 sm:p-6 md:p-8 w-full">
             <div className="flex-shrink-0 mb-4 sm:mb-6">
               <SearchInput onSelect={handleSearch} />
             </div>
 
             {/* Breadcrumbs (Home / State) */}
-            <div className="mb-3 flex items-center gap-1.5 text-xs text-[#737373]">
-              <a href="/" className="hover:text-[#0a0a0a] transition-colors">Home</a>
-              <span className="text-[#a3a3a3]">/</span>
-              <span className="text-[#0a0a0a] font-medium">{props.stateCode}</span>
+            <div className="mb-3 flex items-center gap-1.5 text-xs text-[var(--text-tertiary)]">
+              <a href="/" className="hover:text-[var(--text-primary)] transition-colors">Home</a>
+              <span className="text-[var(--text-muted)]">/</span>
+              <span className="text-[var(--text-primary)] font-medium">{props.stateCode}</span>
             </div>
 
             {/* Compact one-line header bar */}
@@ -365,30 +377,26 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
                     onClick={handleReset}
                     aria-label="Back"
                     title="Back"
-                    className="h-8 w-8 inline-flex items-center justify-center rounded-lg border border-[#e5e5e5] bg-white hover:bg-[#fafafa] transition-colors shrink-0"
+                    className="h-8 w-8 inline-flex items-center justify-center rounded-lg border border-[var(--border-color)] bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] transition-colors shrink-0"
                   >
                     ←
                   </button>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 min-w-0">
-                      <div className="text-sm sm:text-base font-semibold text-[#0a0a0a] truncate">
+                      <div className="text-sm sm:text-base font-semibold text-[var(--text-primary)] truncate">
                         {stateName} ({props.stateCode})
                       </div>
-                      <span className="px-1.5 sm:px-2 py-0.5 rounded text-xs font-medium shrink-0 bg-[#eef2ff] text-[#4f46e5]">
+                      <span className="px-1.5 sm:px-2 py-0.5 rounded text-xs font-medium shrink-0 bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-color)]">
                         STATE
                       </span>
-                      <span className={`px-1.5 sm:px-2 py-0.5 rounded text-xs font-semibold shrink-0 ${
-                        'safmr' === 'safmr' 
-                          ? 'bg-[#f0fdf4] text-[#16a34a]' 
-                          : 'bg-[#eff6ff] text-[#2563eb]'
-                      }`}>
+                      <span className="px-1.5 sm:px-2 py-0.5 rounded text-xs font-semibold shrink-0 bg-[var(--badge-safmr-bg)] text-[var(--badge-safmr-text)]">
                         SAFMR
                       </span>
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">
-                      <div className="text-xs text-[#737373] truncate">State dashboard • ZIP-level medians (SAFMR where required)</div>
-                      <span className="text-xs text-[#a3a3a3] shrink-0">•</span>
-                      <span className="text-xs text-[#a3a3a3] shrink-0">{effectiveText}</span>
+                      <div className="text-xs text-[var(--text-tertiary)] truncate">State dashboard • ZIP-level medians (SAFMR where required)</div>
+                      <span className="text-xs text-[var(--text-muted)] shrink-0">•</span>
+                      <span className="text-xs text-[var(--text-muted)] shrink-0">{effectiveText}</span>
                     </div>
                   </div>
                 </div>
@@ -397,10 +405,17 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
 
             {/* State Median Score Gauge */}
             {stateMedianScore !== null && (
-              <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-[#fafafa] rounded-lg border border-[#e5e5e5] relative">
-                <ScoreGauge score={stateMedianScore} maxValue={140} />
-                <div className="absolute top-3 right-3">
-                  <InvestorScoreInfoIcon />
+              <div className="mb-4 sm:mb-6">
+                <div className="bg-[var(--bg-content)] rounded-lg border border-[var(--border-color)] p-4 sm:p-5 relative">
+                  <ScoreGauge 
+                    score={stateMedianScore} 
+                    maxValue={140}
+                    label="State Median Investment Score"
+                    description="Based on median scores across all counties"
+                  />
+                  <div className="absolute top-4 right-4">
+                    <InvestorScoreInfoIcon />
+                  </div>
                 </div>
               </div>
             )}
@@ -409,31 +424,31 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
             <div className="mb-4 sm:mb-6">
               {stateMetricsLoading ? (
                 <>
-                  <div className="border border-[#e5e5e5] rounded-lg bg-white overflow-visible">
+                  <div className="border border-[var(--border-color)] rounded-lg bg-[var(--bg-secondary)] overflow-visible">
                     <div className="overflow-x-auto overflow-y-visible">
                       <table className="w-full text-xs sm:text-sm">
-                        <thead className="bg-[#fafafa] border-b border-[#e5e5e5]">
+                        <thead className="bg-[var(--bg-tertiary)] border-b border-[var(--border-color)]">
                           <tr className="text-left">
-                            <th className="px-3 sm:px-4 py-2 text-xs font-semibold text-[#525252]">BR</th>
-                            <th className="px-3 sm:px-4 py-2 text-xs font-semibold text-[#525252]">Median rent</th>
-                            <th className="px-3 sm:px-4 py-2 text-xs font-semibold text-[#525252]">YoY</th>
-                            <th className="px-3 sm:px-4 py-2 text-xs font-semibold text-[#525252]">3Y CAGR</th>
+                            <th className="px-3 sm:px-4 py-2 text-xs font-semibold text-[var(--text-secondary)]">BR</th>
+                            <th className="px-3 sm:px-4 py-2 text-xs font-semibold text-[var(--text-secondary)]">Median rent</th>
+                            <th className="px-3 sm:px-4 py-2 text-xs font-semibold text-[var(--text-secondary)]">YoY</th>
+                            <th className="px-3 sm:px-4 py-2 text-xs font-semibold text-[var(--text-secondary)]">3Y CAGR</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-[#e5e5e5]">
+                        <tbody className="divide-y divide-[var(--border-color)]">
                           {[...Array(5)].map((_, i) => (
                             <tr key={i}>
                               <td className="px-3 sm:px-4 py-2">
-                                <div className="h-4 bg-[#e5e5e5] rounded w-8 animate-pulse" />
+                                <div className="h-4 bg-[var(--border-color)] rounded w-8 animate-pulse" />
                               </td>
                               <td className="px-3 sm:px-4 py-2">
-                                <div className="h-4 bg-[#e5e5e5] rounded w-20 animate-pulse" />
+                                <div className="h-4 bg-[var(--border-color)] rounded w-20 animate-pulse" />
                               </td>
                               <td className="px-3 sm:px-4 py-2">
-                                <div className="h-4 bg-[#e5e5e5] rounded w-12 animate-pulse" />
+                                <div className="h-4 bg-[var(--border-color)] rounded w-12 animate-pulse" />
                               </td>
                               <td className="px-3 sm:px-4 py-2">
-                                <div className="h-4 bg-[#e5e5e5] rounded w-12 animate-pulse" />
+                                <div className="h-4 bg-[var(--border-color)] rounded w-12 animate-pulse" />
                               </td>
                             </tr>
                           ))}
@@ -444,27 +459,27 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
                   {/* Bedroom curve chart skeleton */}
                   <div className="mt-3 sm:mt-4">
                     <div className="flex items-center justify-between gap-3 mb-2">
-                      <div className="h-4 bg-[#e5e5e5] rounded w-24 animate-pulse" />
-                      <div className="h-3 bg-[#e5e5e5] rounded w-32 animate-pulse" />
+                      <div className="h-4 bg-[var(--border-color)] rounded w-24 animate-pulse" />
+                      <div className="h-3 bg-[var(--border-color)] rounded w-32 animate-pulse" />
                     </div>
-                    <div className="rounded-lg border border-[#e5e5e5] bg-white p-3 sm:p-4">
-                      <div className="h-48 bg-[#e5e5e5] rounded animate-pulse" />
+                    <div className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] p-3 sm:p-4">
+                      <div className="h-48 bg-[var(--border-color)] rounded animate-pulse" />
                     </div>
                   </div>
                 </>
               ) : !stateMetrics ? (
-                <div className="text-xs text-[#737373] py-2">No statewide metrics available.</div>
+                <div className="text-xs text-[var(--text-tertiary)] py-2">No statewide metrics available.</div>
               ) : (
                 <>
-                  <div className="border border-[#e5e5e5] rounded-lg bg-white overflow-visible">
+                  <div className="border border-[var(--border-color)] rounded-lg bg-[var(--bg-secondary)] overflow-visible">
                     <div className="overflow-x-auto overflow-y-visible">
                       <table className="w-full text-xs sm:text-sm">
-                        <thead className="bg-[#fafafa] border-b border-[#e5e5e5]">
+                        <thead className="bg-[var(--bg-tertiary)] border-b border-[var(--border-color)]">
                           <tr className="text-left">
-                            <th className="px-3 sm:px-4 py-2 text-xs font-semibold text-[#525252]">BR</th>
-                            <th className="px-3 sm:px-4 py-2 text-xs font-semibold text-[#525252]">Median rent</th>
-                            <th className="px-3 sm:px-4 py-2 text-xs font-semibold text-[#525252]">YoY</th>
-                            <th className="px-3 sm:px-4 py-2 text-xs font-semibold text-[#525252] overflow-visible">
+                            <th className="px-3 sm:px-4 py-2 text-xs font-semibold text-[var(--text-secondary)]">BR</th>
+                            <th className="px-3 sm:px-4 py-2 text-xs font-semibold text-[var(--text-secondary)]">Median rent</th>
+                            <th className="px-3 sm:px-4 py-2 text-xs font-semibold text-[var(--text-secondary)]">YoY</th>
+                            <th className="px-3 sm:px-4 py-2 text-xs font-semibold text-[var(--text-secondary)] overflow-visible">
                               <div className="flex items-center gap-1">
                                 3Y CAGR
                                 <Tooltip
@@ -480,7 +495,7 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
                                     xmlns="http://www.w3.org/2000/svg"
                                     viewBox="0 0 20 20"
                                     fill="currentColor"
-                                    className="w-3.5 h-3.5 text-[#737373] cursor-help"
+                                    className="w-3.5 h-3.5 text-[var(--text-tertiary)] cursor-help"
                                   >
                                     <path
                                       fillRule="evenodd"
@@ -493,15 +508,15 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
                             </th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-[#e5e5e5]">
+                        <tbody className="divide-y divide-[var(--border-color)]">
                           {stateMetrics.byBedroom.map((b) => {
                             const yoy = b.medianYoY;
                             const yoyIcon = yoy === null ? '' : yoy >= 0 ? '▲' : '▼';
-                            const yoyClass = yoy === null ? 'text-[#0a0a0a]' : yoy >= 0 ? 'text-[#16a34a]' : 'text-[#dc2626]';
+                            const yoyClass = yoy === null ? 'text-[var(--text-primary)]' : yoy >= 0 ? 'text-[var(--map-color-high)]' : 'text-[var(--map-color-low)]';
                             return (
                               <tr key={b.br}>
-                                <td className="px-3 sm:px-4 py-2 font-medium text-[#0a0a0a]">{b.br}</td>
-                                <td className="px-3 sm:px-4 py-2 tabular-nums text-[#0a0a0a]">
+                                <td className="px-3 sm:px-4 py-2 font-medium text-[var(--text-primary)]">{b.br}</td>
+                                <td className="px-3 sm:px-4 py-2 tabular-nums text-[var(--text-primary)]">
                                   {b.medianFMR !== null ? formatCurrency(b.medianFMR) : '—'}
                                 </td>
                                 <td className="px-3 sm:px-4 py-2 tabular-nums">
@@ -513,7 +528,7 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
                                     '—'
                                   )}
                                 </td>
-                                <td className="px-3 sm:px-4 py-2 tabular-nums text-[#0a0a0a]">
+                                <td className="px-3 sm:px-4 py-2 tabular-nums text-[var(--text-primary)]">
                                   {b.medianCAGR3 !== null ? `${b.medianCAGR3.toFixed(1)}%` : '—'}
                                 </td>
                               </tr>
@@ -526,10 +541,10 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
 
                   {/* Bedroom curve chart below table */}
                   <div className="mt-3 sm:mt-4">
-                    <div className="rounded-lg border border-[#e5e5e5] bg-white p-3 sm:p-4">
+                    <div className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] p-3 sm:p-4">
                       <div className="mb-3">
-                        <h3 className="text-sm font-semibold text-[#0a0a0a]">Bedroom curve</h3>
-                        <div className="text-xs text-[#737373]">
+                        <h3 className="text-sm font-semibold text-[var(--text-primary)]">Bedroom curve</h3>
+                        <div className="text-xs text-[var(--text-tertiary)]">
                           YoY: {stateMetrics.prevYear}→{stateMetrics.year} • 3Y: {stateMetrics.prev3Year}→{stateMetrics.year}
                         </div>
                       </div>
@@ -542,14 +557,14 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
 
             {/* Tabbed movers - hidden on mobile, shown in secondary cards */}
             <div className="mb-4 sm:mb-6 hidden lg:block">
-              <h3 className="text-sm sm:text-base font-semibold text-[#0a0a0a] mb-2 sm:mb-3">Movers</h3>
-              <p className="text-xs text-[#737373] mb-3 sm:mb-4">
+              <h3 className="text-sm sm:text-base font-semibold text-[var(--text-primary)] mb-2 sm:mb-3">Movers</h3>
+              <p className="text-xs text-[var(--text-tertiary)] mb-3 sm:mb-4">
                 Counties with largest YoY changes and price jumps
               </p>
-              <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[60vh]">
-                <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
+              <div className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] overflow-hidden flex flex-col max-h-[60vh]">
+                <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[var(--border-color)] bg-[var(--bg-tertiary)] flex-shrink-0">
                   <div className="flex items-center justify-between gap-2 mb-1.5">
-                    <span className="text-xs text-[#737373]">View:</span>
+                    <span className="text-xs text-[var(--text-tertiary)]">View:</span>
                     <div className="flex gap-1">
                       {[
                         { id: 'rising' as const, label: 'Rising' },
@@ -562,8 +577,8 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
                           onClick={() => setSideTab(t.id)}
                           className={`px-2 py-1 rounded-md text-xs font-semibold border transition-colors ${
                             sideTab === t.id
-                              ? 'bg-white border-[#d4d4d4] text-[#0a0a0a]'
-                              : 'bg-[#fafafa] border-[#e5e5e5] text-[#737373] hover:text-[#0a0a0a]'
+                              ? 'bg-[var(--bg-secondary)] border-[var(--border-secondary)] text-[var(--text-primary)]'
+                              : 'bg-[var(--bg-tertiary)] border-[var(--border-color)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
                           }`}
                         >
                           {t.label}
@@ -572,7 +587,7 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
                     </div>
                   </div>
                 </div>
-                <div className="divide-y divide-[#e5e5e5] overflow-y-auto flex-1 min-h-0 custom-scrollbar pb-2">
+                <div className="divide-y divide-[var(--border-color)] overflow-y-auto flex-1 min-h-0 custom-scrollbar pb-2">
                   {moversLoading ? (
                     <>
                       {[...Array(8)].map((_, i) => (
@@ -604,19 +619,19 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
 
                     if (sideTab === 'rising') {
                       items = (moversData?.rising || []).slice(0, 15);
-                      colorClass = 'text-[#16a34a]';
+                      colorClass = 'text-[var(--map-color-high)]';
                       primaryText = (item) => <PercentageBadge value={item.yoyPercent} />;
                       secondaryText = (item) => bedroomLabels[item.yoyBedroom] || `${item.yoyBedroom} BR`;
                       tertiaryValue = (item) => item.bedroom2 ?? null;
                     } else if (sideTab === 'falling') {
                       items = (moversData?.falling || []).slice(0, 15);
-                      colorClass = 'text-[#dc2626]';
+                      colorClass = 'text-[var(--map-color-low)]';
                       primaryText = (item) => <PercentageBadge value={item.yoyPercent} />;
                       secondaryText = (item) => bedroomLabels[item.yoyBedroom] || `${item.yoyBedroom} BR`;
                       tertiaryValue = (item) => item.bedroom2 ?? null;
                     } else {
                       items = (moversData?.anomalies || []).slice(0, 15);
-                      colorClass = 'text-[#7c3aed]';
+                      colorClass = 'text-[var(--text-primary)]';
                       primaryText = (item) => <PercentageBadge value={item.jumpPercent} />;
                       secondaryText = (item) => `${item.jumpFrom}→${item.jumpTo} BR`;
                       tertiaryText = (item) =>
@@ -631,7 +646,7 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
                     if (items.length === 0) {
                       return (
                         <div className="px-3 sm:px-4 py-6 text-center">
-                          <p className="text-xs text-[#737373]">No data available</p>
+                          <p className="text-xs text-[var(--text-tertiary)]">No data available</p>
                         </div>
                       );
                     }
@@ -644,24 +659,24 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
                         <a
                           key={`${sideTab}-${item.areaName}-${item.stateCode}-${index}`}
                           href={href}
-                          className="block px-3 sm:px-4 py-2 sm:py-2.5 hover:bg-[#fafafa] transition-colors"
+                          className="block px-3 sm:px-4 py-2 sm:py-2.5 hover:bg-[var(--bg-hover)] transition-colors"
                         >
                           <div className="flex items-start justify-between gap-2 sm:gap-3">
                             <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
-                              <span className="text-xs text-[#a3a3a3] font-medium shrink-0 tabular-nums">#{index + 1}</span>
+                              <span className="text-xs text-[var(--text-muted)] font-medium shrink-0 tabular-nums">#{index + 1}</span>
                               <div className="min-w-0">
-                                <div className="font-medium text-[#0a0a0a] text-xs sm:text-sm truncate">{countyLabel}</div>
-                                <div className="text-xs text-[#737373] truncate mt-0.5">{item.stateCode}</div>
+                                <div className="font-medium text-[var(--text-primary)] text-xs sm:text-sm truncate">{countyLabel}</div>
+                                <div className="text-xs text-[var(--text-tertiary)] truncate mt-0.5">{item.stateCode}</div>
                               </div>
                             </div>
                             <div className="text-right shrink-0">
                               <div className={`font-semibold text-xs sm:text-sm tabular-nums ${colorClass}`}>
                                 {primaryText(item)}
                               </div>
-                              {secondaryText(item) && <div className="text-xs text-[#737373] mt-0.5">{secondaryText(item)}</div>}
-                              {tertiaryText(item) && <div className="text-xs text-[#a3a3a3] mt-0.5 tabular-nums">{tertiaryText(item)}</div>}
+                              {secondaryText(item) && <div className="text-xs text-[var(--text-tertiary)] mt-0.5">{secondaryText(item)}</div>}
+                              {tertiaryText(item) && <div className="text-xs text-[var(--text-muted)] mt-0.5 tabular-nums">{tertiaryText(item)}</div>}
                               {tertiaryValue(item) !== null && (
-                                <div className="text-xs text-[#a3a3a3] mt-0.5 tabular-nums">{formatCurrency(tertiaryValue(item) as number)}</div>
+                                <div className="text-xs text-[var(--text-muted)] mt-0.5 tabular-nums">{formatCurrency(tertiaryValue(item) as number)}</div>
                               )}
                             </div>
                           </div>
@@ -679,10 +694,10 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
           <div className="w-full lg:w-96 flex-shrink-0 lg:sticky lg:top-8 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pr-1 custom-scrollbar">
             <div className="flex flex-col gap-3 sm:gap-4">
             {/* County Rankings - shown first on mobile, after map on desktop */}
-            <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[calc(100vh-24rem)] order-1 lg:order-3">
-              <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
-                <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a] mb-0.5">Counties</h3>
-                <p className="text-xs text-[#737373]">
+            <div className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] overflow-hidden flex flex-col max-h-[calc(100vh-24rem)] order-1 lg:order-3">
+              <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[var(--border-color)] bg-[var(--bg-tertiary)] flex-shrink-0">
+                <h3 className="text-xs sm:text-sm font-semibold text-[var(--text-primary)] mb-0.5">Counties</h3>
+                <p className="text-xs text-[var(--text-tertiary)]">
                   Ranked by Investment Score (vs state median)
                 </p>
               </div>
@@ -693,13 +708,13 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
                 {countyRankingsLoading ? (
                   <div className="space-y-2 p-3 sm:p-4">
                     {[...Array(10)].map((_, i) => (
-                      <div key={i} className="h-12 bg-[#e5e5e5] rounded animate-pulse" />
+                      <div key={i} className="h-12 bg-[var(--border-color)] rounded animate-pulse" />
                     ))}
                   </div>
                 ) : countyRankings.length === 0 ? (
-                  <div className="text-xs text-[#737373] py-4 px-3 sm:px-4 text-center">No county data available</div>
+                  <div className="text-xs text-[var(--text-tertiary)] py-4 px-3 sm:px-4 text-center">No county data available</div>
                 ) : (
-                  <div className="divide-y divide-[#e5e5e5]">
+                  <div className="divide-y divide-[var(--border-color)]">
                     {countyRankings.map((county, index) => {
                       const isHovered = !!county.countyFips && hoveredCountyFips === county.countyFips;
                       const countyLabel = formatCountyName(county.countyName, county.stateCode);
@@ -726,15 +741,15 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
                             }
                           }}
                           className={`block px-3 sm:px-4 py-2 sm:py-2.5 transition-colors ${
-                            isHovered ? 'bg-[#fafafa] ring-2 ring-inset ring-[#2563eb]/20' : 'hover:bg-[#fafafa]'
+                            isHovered ? 'bg-[var(--bg-hover)] ring-2 ring-inset ring-[var(--map-stroke-hover)]/20' : 'hover:bg-[var(--bg-hover)]'
                           }`}
                         >
                           <div className="flex items-center justify-between gap-2 sm:gap-3">
                             <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                              <span className="text-xs font-medium text-[#737373] w-4 sm:w-5 tabular-nums shrink-0">
+                              <span className="text-xs font-medium text-[var(--text-tertiary)] w-4 sm:w-5 tabular-nums shrink-0">
                                 {index + 1}
                               </span>
-                              <span className="font-medium text-[#0a0a0a] text-xs sm:text-sm truncate">{countyLabel}</span>
+                              <span className="font-medium text-[var(--text-primary)] text-xs sm:text-sm truncate">{countyLabel}</span>
                             </div>
                             <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                               {score !== null ? (
@@ -748,7 +763,7 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
                                   <PercentageBadge value={county.percentDiff} className="text-xs shrink-0" />
                                 </>
                               ) : (
-                                <span className="text-xs text-[#737373]">No data</span>
+                                <span className="text-xs text-[var(--text-tertiary)]">No data</span>
                               )}
                             </div>
                           </div>
@@ -761,18 +776,18 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
             </div>
 
             {/* Choropleth Map */}
-            <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden order-2 lg:order-2">
-              <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex items-center justify-between gap-2">
+            <div className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] overflow-hidden order-2 lg:order-2">
+              <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[var(--border-color)] bg-[var(--bg-tertiary)] flex items-center justify-between gap-2">
                 <div>
-                  <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a] mb-0.5">County Map</h3>
-                  <p className="text-xs text-[#737373]">Click a county to view details</p>
+                  <h3 className="text-xs sm:text-sm font-semibold text-[var(--text-primary)] mb-0.5">County Map</h3>
+                  <p className="text-xs text-[var(--text-tertiary)]">Click a county to view details</p>
                 </div>
-                <div className="text-xs font-medium text-[#737373]">
+                <div className="text-xs font-medium text-[var(--text-tertiary)]">
                   Layer: Investment Score
                 </div>
               </div>
               <div className="p-4">
-                <div className="h-40 rounded-lg overflow-hidden">
+                <div className="h-40 rounded-lg overflow-hidden bg-[var(--map-bg)]">
                   <ChoroplethMap
                     stateCode={props.stateCode}
                     year={displayYear || undefined}
@@ -796,14 +811,14 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
             </div>
 
             {/* Tabbed movers - shown in secondary cards on mobile, after counties */}
-            <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[60vh] order-3 lg:hidden">
-              <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
-                <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a] mb-0.5">Movers</h3>
-                <p className="text-xs text-[#737373]">
+            <div className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] overflow-hidden flex flex-col max-h-[60vh] order-3 lg:hidden">
+              <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[var(--border-color)] bg-[var(--bg-tertiary)] flex-shrink-0">
+                <h3 className="text-xs sm:text-sm font-semibold text-[var(--text-primary)] mb-0.5">Movers</h3>
+                <p className="text-xs text-[var(--text-tertiary)]">
                   Counties with largest YoY changes and price jumps
                 </p>
                 <div className="flex items-center justify-between gap-2 mt-2">
-                  <span className="text-xs text-[#737373]">View:</span>
+                  <span className="text-xs text-[var(--text-tertiary)]">View:</span>
                   <div className="flex gap-1">
                     {[
                       { id: 'rising' as const, label: 'Rising' },
@@ -816,8 +831,8 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
                         onClick={() => setSideTab(t.id)}
                         className={`px-2 py-1 rounded-md text-xs font-semibold border transition-colors ${
                           sideTab === t.id
-                            ? 'bg-white border-[#d4d4d4] text-[#0a0a0a]'
-                            : 'bg-[#fafafa] border-[#e5e5e5] text-[#737373] hover:text-[#0a0a0a]'
+                            ? 'bg-[var(--bg-secondary)] border-[var(--border-secondary)] text-[var(--text-primary)]'
+                            : 'bg-[var(--bg-tertiary)] border-[var(--border-color)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
                         }`}
                       >
                         {t.label}
@@ -826,7 +841,7 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
                   </div>
                 </div>
               </div>
-              <div className="divide-y divide-[#e5e5e5] overflow-y-auto flex-1 min-h-0 custom-scrollbar pb-2">
+              <div className="divide-y divide-[var(--border-color)] overflow-y-auto flex-1 min-h-0 custom-scrollbar pb-2">
                 {moversLoading ? (
                   <>
                     {[...Array(8)].map((_, i) => (
@@ -858,19 +873,19 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
 
                   if (sideTab === 'rising') {
                     items = (moversData?.rising || []).slice(0, 15);
-                    colorClass = 'text-[#16a34a]';
+                    colorClass = 'text-[var(--map-color-high)]';
                     primaryText = (item) => <PercentageBadge value={item.yoyPercent} />;
                     secondaryText = (item) => bedroomLabels[item.yoyBedroom] || `${item.yoyBedroom} BR`;
                     tertiaryValue = (item) => item.bedroom2 ?? null;
                   } else if (sideTab === 'falling') {
                     items = (moversData?.falling || []).slice(0, 15);
-                    colorClass = 'text-[#dc2626]';
+                    colorClass = 'text-[var(--map-color-low)]';
                     primaryText = (item) => <PercentageBadge value={item.yoyPercent} />;
                     secondaryText = (item) => bedroomLabels[item.yoyBedroom] || `${item.yoyBedroom} BR`;
                     tertiaryValue = (item) => item.bedroom2 ?? null;
                   } else {
                     items = (moversData?.anomalies || []).slice(0, 15);
-                    colorClass = 'text-[#7c3aed]';
+                    colorClass = 'text-[var(--text-primary)]';
                     primaryText = (item) => <PercentageBadge value={item.jumpPercent} />;
                     secondaryText = (item) => `${item.jumpFrom}→${item.jumpTo} BR`;
                     tertiaryText = (item) =>
@@ -884,7 +899,7 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
                   if (items.length === 0) {
                     return (
                       <div className="px-3 sm:px-4 py-6 text-center">
-                        <p className="text-xs text-[#737373]">No data available</p>
+                        <p className="text-xs text-[var(--text-tertiary)]">No data available</p>
                       </div>
                     );
                   }
@@ -897,24 +912,24 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
                       <a
                         key={`${sideTab}-${item.areaName}-${item.stateCode}-${index}`}
                         href={href}
-                        className="block px-3 sm:px-4 py-2 sm:py-2.5 hover:bg-[#fafafa] transition-colors"
+                        className="block px-3 sm:px-4 py-2 sm:py-2.5 hover:bg-[var(--bg-hover)] transition-colors"
                       >
                         <div className="flex items-start justify-between gap-2 sm:gap-3">
                           <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
-                            <span className="text-xs text-[#a3a3a3] font-medium shrink-0 tabular-nums">#{index + 1}</span>
+                            <span className="text-xs text-[var(--text-muted)] font-medium shrink-0 tabular-nums">#{index + 1}</span>
                             <div className="min-w-0">
-                              <div className="font-medium text-[#0a0a0a] text-xs sm:text-sm truncate">{countyLabel}</div>
-                              <div className="text-xs text-[#737373] truncate mt-0.5">{item.stateCode}</div>
+                              <div className="font-medium text-[var(--text-primary)] text-xs sm:text-sm truncate">{countyLabel}</div>
+                              <div className="text-xs text-[var(--text-tertiary)] truncate mt-0.5">{item.stateCode}</div>
                             </div>
                           </div>
                           <div className="text-right shrink-0">
                             <div className={`font-semibold text-xs sm:text-sm tabular-nums ${colorClass}`}>
                               {primaryText(item)}
                             </div>
-                            {secondaryText(item) && <div className="text-xs text-[#737373] mt-0.5">{secondaryText(item)}</div>}
-                            {tertiaryText(item) && <div className="text-xs text-[#a3a3a3] mt-0.5 tabular-nums">{tertiaryText(item)}</div>}
+                            {secondaryText(item) && <div className="text-xs text-[var(--text-tertiary)] mt-0.5">{secondaryText(item)}</div>}
+                            {tertiaryText(item) && <div className="text-xs text-[var(--text-muted)] mt-0.5 tabular-nums">{tertiaryText(item)}</div>}
                             {tertiaryValue(item) !== null && (
-                              <div className="text-xs text-[#a3a3a3] mt-0.5 tabular-nums">{formatCurrency(tertiaryValue(item) as number)}</div>
+                              <div className="text-xs text-[var(--text-muted)] mt-0.5 tabular-nums">{formatCurrency(tertiaryValue(item) as number)}</div>
                             )}
                           </div>
                         </div>
@@ -929,17 +944,17 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
         </div>
 
 
-        <div className="mt-6 sm:mt-8 lg:mt-4 pt-3 sm:pt-4 lg:pt-3 border-t border-[#e5e5e5] flex-shrink-0">
+        <div className="mt-6 sm:mt-8 lg:mt-4 pt-3 sm:pt-4 lg:pt-3 border-t border-[var(--border-color)] flex-shrink-0">
           <div className="mb-2 sm:mb-3 lg:mb-2">
-            <p className="text-xs font-medium text-[#0a0a0a] mb-0.5">fmr.fyi</p>
-            <p className="text-xs text-[#737373]">Fair Market Rent data made simple</p>
+            <p className="text-xs font-medium text-[var(--text-primary)] mb-0.5">fmr.fyi</p>
+            <p className="text-xs text-[var(--text-tertiary)]">Fair Market Rent data made simple</p>
           </div>
           <div className="space-y-1 sm:space-y-1.5">
-            <p className="text-xs text-[#737373]">
+            <p className="text-xs text-[var(--text-tertiary)]">
               Data source:{' '}
-              <span className="text-[#525252] font-medium">U.S. Department of Housing and Urban Development (HUD)</span>
+              <span className="text-[var(--text-secondary)] font-medium">U.S. Department of Housing and Urban Development (HUD)</span>
             </p>
-            <p className="text-xs text-[#a3a3a3]">Fiscal Year 2026 • Updated October 2025</p>
+            <p className="text-xs text-[var(--text-muted)]">Fiscal Year 2026 • Updated October 2025</p>
           </div>
         </div>
       </div>

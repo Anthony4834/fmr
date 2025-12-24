@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, memo } from 'react';
+import { useEffect, useMemo, useRef, memo, useState } from 'react';
 import Chart from 'chart.js/auto';
 
 type Row = {
@@ -18,13 +18,49 @@ function formatCurrencyShort(value: number) {
   }).format(value);
 }
 
+// Helper function to get CSS variable value safely
+function getCSSVariable(variableName: string, fallback: string): string {
+  if (typeof window === 'undefined') return fallback;
+  const value = getComputedStyle(document.documentElement).getPropertyValue(variableName).trim();
+  return value || fallback;
+}
+
 function StateBedroomCurveChart(props: { rows: Row[] }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const chartRef = useRef<Chart | null>(null);
+  const [themeKey, setThemeKey] = useState<string>('light');
 
   const labels = useMemo(() => props.rows.map((r) => `${r.br}`), [props.rows]);
   const rent = useMemo(() => props.rows.map((r) => (typeof r.medianFMR === 'number' ? r.medianFMR : null)), [props.rows]);
   const yoy = useMemo(() => props.rows.map((r) => (typeof r.medianYoY === 'number' ? r.medianYoY : null)), [props.rows]);
+
+  // Track theme changes to trigger rerender
+  useEffect(() => {
+    // Get initial theme
+    const getTheme = () => {
+      if (typeof window === 'undefined') return 'light';
+      const themeAttr = document.documentElement.getAttribute('data-theme');
+      return themeAttr || 'light';
+    };
+    
+    setThemeKey(getTheme());
+    
+    // Watch for theme changes via MutationObserver
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === 'attributes' && mutation.attributeName === 'data-theme') {
+          setThemeKey(getTheme());
+        }
+      });
+    });
+    
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme'],
+    });
+    
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -34,6 +70,11 @@ function StateBedroomCurveChart(props: { rows: Row[] }) {
       chartRef.current.destroy();
       chartRef.current = null;
     }
+
+    // Get theme-aware colors
+    const legendColor = getCSSVariable('--text-primary', '#0a0a0a');
+    const gridColor = getCSSVariable('--border-color', '#f5f5f5');
+    const tickColor = getCSSVariable('--text-tertiary', '#737373');
 
     chartRef.current = new Chart(canvas, {
       type: 'line',
@@ -80,7 +121,7 @@ function StateBedroomCurveChart(props: { rows: Row[] }) {
               usePointStyle: true,
               boxWidth: 10,
               padding: 10,
-              color: '#0a0a0a',
+              color: legendColor,
               font: { size: 11, weight: 600 },
             },
           },
@@ -102,14 +143,14 @@ function StateBedroomCurveChart(props: { rows: Row[] }) {
         scales: {
           x: {
             title: { display: false },
-            grid: { color: '#f5f5f5' },
-            ticks: { color: '#737373' },
+            grid: { color: gridColor },
+            ticks: { color: tickColor },
           },
           yRent: {
             position: 'left',
-            grid: { color: '#f5f5f5' },
+            grid: { color: gridColor },
             ticks: {
-              color: '#737373',
+              color: tickColor,
               callback: (value) => {
                 const n = Number(value);
                 if (!Number.isFinite(n)) return '';
@@ -121,7 +162,7 @@ function StateBedroomCurveChart(props: { rows: Row[] }) {
             position: 'right',
             grid: { drawOnChartArea: false },
             ticks: {
-              color: '#737373',
+              color: tickColor,
               callback: (value) => {
                 const n = Number(value);
                 if (!Number.isFinite(n)) return '';
@@ -139,7 +180,7 @@ function StateBedroomCurveChart(props: { rows: Row[] }) {
         chartRef.current = null;
       }
     };
-  }, [labels, rent, yoy]);
+  }, [labels, rent, yoy, themeKey]);
 
   return (
     <div className="h-40 sm:h-44">

@@ -577,3 +577,6 @@ export default function ZipPropertyDataClient() {
     </main>
   );
 }
+
+
+

@@ -10,7 +10,7 @@ export default function InvestorScoreInfoButton() {
     <>
       <button
         onClick={() => setIsModalOpen(true)}
-        className="text-sm text-[#525252] hover:text-[#0a0a0a] underline transition-colors whitespace-nowrap"
+        className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] underline transition-colors whitespace-nowrap"
       >
         What is Investment Score?
       </button>
@@ -18,3 +18,6 @@ export default function InvestorScoreInfoButton() {
     </>
   );
 }
+
+
+

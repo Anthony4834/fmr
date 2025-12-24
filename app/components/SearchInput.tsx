@@ -562,7 +562,7 @@ export default function SearchInput({ onSelect, autoFocus = false }: SearchInput
     <div ref={containerRef} className="relative w-full">
       <form onSubmit={handleSubmit}>
         <div className="relative">
-          <div className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#737373]">
+          <div className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path
                 d="M10 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z"
@@ -597,14 +597,14 @@ export default function SearchInput({ onSelect, autoFocus = false }: SearchInput
             placeholder="Search state, ZIP, city, county/parish, or address…"
             className={`w-full pl-10 ${
               query.trim().length > 0 ? 'pr-28 sm:pr-40' : 'pr-16 sm:pr-24'
-            } py-2.5 sm:py-3.5 text-[14px] sm:text-[15px] bg-white border border-[#e5e5e5] rounded-xl appearance-none focus:outline-none focus:ring-0 focus:ring-offset-0 focus:border-[#0a0a0a] transition-colors placeholder:text-[#a3a3a3] text-[#0a0a0a]`}
+            } py-2.5 sm:py-3.5 text-[14px] sm:text-[15px] bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl appearance-none focus:outline-none focus:ring-0 focus:ring-offset-0 focus:border-[var(--text-primary)] transition-colors placeholder:text-[var(--text-muted)] text-[var(--text-primary)]`}
             aria-autocomplete="list"
             aria-expanded={showSuggestions}
           />
           <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
             {(isLoading || isSubmitting) && (
               <div className="pointer-events-none mr-1.5">
-                <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#0a0a0a] border-t-transparent"></div>
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-[var(--text-primary)] border-t-transparent"></div>
               </div>
             )}
             {query.trim().length > 0 && (
@@ -619,7 +619,7 @@ export default function SearchInput({ onSelect, autoFocus = false }: SearchInput
                   setSelectedIndex(-1);
                   inputRef.current?.focus();
                 }}
-                className="h-8 sm:h-9 px-2.5 sm:px-3 text-[11px] sm:text-xs font-semibold rounded-lg border border-[#e5e5e5] bg-white text-[#0a0a0a] hover:bg-[#fafafa] transition-colors"
+                className="h-8 sm:h-9 px-2.5 sm:px-3 text-[11px] sm:text-xs font-semibold rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors"
               >
                 <span className="sm:hidden">×</span>
                 <span className="hidden sm:inline">Clear</span>
@@ -628,7 +628,7 @@ export default function SearchInput({ onSelect, autoFocus = false }: SearchInput
             <button
               type="submit"
               aria-label="Search"
-              className="h-8 sm:h-9 px-3 sm:px-4 text-[11px] sm:text-xs font-semibold rounded-lg bg-[#0a0a0a] text-white hover:opacity-90 transition-opacity"
+              className="h-8 sm:h-9 px-3 sm:px-4 text-[11px] sm:text-xs font-semibold rounded-lg bg-[var(--text-primary)] text-[var(--bg-primary)] hover:opacity-90 transition-opacity"
             >
               <span className="sm:hidden">Go</span>
               <span className="hidden sm:inline">Search</span>
@@ -638,9 +638,9 @@ export default function SearchInput({ onSelect, autoFocus = false }: SearchInput
       </form>
 
       {shouldRenderDropdown && (
-        <div className="absolute z-10 w-full mt-2 bg-white border border-[#e5e5e5] rounded-xl overflow-hidden">
+        <div className="absolute z-10 w-full mt-2 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl overflow-hidden">
           {isLoading && query.trim().length >= 2 && displayedSuggestions.length === 0 ? (
-            <div className="px-4 py-3 text-sm text-[#525252]">
+            <div className="px-4 py-3 text-sm text-[var(--text-secondary)]">
               Searching…
             </div>
           ) : displayedSuggestions.length > 0 ? (
@@ -650,26 +650,26 @@ export default function SearchInput({ onSelect, autoFocus = false }: SearchInput
                   key={`${suggestion.type}-${suggestion.value}-${index}`}
                   type="button"
                   onClick={() => handleSelect(suggestion)}
-                  className={`w-full text-left px-4 py-3 hover:bg-[#fafafa] focus:bg-[#fafafa] focus:outline-none transition-colors ${
-                    index === selectedIndex ? 'bg-[#fafafa]' : ''
-                  } ${index > 0 ? 'border-t border-[#e5e5e5]' : ''}`}
+                  className={`w-full text-left px-4 py-3 hover:bg-[var(--bg-hover)] focus:bg-[var(--bg-hover)] focus:outline-none transition-colors ${
+                    index === selectedIndex ? 'bg-[var(--bg-hover)]' : ''
+                  } ${index > 0 ? 'border-t border-[var(--border-color)]' : ''}`}
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <span className={`font-medium text-[#0a0a0a] text-sm flex-1 min-w-0 ${
+                    <span className={`font-medium text-[var(--text-primary)] text-sm flex-1 min-w-0 ${
                       suggestion.type === 'address' ? 'font-semibold' : ''
                     }`}>
                       {suggestion.display}
                     </span>
                     <span className={`text-xs uppercase px-2 py-0.5 rounded font-medium shrink-0 ${
                       suggestion.type === 'address' 
-                        ? 'text-[#0a0a0a] bg-[#e5e5e5]' 
+                        ? 'text-[var(--text-primary)] bg-[var(--border-color)]' 
                         : suggestion.type === 'state'
-                        ? 'text-[#0a0a0a] bg-[#f5f5f5]'
+                        ? 'text-[var(--text-primary)] bg-[var(--bg-tertiary)]'
                         : suggestion.type === 'zip'
-                        ? 'text-[#7c3aed] bg-[#faf5ff]'
+                        ? 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950'
                         : suggestion.type === 'city'
-                        ? 'text-[#2563eb] bg-[#eff6ff]'
-                        : 'text-[#4f46e5] bg-[#eef2ff]'
+                        ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950'
+                        : 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950'
                     }`}>
                       {suggestion.type === 'address' ? 'Address' : suggestion.type}
                     </span>
@@ -680,8 +680,8 @@ export default function SearchInput({ onSelect, autoFocus = false }: SearchInput
           ) : (
             showEmptyState && (
               <div className="px-4 py-8 text-center">
-                <p className="text-sm text-[#525252] font-medium mb-1">No results found</p>
-                <p className="text-xs text-[#737373]">Try a different search term</p>
+                <p className="text-sm text-[var(--text-secondary)] font-medium mb-1">No results found</p>
+                <p className="text-xs text-[var(--text-tertiary)]">Try a different search term</p>
               </div>
             )
           )}

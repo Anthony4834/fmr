@@ -122,13 +122,13 @@ export default function GeographicRankings({ year }: GeographicRankingsProps) {
   };
 
   return (
-    <div className="bg-white rounded-lg border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[56vh] sm:max-h-[600px] lg:max-h-[70vh]">
+    <div className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] overflow-hidden flex flex-col max-h-[56vh] sm:max-h-[600px] lg:max-h-[70vh]">
       {/* Header */}
-      <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[#e5e5e5] bg-[#fafafa] flex-shrink-0">
-        <h3 className="text-xs sm:text-sm font-semibold text-[#0a0a0a] mb-2">
+      <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[var(--border-color)] bg-[var(--bg-tertiary)] flex-shrink-0">
+        <h3 className="text-xs sm:text-sm font-semibold text-[var(--text-primary)] mb-2">
           Market Explorer
         </h3>
-        <p className="text-xs text-[#737373] -mt-1 mb-3">
+        <p className="text-xs text-[var(--text-tertiary)] -mt-1 mb-3">
           Ranked by Investment Score
         </p>
 
@@ -143,8 +143,8 @@ export default function GeographicRankings({ year }: GeographicRankingsProps) {
               onClick={() => handleTabChange(tab)}
               className={`px-3 py-1.5 text-xs font-medium rounded transition-colors relative ${
                 activeTab === tab
-                  ? 'text-[#0a0a0a]'
-                  : 'text-[#737373] hover:text-[#0a0a0a]'
+                  ? 'text-[var(--text-primary)]'
+                  : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
               }`}
               role="tab"
               aria-selected={activeTab === tab}
@@ -154,7 +154,7 @@ export default function GeographicRankings({ year }: GeographicRankingsProps) {
           ))}
           {/* Animated bottom bar */}
           <div
-            className="absolute bottom-0 h-0.5 bg-[#0a0a0a] transition-all duration-300 ease-out"
+            className="absolute bottom-0 h-0.5 bg-[var(--text-primary)] transition-all duration-300 ease-out"
             style={{
               left: `${tabBarStyle.left}px`,
               width: `${tabBarStyle.width}px`,
@@ -172,14 +172,14 @@ export default function GeographicRankings({ year }: GeographicRankingsProps) {
         {/* Contextual Filters */}
         {activeTab !== 'state' && (
           <div className="flex items-center gap-2 mt-2">
-            <label className="text-xs font-semibold text-[#525252]" htmlFor="state-filter">
+            <label className="text-xs font-semibold text-[var(--text-secondary)]" htmlFor="state-filter">
               State
             </label>
             <select
               id="state-filter"
               value={stateFilter}
               onChange={(e) => handleStateFilterChange(e.target.value)}
-              className="h-8 px-2.5 rounded-md border border-[#e5e5e5] bg-white text-xs text-[#0a0a0a] focus:outline-none focus:ring-2 focus:ring-[#0a0a0a] focus:border-transparent"
+              className="h-8 px-2.5 rounded-md border border-[var(--border-color)] bg-[var(--bg-secondary)] text-xs text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--text-primary)] focus:border-transparent"
             >
               <option value="">All States</option>
               {STATE_OPTIONS.map((s) => (

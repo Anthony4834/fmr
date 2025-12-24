@@ -6,7 +6,8 @@
       "Bash(npm run build:*)",
       "Bash(cat:*)",
       "Bash(bun add:*)",
-      "Bash(bun run dev)"
+      "Bash(bun run dev)",
+      "Bash(grep:*)"
     ]
   }
 }

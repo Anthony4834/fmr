@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import SearchInput from '@/app/components/SearchInput';
 import GeographicRankings from '@/app/components/GeographicRankings';
 import InvestorScoreInfoButton from '@/app/components/InvestorScoreInfoButton';
+import ThemeSwitcher from '@/app/components/ThemeSwitcher';
 import { buildCitySlug, buildCountySlug } from '@/lib/location-slugs';
 
 export default function ExplorerClient() {
@@ -83,7 +84,7 @@ export default function ExplorerClient() {
   };
 
   return (
-    <main className="min-h-screen bg-[#fafafa]">
+    <main className="min-h-screen bg-[var(--bg-primary)]">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
@@ -93,33 +94,36 @@ export default function ExplorerClient() {
         <div className="mb-4 sm:mb-6 lg:mb-4">
           <div className="mb-2 sm:mb-3 lg:mb-2">
             <a href="/" className="block hover:opacity-70 transition-opacity">
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#0a0a0a] mb-1 tracking-tight">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[var(--text-primary)] mb-1 tracking-tight">
                 fmr.fyi
               </h1>
-              <p className="text-xs text-[#737373] font-medium tracking-wide uppercase">Fair Market Rent Data</p>
+              <p className="text-xs text-[var(--text-tertiary)] font-medium tracking-wide uppercase">Fair Market Rent Data</p>
             </a>
           </div>
           <div className="flex items-center justify-between gap-4 flex-wrap">
-            <p className="text-sm sm:text-base text-[#525252] max-w-2xl">
+            <p className="text-sm sm:text-base text-[var(--text-secondary)] max-w-2xl">
               Search HUD Fair Market Rent data by address, city, ZIP code, county, or parish
             </p>
-            <InvestorScoreInfoButton />
+            <div className="flex items-center gap-3">
+              <InvestorScoreInfoButton />
+              <ThemeSwitcher />
+            </div>
           </div>
         </div>
 
         <div className="flex flex-col gap-3 sm:gap-4">
           {/* Main search (same as homepage) */}
-          <div className="bg-white rounded-lg border border-[#e5e5e5] p-4 sm:p-6">
+          <div className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] p-4 sm:p-6">
             <SearchInput onSelect={handleSearch} />
           </div>
 
           {/* Breadcrumbs */}
-          <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-[#737373] flex-wrap">
-            <a href="/" className="hover:text-[#0a0a0a] transition-colors">
+          <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-[var(--text-tertiary)] flex-wrap">
+            <a href="/" className="hover:text-[var(--text-primary)] transition-colors">
               Home
             </a>
-            <span className="text-[#a3a3a3]">/</span>
-            <span aria-current="page" className="text-[#0a0a0a] font-medium">
+            <span className="text-[var(--text-muted)]">/</span>
+            <span aria-current="page" className="text-[var(--text-primary)] font-medium">
               Explorer
             </span>
           </nav>

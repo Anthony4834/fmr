@@ -88,7 +88,7 @@ export default function FMRResults({
       <div className="mt-4 sm:mt-6">
         {/* Breadcrumbs Skeleton */}
         <div className="mb-3">
-          <div className="h-4 bg-[#e5e5e5] rounded w-48 animate-pulse"></div>
+          <div className="h-4 bg-[var(--border-color)] rounded w-48 animate-pulse"></div>
         </div>
 
         {/* Header Skeleton */}
@@ -96,35 +96,35 @@ export default function FMRResults({
           <div className="min-w-0 flex-1">
             <div className="flex items-start gap-2">
               {/* Back button skeleton */}
-              <div className="h-8 w-8 bg-[#e5e5e5] rounded-lg animate-pulse shrink-0"></div>
+              <div className="h-8 w-8 bg-[var(--border-color)] rounded-lg animate-pulse shrink-0"></div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
                   {/* Title skeleton */}
-                  <div className="h-5 sm:h-6 bg-[#e5e5e5] rounded w-48 sm:w-64 animate-pulse"></div>
+                  <div className="h-5 sm:h-6 bg-[var(--border-color)] rounded w-48 sm:w-64 animate-pulse"></div>
                   {/* Badge skeletons */}
-                  <div className="h-5 bg-[#e5e5e5] rounded w-12 animate-pulse"></div>
-                  <div className="h-5 bg-[#e5e5e5] rounded w-12 animate-pulse"></div>
+                  <div className="h-5 bg-[var(--border-color)] rounded w-12 animate-pulse"></div>
+                  <div className="h-5 bg-[var(--border-color)] rounded w-12 animate-pulse"></div>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   {/* Location skeleton */}
-                  <div className="h-3 bg-[#e5e5e5] rounded w-40 animate-pulse"></div>
-                  <div className="h-3 bg-[#e5e5e5] rounded w-1 animate-pulse"></div>
-                  <div className="h-3 bg-[#e5e5e5] rounded w-32 animate-pulse"></div>
+                  <div className="h-3 bg-[var(--border-color)] rounded w-40 animate-pulse"></div>
+                  <div className="h-3 bg-[var(--border-color)] rounded w-1 animate-pulse"></div>
+                  <div className="h-3 bg-[var(--border-color)] rounded w-32 animate-pulse"></div>
                 </div>
               </div>
             </div>
           </div>
           {/* Zillow button skeleton */}
-          <div className="h-8 bg-[#e5e5e5] rounded-lg w-20 sm:w-28 animate-pulse shrink-0"></div>
+          <div className="h-8 bg-[var(--border-color)] rounded-lg w-20 sm:w-28 animate-pulse shrink-0"></div>
         </div>
 
         {/* Investment Score Gauge Skeleton */}
-        <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-[#fafafa] rounded-lg border border-[#e5e5e5]">
+        <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-[var(--bg-content)] rounded-lg border border-[var(--border-color)]">
           <div className="flex items-center gap-4">
-            <div className="w-[120px] h-[60px] bg-[#e5e5e5] rounded animate-pulse" />
+            <div className="w-[120px] h-[60px] bg-[var(--border-color)] rounded animate-pulse" />
             <div className="flex-1">
-              <div className="h-3 bg-[#e5e5e5] rounded w-32 mb-2 animate-pulse" />
-              <div className="h-3 bg-[#e5e5e5] rounded w-48 animate-pulse" />
+              <div className="h-3 bg-[var(--border-color)] rounded w-32 mb-2 animate-pulse" />
+              <div className="h-3 bg-[var(--border-color)] rounded w-48 animate-pulse" />
             </div>
           </div>
         </div>
@@ -134,27 +134,27 @@ export default function FMRResults({
           <div className="max-h-[240px] overflow-y-auto overflow-x-visible">
             <table className="w-full border-collapse">
               <thead>
-                <tr className="border-b border-[#e5e5e5]">
-                  <th className="text-left py-2 px-2 sm:px-3 font-medium text-[#737373] text-xs uppercase tracking-wider">BR</th>
-                  <th className="text-right py-2 px-2 sm:px-3 font-medium text-[#737373] text-xs uppercase tracking-wider">Rent</th>
-                  <th className="text-right py-2 px-2 sm:px-3 font-medium text-[#737373] text-xs uppercase tracking-wider">YoY</th>
-                  <th className="text-right py-2 px-2 sm:px-3 font-medium text-[#737373] text-xs uppercase tracking-wider">3Y CAGR</th>
+                <tr className="border-b border-[var(--border-color)]">
+                  <th className="text-left py-2 px-2 sm:px-3 font-medium text-[var(--text-tertiary)] text-xs uppercase tracking-wider">BR</th>
+                  <th className="text-right py-2 px-2 sm:px-3 font-medium text-[var(--text-tertiary)] text-xs uppercase tracking-wider">Rent</th>
+                  <th className="text-right py-2 px-2 sm:px-3 font-medium text-[var(--text-tertiary)] text-xs uppercase tracking-wider">YoY</th>
+                  <th className="text-right py-2 px-2 sm:px-3 font-medium text-[var(--text-tertiary)] text-xs uppercase tracking-wider">3Y CAGR</th>
                 </tr>
               </thead>
               <tbody>
                 {[...Array(5)].map((_, i) => (
-                  <tr key={i} className="border-b border-[#e5e5e5]">
+                  <tr key={i} className="border-b border-[var(--border-color)]">
                     <td className="py-2.5 sm:py-2 px-2 sm:px-3">
-                      <div className="h-4 bg-[#e5e5e5] rounded w-12 animate-pulse"></div>
+                      <div className="h-4 bg-[var(--border-color)] rounded w-12 animate-pulse"></div>
                     </td>
                     <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
-                      <div className="h-4 bg-[#e5e5e5] rounded w-20 ml-auto animate-pulse"></div>
+                      <div className="h-4 bg-[var(--border-color)] rounded w-20 ml-auto animate-pulse"></div>
                     </td>
                     <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
-                      <div className="h-4 bg-[#e5e5e5] rounded w-12 ml-auto animate-pulse"></div>
+                      <div className="h-4 bg-[var(--border-color)] rounded w-12 ml-auto animate-pulse"></div>
                     </td>
                     <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
-                      <div className="h-4 bg-[#e5e5e5] rounded w-12 ml-auto animate-pulse"></div>
+                      <div className="h-4 bg-[var(--border-color)] rounded w-12 ml-auto animate-pulse"></div>
                     </td>
                   </tr>
                 ))}
@@ -168,9 +168,9 @@ export default function FMRResults({
 
   if (error) {
     return (
-      <div className="mt-6 p-4 bg-[#fef2f2] border border-[#fecaca] rounded-lg">
-        <p className="text-[#991b1b] font-semibold text-sm mb-1">Error</p>
-        <p className="text-[#dc2626] text-sm">{error}</p>
+      <div className="mt-6 p-4 bg-[var(--warning-bg)] border border-[var(--warning-border)] rounded-lg">
+        <p className="text-[var(--warning-text)] font-semibold text-sm mb-1">Error</p>
+        <p className="text-[var(--map-color-low)] text-sm">{error}</p>
       </div>
     );
   }
@@ -373,7 +373,7 @@ export default function FMRResults({
 
   const YoYBadge = ({ bedroomKey }: { bedroomKey: keyof typeof representative }) => {
     const c = yoyChange(bedroomKey);
-    if (!c) return <span className="text-xs text-[#a3a3a3]">—</span>;
+    if (!c) return <span className="text-xs text-[var(--text-muted)]">—</span>;
     return (
       <PercentageBadge 
         value={c.pct} 
@@ -432,14 +432,14 @@ export default function FMRResults({
     <div className="mt-4 sm:mt-6">
       {/* Breadcrumbs */}
       {breadcrumbItems.length > 0 && (
-        <div className="mb-3 flex items-center gap-1.5 text-xs text-[#737373] flex-wrap">
+        <div className="mb-3 flex items-center gap-1.5 text-xs text-[var(--text-tertiary)] flex-wrap">
           {breadcrumbItems.map((item, index) => (
             <span key={index} className="flex items-center gap-1.5">
-              {index > 0 && <span className="text-[#a3a3a3]">/</span>}
+              {index > 0 && <span className="text-[var(--text-muted)]">/</span>}
               {index === breadcrumbItems.length - 1 ? (
-                <span className="text-[#0a0a0a] font-medium">{item.label}</span>
+                <span className="text-[var(--text-primary)] font-medium">{item.label}</span>
               ) : (
-                <a href={item.href} className="hover:text-[#0a0a0a] transition-colors">
+                <a href={item.href} className="hover:text-[var(--text-primary)] transition-colors">
                   {item.label}
                 </a>
               )}
@@ -458,7 +458,7 @@ export default function FMRResults({
                 onClick={onBreadcrumbBack}
                 aria-label="Back"
                 title="Back"
-                className="h-8 w-8 inline-flex items-center justify-center rounded-lg border border-[#e5e5e5] bg-white hover:bg-[#fafafa] transition-colors shrink-0"
+                className="h-8 w-8 inline-flex items-center justify-center rounded-lg border border-[var(--border-color)] bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] transition-colors shrink-0"
               >
                 ←
               </button>
@@ -467,14 +467,14 @@ export default function FMRResults({
                 href={backHref}
                 aria-label="Back"
                 title="Back"
-                className="h-8 w-8 inline-flex items-center justify-center rounded-lg border border-[#e5e5e5] bg-white hover:bg-[#fafafa] transition-colors shrink-0"
+                className="h-8 w-8 inline-flex items-center justify-center rounded-lg border border-[var(--border-color)] bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] transition-colors shrink-0"
               >
                 ←
               </a>
             )}
             <div className="min-w-0">
               <div className="flex items-center gap-2 min-w-0 flex-wrap">
-                <div className="text-sm sm:text-base font-semibold text-[#0a0a0a] truncate">
+                <div className="text-sm sm:text-base font-semibold text-[var(--text-primary)] truncate">
                   {getMainTitle()}
                 </div>
                 <span className={`px-1.5 sm:px-2 py-0.5 rounded text-xs font-medium shrink-0 ${
@@ -492,14 +492,14 @@ export default function FMRResults({
                 </span>
                 <span className={`px-1.5 sm:px-2 py-0.5 rounded text-xs font-semibold shrink-0 ${
                   dataNonNull.source === 'safmr' 
-                    ? 'bg-[#f0fdf4] text-[#16a34a]' 
-                    : 'bg-[#eff6ff] text-[#2563eb]'
+                    ? 'bg-[var(--badge-safmr-bg)] text-[var(--badge-safmr-text)]' 
+                    : 'bg-[var(--badge-fmr-bg)] text-[var(--badge-fmr-text)]'
                 }`}>
                   {dataNonNull.source === 'safmr' ? 'SAFMR' : 'FMR'}
                 </span>
               </div>
               <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                <div className="text-xs text-[#737373] truncate">
+                <div className="text-xs text-[var(--text-tertiary)] truncate">
                   {formatLocation()}
                   {dataNonNull.queriedType === 'zip' && zipVsCountyMedianPercent !== null && zipVsCountyMedianPercent !== undefined
                     ? (
@@ -510,8 +510,8 @@ export default function FMRResults({
                       )
                     : ''}
                 </div>
-                <span className="text-xs text-[#a3a3a3] shrink-0">•</span>
-                <span className="text-xs text-[#a3a3a3] shrink-0">FY {dataNonNull.year} • Effective Oct 1, {dataNonNull.year - 1}</span>
+                <span className="text-xs text-[var(--text-muted)] shrink-0">•</span>
+                <span className="text-xs text-[var(--text-muted)] shrink-0">FY {dataNonNull.year} • Effective Oct 1, {dataNonNull.year - 1}</span>
               </div>
             </div>
           </div>
@@ -523,7 +523,7 @@ export default function FMRResults({
               href={getZillowUrl() || '#'}
               target="_blank"
               rel="noopener noreferrer"
-              className="px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg border border-[#e5e5e5] bg-white hover:bg-[#fafafa] transition-colors text-xs font-medium text-[#0a0a0a] shrink-0 flex items-center gap-1.5"
+              className="px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] hover:bg-[var(--bg-hover)] transition-colors text-xs font-medium text-[var(--text-primary)] shrink-0 flex items-center gap-1.5"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
@@ -537,13 +537,13 @@ export default function FMRResults({
 
       {/* Investment Score Gauge for County/City/ZIP/Address views */}
       {(dataNonNull.queriedType === 'county' || dataNonNull.queriedType === 'city' || dataNonNull.queriedType === 'zip' || dataNonNull.queriedType === 'address') && (
-        <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-[#fafafa] rounded-lg border border-[#e5e5e5] relative">
+        <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-[var(--bg-content)] rounded-lg border border-[var(--border-color)] relative">
           {areaScoreLoading ? (
             <div className="flex items-center gap-4">
-              <div className="w-[120px] h-[60px] bg-[#e5e5e5] rounded animate-pulse" />
+              <div className="w-[120px] h-[60px] bg-[var(--border-color)] rounded animate-pulse" />
               <div className="flex-1">
-                <div className="h-3 bg-[#e5e5e5] rounded w-32 mb-2 animate-pulse" />
-                <div className="h-3 bg-[#e5e5e5] rounded w-48 animate-pulse" />
+                <div className="h-3 bg-[var(--border-color)] rounded w-32 mb-2 animate-pulse" />
+                <div className="h-3 bg-[var(--border-color)] rounded w-48 animate-pulse" />
               </div>
             </div>
           ) : areaScore !== null ? (
@@ -587,10 +587,10 @@ export default function FMRResults({
         <div className="mb-3">
           <button
             onClick={() => setShowAllZips(!showAllZips)}
-            className="text-xs text-[#525252] hover:text-[#0a0a0a] font-medium transition-colors mb-2 flex items-center gap-1"
+            className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-medium transition-colors mb-2 flex items-center gap-1"
           >
             {showAllZips ? 'Hide' : 'Show'} all ZIP codes
-            <span className="text-[#a3a3a3]">({zipCodesToShow.length})</span>
+            <span className="text-[var(--text-muted)]">({zipCodesToShow.length})</span>
             <svg
               className={`w-3 h-3 transition-transform ${showAllZips ? 'rotate-180' : ''}`}
               fill="none"
@@ -601,7 +601,7 @@ export default function FMRResults({
             </svg>
           </button>
           {showAllZips && (
-            <div className="bg-white border border-[#e5e5e5] rounded-lg overflow-hidden">
+            <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg overflow-hidden">
               <div className="max-h-64 overflow-y-auto p-2 sm:p-3 custom-scrollbar">
                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-1.5 sm:gap-2">
                   {zipCodesToShow.map((zip) => {
@@ -610,7 +610,7 @@ export default function FMRResults({
                       <a
                         key={zip}
                         href={zipHref}
-                        className="px-2 sm:px-2.5 py-1 sm:py-1.5 bg-[#fafafa] border border-[#e5e5e5] rounded text-xs font-mono text-[#0a0a0a] text-center hover:bg-[#f5f5f5] hover:border-[#d4d4d4] transition-colors"
+                        className="px-2 sm:px-2.5 py-1 sm:py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-xs font-mono text-[var(--text-primary)] text-center hover:bg-[var(--bg-hover)] hover:border-[var(--border-secondary)] transition-colors"
                       >
                         {zip}
                       </a>
@@ -628,11 +628,11 @@ export default function FMRResults({
         <div className="max-h-[240px] overflow-y-auto overflow-x-visible custom-scrollbar">
           <table className="w-full border-collapse">
           <thead>
-            <tr className="border-b border-[#e5e5e5]">
-              <th className="text-left py-2 px-2 sm:px-3 font-medium text-[#737373] text-xs uppercase tracking-wider">BR</th>
-              <th className="text-right py-2 px-2 sm:px-3 font-medium text-[#737373] text-xs uppercase tracking-wider">Rent</th>
-              <th className="text-right py-2 px-2 sm:px-3 font-medium text-[#737373] text-xs uppercase tracking-wider">YoY</th>
-              <th className="text-right py-2 px-2 sm:px-3 font-medium text-[#737373] text-xs uppercase tracking-wider overflow-visible">
+            <tr className="border-b border-[var(--border-color)]">
+              <th className="text-left py-2 px-2 sm:px-3 font-medium text-[var(--text-tertiary)] text-xs uppercase tracking-wider">BR</th>
+              <th className="text-right py-2 px-2 sm:px-3 font-medium text-[var(--text-tertiary)] text-xs uppercase tracking-wider">Rent</th>
+              <th className="text-right py-2 px-2 sm:px-3 font-medium text-[var(--text-tertiary)] text-xs uppercase tracking-wider">YoY</th>
+              <th className="text-right py-2 px-2 sm:px-3 font-medium text-[var(--text-tertiary)] text-xs uppercase tracking-wider overflow-visible">
                 <div className="flex items-center justify-end gap-1">
                   3Y CAGR
                   <Tooltip content="Compound Annual Growth Rate over 3 years" side="bottom" align="end">
@@ -640,7 +640,7 @@ export default function FMRResults({
                       xmlns="http://www.w3.org/2000/svg"
                       viewBox="0 0 20 20"
                       fill="currentColor"
-                      className="w-3.5 h-3.5 text-[#737373] cursor-help"
+                      className="w-3.5 h-3.5 text-[var(--text-tertiary)] cursor-help"
                     >
                       <path
                         fillRule="evenodd"
@@ -679,8 +679,8 @@ export default function FMRResults({
                   // Show the range, and put the median on a dedicated line below (SAFMR summary).
                   return (
                     <span className="flex flex-col items-end gap-0.5">
-                      <span>{formatCurrency(min)} - {formatCurrency(max)}</span>
-                      <span className="text-xs text-[#737373] font-normal font-sans">
+                      <span className="text-[var(--text-primary)]">{formatCurrency(min)} - {formatCurrency(max)}</span>
+                      <span className="text-xs text-[var(--text-tertiary)] font-normal font-sans">
                         Median: {formatCurrency(medianValue)}
                       </span>
                     </span>
@@ -689,75 +689,75 @@ export default function FMRResults({
 
                 return (
                   <>
-                    <tr className="border-b border-[#e5e5e5] hover:bg-[#fafafa] transition-colors">
-                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm text-[#0a0a0a]">0 BR</td>
-                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#525252] font-semibold tabular-nums">
+                    <tr className="border-b border-[var(--border-color)] hover:bg-[var(--bg-hover)] transition-colors">
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm font-medium text-[var(--text-primary)]">0 BR</td>
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[var(--text-primary)] font-semibold tabular-nums">
                         {formatRange(bedroom0Values)}
                       </td>
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
                         <YoYBadge bedroomKey="bedroom0" />
                       </td>
-                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right text-xs tabular-nums text-[#0a0a0a]">
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right text-xs tabular-nums text-[var(--text-primary)]">
                         {(() => {
                           const cagr = cagr3Year('bedroom0');
                           return cagr ? `${cagr.cagr.toFixed(1)}%` : '—';
                         })()}
                       </td>
                     </tr>
-                    <tr className="border-b border-[#e5e5e5] hover:bg-[#fafafa] transition-colors">
-                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm text-[#0a0a0a]">1 BR</td>
-                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#525252] font-semibold tabular-nums">
+                    <tr className="border-b border-[var(--border-color)] hover:bg-[var(--bg-hover)] transition-colors">
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm font-medium text-[var(--text-primary)]">1 BR</td>
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[var(--text-primary)] font-semibold tabular-nums">
                         {formatRange(bedroom1Values)}
                       </td>
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
                         <YoYBadge bedroomKey="bedroom1" />
                       </td>
-                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right text-xs tabular-nums text-[#0a0a0a]">
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right text-xs tabular-nums text-[var(--text-primary)]">
                         {(() => {
                           const cagr = cagr3Year('bedroom1');
                           return cagr ? `${cagr.cagr.toFixed(1)}%` : '—';
                         })()}
                       </td>
                     </tr>
-                    <tr className="border-b border-[#e5e5e5] hover:bg-[#fafafa] transition-colors">
-                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm text-[#0a0a0a]">2 BR</td>
-                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#525252] font-semibold tabular-nums">
+                    <tr className="border-b border-[var(--border-color)] hover:bg-[var(--bg-hover)] transition-colors">
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm font-medium text-[var(--text-primary)]">2 BR</td>
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[var(--text-primary)] font-semibold tabular-nums">
                         {formatRange(bedroom2Values)}
                       </td>
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
                         <YoYBadge bedroomKey="bedroom2" />
                       </td>
-                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right text-xs tabular-nums text-[#0a0a0a]">
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right text-xs tabular-nums text-[var(--text-primary)]">
                         {(() => {
                           const cagr = cagr3Year('bedroom2');
                           return cagr ? `${cagr.cagr.toFixed(1)}%` : '—';
                         })()}
                       </td>
                     </tr>
-                    <tr className="border-b border-[#e5e5e5] hover:bg-[#fafafa] transition-colors">
-                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm text-[#0a0a0a]">3 BR</td>
-                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#525252] font-semibold tabular-nums">
+                    <tr className="border-b border-[var(--border-color)] hover:bg-[var(--bg-hover)] transition-colors">
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm font-medium text-[var(--text-primary)]">3 BR</td>
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[var(--text-primary)] font-semibold tabular-nums">
                         {formatRange(bedroom3Values)}
                       </td>
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
                         <YoYBadge bedroomKey="bedroom3" />
                       </td>
-                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right text-xs tabular-nums text-[#0a0a0a]">
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right text-xs tabular-nums text-[var(--text-primary)]">
                         {(() => {
                           const cagr = cagr3Year('bedroom3');
                           return cagr ? `${cagr.cagr.toFixed(1)}%` : '—';
                         })()}
                       </td>
                     </tr>
-                    <tr className="border-b border-[#e5e5e5] hover:bg-[#fafafa] transition-colors">
-                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm text-[#0a0a0a]">4 BR</td>
-                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#525252] font-semibold tabular-nums">
+                    <tr className="border-b border-[var(--border-color)] hover:bg-[var(--bg-hover)] transition-colors">
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm font-medium text-[var(--text-primary)]">4 BR</td>
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[var(--text-primary)] font-semibold tabular-nums">
                         {formatRange(bedroom4Values)}
                       </td>
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
                         <YoYBadge bedroomKey="bedroom4" />
                       </td>
-                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right text-xs tabular-nums text-[#0a0a0a]">
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right text-xs tabular-nums text-[var(--text-primary)]">
                         {(() => {
                           const cagr = cagr3Year('bedroom4');
                           return cagr ? `${cagr.cagr.toFixed(1)}%` : '—';
@@ -776,7 +776,7 @@ export default function FMRResults({
                         const rate = Math.round(bedroom4Median * multiplier);
                         
                         // Calculate YoY if we have previous year data
-                        let yoyBadge = <span className="text-xs text-[#a3a3a3]">—</span>;
+                        let yoyBadge = <span className="text-xs text-[var(--text-muted)]">—</span>;
                         if (prevYear4BR && prevYear4BR > 0) {
                           const prevRate = Math.round(prevYear4BR * multiplier);
                           const delta = rate - prevRate;
@@ -795,15 +795,15 @@ export default function FMRResults({
                         }
 
                         return (
-                          <tr key={bedrooms} className="border-b border-[#e5e5e5] hover:bg-[#fafafa] transition-colors">
-                            <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm text-[#0a0a0a]">{bedrooms} BR</td>
-                            <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#525252] font-semibold tabular-nums">
+                          <tr key={bedrooms} className="border-b border-[var(--border-color)] hover:bg-[var(--bg-hover)] transition-colors">
+                            <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm font-medium text-[var(--text-primary)]">{bedrooms} BR</td>
+                            <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[var(--text-primary)] font-semibold tabular-nums">
                               {formatCurrency(rate)}
                             </td>
                             <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
                               {yoyBadge}
                             </td>
-                            <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right text-xs tabular-nums text-[#0a0a0a]">
+                            <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right text-xs tabular-nums text-[var(--text-primary)]">
                               {cagrCell}
                             </td>
                           </tr>
@@ -816,75 +816,75 @@ export default function FMRResults({
                     // Single FMR data (county FMR or single ZIP)
                     return (
                   <>
-                    <tr className="border-b border-[#e5e5e5] hover:bg-[#fafafa] transition-colors">
-                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm text-[#0a0a0a]">0 BR</td>
-                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#525252] font-semibold tabular-nums">
+                    <tr className="border-b border-[var(--border-color)] hover:bg-[var(--bg-hover)] transition-colors">
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm font-medium text-[var(--text-primary)]">0 BR</td>
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[var(--text-primary)] font-semibold tabular-nums">
                         {formatCurrency(dataNonNull.bedroom0)}
                       </td>
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
                         <YoYBadge bedroomKey="bedroom0" />
                       </td>
-                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right text-xs tabular-nums text-[#0a0a0a]">
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right text-xs tabular-nums text-[var(--text-primary)]">
                         {(() => {
                           const cagr = cagr3Year('bedroom0');
                           return cagr ? `${cagr.cagr.toFixed(1)}%` : '—';
                         })()}
                       </td>
                     </tr>
-                    <tr className="border-b border-[#e5e5e5] hover:bg-[#fafafa] transition-colors">
-                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm text-[#0a0a0a]">1 BR</td>
-                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#525252] font-semibold tabular-nums">
+                    <tr className="border-b border-[var(--border-color)] hover:bg-[var(--bg-hover)] transition-colors">
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm font-medium text-[var(--text-primary)]">1 BR</td>
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[var(--text-primary)] font-semibold tabular-nums">
                         {formatCurrency(dataNonNull.bedroom1)}
                       </td>
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
                         <YoYBadge bedroomKey="bedroom1" />
                       </td>
-                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right text-xs tabular-nums text-[#0a0a0a]">
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right text-xs tabular-nums text-[var(--text-primary)]">
                         {(() => {
                           const cagr = cagr3Year('bedroom1');
                           return cagr ? `${cagr.cagr.toFixed(1)}%` : '—';
                         })()}
                       </td>
                     </tr>
-                    <tr className="border-b border-[#e5e5e5] hover:bg-[#fafafa] transition-colors">
-                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm text-[#0a0a0a]">2 BR</td>
-                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#525252] font-semibold tabular-nums">
+                    <tr className="border-b border-[var(--border-color)] hover:bg-[var(--bg-hover)] transition-colors">
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm font-medium text-[var(--text-primary)]">2 BR</td>
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[var(--text-primary)] font-semibold tabular-nums">
                         {formatCurrency(dataNonNull.bedroom2)}
                       </td>
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
                         <YoYBadge bedroomKey="bedroom2" />
                       </td>
-                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right text-xs tabular-nums text-[#0a0a0a]">
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right text-xs tabular-nums text-[var(--text-primary)]">
                         {(() => {
                           const cagr = cagr3Year('bedroom2');
                           return cagr ? `${cagr.cagr.toFixed(1)}%` : '—';
                         })()}
                       </td>
                     </tr>
-                    <tr className="border-b border-[#e5e5e5] hover:bg-[#fafafa] transition-colors">
-                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm text-[#0a0a0a]">3 BR</td>
-                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#525252] font-semibold tabular-nums">
+                    <tr className="border-b border-[var(--border-color)] hover:bg-[var(--bg-hover)] transition-colors">
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm font-medium text-[var(--text-primary)]">3 BR</td>
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[var(--text-primary)] font-semibold tabular-nums">
                         {formatCurrency(dataNonNull.bedroom3)}
                       </td>
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
                         <YoYBadge bedroomKey="bedroom3" />
                       </td>
-                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right text-xs tabular-nums text-[#0a0a0a]">
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right text-xs tabular-nums text-[var(--text-primary)]">
                         {(() => {
                           const cagr = cagr3Year('bedroom3');
                           return cagr ? `${cagr.cagr.toFixed(1)}%` : '—';
                         })()}
                       </td>
                     </tr>
-                    <tr className="border-b border-[#e5e5e5] hover:bg-[#fafafa] transition-colors">
-                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm text-[#0a0a0a]">4 BR</td>
-                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#525252] font-semibold tabular-nums">
+                    <tr className="border-b border-[var(--border-color)] hover:bg-[var(--bg-hover)] transition-colors">
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm font-medium text-[var(--text-primary)]">4 BR</td>
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[var(--text-primary)] font-semibold tabular-nums">
                         {formatCurrency(dataNonNull.bedroom4)}
                       </td>
                       <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
                         <YoYBadge bedroomKey="bedroom4" />
                       </td>
-                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right text-xs tabular-nums text-[#0a0a0a]">
+                      <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right text-xs tabular-nums text-[var(--text-primary)]">
                         {(() => {
                           const cagr = cagr3Year('bedroom4');
                           return cagr ? `${cagr.cagr.toFixed(1)}%` : '—';
@@ -903,7 +903,7 @@ export default function FMRResults({
                         const rate = Math.round(base4 * multiplier);
                         
                         // Calculate YoY if we have previous year data
-                        let yoyBadge = <span className="text-xs text-[#a3a3a3]">—</span>;
+                        let yoyBadge = <span className="text-xs text-[var(--text-muted)]">—</span>;
                         if (prevYear4BR && prevYear4BR > 0) {
                           const prevRate = Math.round(prevYear4BR * multiplier);
                           const delta = rate - prevRate;
@@ -922,15 +922,15 @@ export default function FMRResults({
                         }
 
                         return (
-                          <tr key={bedrooms} className="border-b border-[#e5e5e5] hover:bg-[#fafafa] transition-colors">
-                            <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm text-[#0a0a0a]">{bedrooms} BR</td>
-                            <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[#525252] font-semibold tabular-nums">
+                          <tr key={bedrooms} className="border-b border-[var(--border-color)] hover:bg-[var(--bg-hover)] transition-colors">
+                            <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm font-medium text-[var(--text-primary)]">{bedrooms} BR</td>
+                            <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[var(--text-primary)] font-semibold tabular-nums">
                               {formatCurrency(rate)}
                             </td>
                             <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
                               {yoyBadge}
                             </td>
-                            <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right text-xs tabular-nums text-[#0a0a0a]">
+                            <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right text-xs tabular-nums text-[var(--text-primary)]">
                               {cagrCell}
                             </td>
                           </tr>
@@ -949,10 +949,10 @@ export default function FMRResults({
       {/* Bedroom curve chart below table */}
       {dataNonNull.history && dataNonNull.history.length >= 2 && (
         <div className="mt-3 sm:mt-4">
-          <div className="rounded-lg border border-[#e5e5e5] bg-white p-3 sm:p-4">
+          <div className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] p-3 sm:p-4">
             <div className="mb-3">
-              <h3 className="text-sm font-semibold text-[#0a0a0a]">Bedroom curve</h3>
-              <div className="text-xs text-[#737373]">
+              <h3 className="text-sm font-semibold text-[var(--text-primary)]">Bedroom curve</h3>
+              <div className="text-xs text-[var(--text-tertiary)]">
                 YoY: {dataNonNull.year - 1}→{dataNonNull.year} • 3Y: {dataNonNull.year - 3}→{dataNonNull.year}
               </div>
             </div>

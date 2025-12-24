@@ -232,3 +232,6 @@ analyzeMappingOpportunities(filePath)
     console.error('Error:', error);
     process.exit(1);
   });
+
+
+

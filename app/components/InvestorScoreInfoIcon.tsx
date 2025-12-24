@@ -18,7 +18,7 @@ export default function InvestorScoreInfoIcon({ className = '' }: InvestorScoreI
           e.stopPropagation();
           setIsModalOpen(true);
         }}
-        className={`inline-flex items-center justify-center w-4 h-4 rounded-full bg-[#e5e5e5] hover:bg-[#d4d4d4] text-[#737373] hover:text-[#0a0a0a] transition-colors ${className}`}
+        className={`inline-flex items-center justify-center w-4 h-4 rounded-full bg-[var(--bg-hover)] hover:bg-[var(--border-color)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors ${className}`}
         aria-label="Learn more about Investment Score"
       >
         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -29,3 +29,7 @@ export default function InvestorScoreInfoIcon({ className = '' }: InvestorScoreI
     </>
   );
 }
+
+
+
+
