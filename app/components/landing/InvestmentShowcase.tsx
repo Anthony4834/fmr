@@ -607,7 +607,7 @@ function encodeCalculatorConfig(example: LandingCalculatorExample | null): strin
 }
 
 export default function InvestmentShowcase({ initialExample }: InvestmentShowcaseProps) {
-  const { ref, hasBeenInView } = useIntersectionObserver<HTMLElement>({ threshold: 0.2 });
+  const { ref, hasBeenInView } = useIntersectionObserver<HTMLElement>({ threshold: 0.2, mobileThreshold: 0.35 });
   
   // Track the current example (starts with initial, may be updated by CalculatorDemo)
   const [currentExample, setCurrentExample] = useState<LandingCalculatorExample | null>(initialExample || null);

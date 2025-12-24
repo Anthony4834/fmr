@@ -125,7 +125,7 @@ function ScoreFactor({ icon, title, description, delay, isVisible }: {
 }
 
 export default function MapShowcase({ onReady }: MapShowcaseProps) {
-  const { ref, hasBeenInView } = useIntersectionObserver<HTMLElement>({ threshold: 0.1 });
+  const { ref, hasBeenInView } = useIntersectionObserver<HTMLElement>({ threshold: 0.1, mobileThreshold: 0.25 });
   const [countyScores, setCountyScores] = useState<CountyScore[]>([]);
   const [loading, setLoading] = useState(true);
   const onReadyCalledRef = useRef(false);

@@ -35,7 +35,7 @@ export default function ThemeSwitcher() {
       <button
         onClick={() => !isLoading && setIsOpen(!isOpen)}
         disabled={isLoading}
-        className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors text-sm ${
+        className={`inline-flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-md transition-colors text-sm ${
           isLoading
             ? 'text-[var(--text-muted)] cursor-default'
             : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
@@ -45,8 +45,7 @@ export default function ThemeSwitcher() {
       >
         {effectiveTheme === 'dark' ? (
           <svg
-            width="16"
-            height="16"
+            className="w-3.5 h-3.5 sm:w-4 sm:h-4"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -58,8 +57,7 @@ export default function ThemeSwitcher() {
           </svg>
         ) : (
           <svg
-            width="16"
-            height="16"
+            className="w-3.5 h-3.5 sm:w-4 sm:h-4"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -79,15 +77,13 @@ export default function ThemeSwitcher() {
           </svg>
         )}
         <svg
-          width="12"
-          height="12"
+          className={`hidden sm:block w-3 h-3 transition-transform ${isOpen ? 'rotate-180' : ''}`}
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className={`transition-transform ${isOpen ? 'rotate-180' : ''}`}
         >
           <polyline points="6 9 12 15 18 9" />
         </svg>

@@ -53,6 +53,11 @@ html:not([data-theme]) {
   --map-stroke-high: #525252;
   --map-stroke-hover: #0a0a0a;
 
+  /* Change indicator colors (for +/- percentages) */
+  --change-positive: #16a34a;
+  --change-negative: #dc2626;
+  --change-neutral: #525252;
+
   /* Badge colors */
   --badge-safmr-bg: #f0fdf4;
   --badge-safmr-text: #16a34a;
@@ -123,6 +128,11 @@ html:not([data-theme]) {
   --map-stroke-high: #525252; /* Stroke color for high score regions */
   --map-stroke-hover: #0a0a0a; /* Stroke color on hover */
 
+  /* Change indicator colors (for +/- percentages) */
+  --change-positive: #16a34a;
+  --change-negative: #dc2626;
+  --change-neutral: #525252;
+
   /* Dark section backgrounds (for landing pages) */
   --dark-bg-primary: #0a0a0a;
   --dark-bg-secondary: #111111;
@@ -188,6 +198,12 @@ html:not([data-theme]) {
   --map-stroke-low: #0a0a0a;    /* subtle, crisp edge */
   --map-stroke-high: #9aa3ad;   /* cool light-gray outline for darker fills */
   --map-stroke-hover: #60a5fa;  /* calm blue hover (clean, elegant, visible) */
+
+  /* Change indicator colors (for +/- percentages) - brighter for dark backgrounds */
+  --change-positive: #4ade80;
+  --change-negative: #f87171;
+  --change-neutral: #a3a3a3;
+
   /* Dark section backgrounds (same as primary in dark mode) */
   --dark-bg-primary: #0a0a0a;
   --dark-bg-secondary: #111111;

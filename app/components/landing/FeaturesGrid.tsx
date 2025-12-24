@@ -87,7 +87,7 @@ function FeatureCard({ feature, index, isVisible }: {
 }
 
 export default function FeaturesGrid() {
-  const { ref, hasBeenInView } = useIntersectionObserver<HTMLElement>({ threshold: 0.1 });
+  const { ref, hasBeenInView } = useIntersectionObserver<HTMLElement>({ threshold: 0.1, mobileThreshold: 0.2 });
 
   return (
     <section ref={ref} className="py-12 sm:py-20 md:py-28 bg-[#fafafa]">

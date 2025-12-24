@@ -5,7 +5,7 @@ import { useIntersectionObserver } from '@/app/hooks/useIntersectionObserver';
 import SearchInput from '@/app/components/SearchInput';
 
 export default function FinalCTA() {
-  const { ref, hasBeenInView } = useIntersectionObserver<HTMLElement>({ threshold: 0.2 });
+  const { ref, hasBeenInView } = useIntersectionObserver<HTMLElement>({ threshold: 0.2, mobileThreshold: 0.35 });
 
   return (
     <section

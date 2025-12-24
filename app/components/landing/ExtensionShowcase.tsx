@@ -7,7 +7,7 @@ import { useIntersectionObserver } from '@/app/hooks/useIntersectionObserver';
 type ExtensionMode = 'cashFlow' | 'fmr';
 
 export default function ExtensionShowcase() {
-  const { ref, hasBeenInView } = useIntersectionObserver<HTMLElement>({ threshold: 0.3 });
+  const { ref, hasBeenInView } = useIntersectionObserver<HTMLElement>({ threshold: 0.3, mobileThreshold: 0.4 });
   const [mode, setMode] = useState<ExtensionMode>('cashFlow');
   const [isExploded, setIsExploded] = useState(false);
   const [isZoomedHovered, setIsZoomedHovered] = useState(false);

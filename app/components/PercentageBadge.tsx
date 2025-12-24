@@ -13,14 +13,14 @@ export default function PercentageBadge(props: {
   const isNegative = value < -0.0001;
   const isZero = !isPositive && !isNegative;
   
-  const icon = showSign 
-    ? (isPositive ? '+' : isNegative ? '-' : '') 
+  const icon = showSign
+    ? (isPositive ? '+' : isNegative ? '-' : '')
     : (isPositive ? '▲' : isNegative ? '▼' : isZero ? '—' : '');
   const colorClass = isPositive
-    ? 'text-[#16a34a]'
+    ? 'text-[var(--change-positive)]'
     : isNegative
-      ? 'text-[#dc2626]'
-      : 'text-[#525252]';
+      ? 'text-[var(--change-negative)]'
+      : 'text-[var(--change-neutral)]';
 
   return (
     <span className={`inline-flex items-center gap-0.5 tabular-nums font-semibold ${colorClass} ${className}`}>

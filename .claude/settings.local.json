@@ -7,7 +7,8 @@
       "Bash(cat:*)",
       "Bash(bun add:*)",
       "Bash(bun run dev)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(sort:*)"
     ]
   }
 }

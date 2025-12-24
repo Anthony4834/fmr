@@ -34,7 +34,7 @@ function StatCard({ value, label, prefix = '', suffix = '', delay = 0 }: {
   suffix?: string;
   delay?: number;
 }) {
-  const { ref, hasBeenInView } = useIntersectionObserver<HTMLDivElement>({ threshold: 0.3 });
+  const { ref, hasBeenInView } = useIntersectionObserver<HTMLDivElement>({ threshold: 0.3, mobileThreshold: 0.5 });
   
   // Use custom animation instead of useCountUp to avoid pauses
   const [displayValue, setDisplayValue] = useState(0);
@@ -111,7 +111,7 @@ function MarketTicker() {
             className="flex items-center gap-3 px-6 whitespace-nowrap"
           >
             <span className="font-medium text-[#0a0a0a]">{market.name}</span>
-            <span className={`text-sm font-semibold ${market.change >= 0 ? 'text-[#16a34a]' : 'text-[#dc2626]'}`}>
+            <span className={`text-sm font-semibold ${market.change >= 0 ? 'text-[var(--change-positive)]' : 'text-[var(--change-negative)]'}`}>
               {market.change >= 0 ? '+' : ''}{market.change}%
             </span>
             <span className="text-[#e5e5e5]">|</span>
@@ -140,7 +140,7 @@ function MarketTicker() {
 }
 
 export default function LiveDataPreview() {
-  const { ref, hasBeenInView } = useIntersectionObserver<HTMLElement>({ threshold: 0.1 });
+  const { ref, hasBeenInView } = useIntersectionObserver<HTMLElement>({ threshold: 0.1, mobileThreshold: 0.25 });
 
   return (
     <section ref={ref} className="py-12 sm:py-20 md:py-28 bg-[#fafafa]">
