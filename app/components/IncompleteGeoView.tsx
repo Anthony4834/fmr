@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import ScoreGauge from './ScoreGauge';
 import InvestorScoreInfoIcon from './InvestorScoreInfoIcon';
-import SearchInput from './SearchInput';
+import AppHeader from './AppHeader';
 import { formatCountyName } from '@/lib/county-utils';
 
 interface IncompleteGeoViewProps {
@@ -89,21 +89,10 @@ export default function IncompleteGeoView({
     <main className="min-h-screen bg-[var(--bg-primary)]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-8 sm:py-8 md:py-10 lg:py-10">
         {/* Header with Logo and Search */}
-        <div className="mb-6">
-          <div className="mb-4">
-            <Link href="/" className="block hover:opacity-70 transition-opacity">
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[var(--text-primary)] mb-1 tracking-tight">
-                fmr.fyi
-              </h1>
-              <p className="text-xs text-[var(--text-tertiary)] font-medium tracking-wide uppercase">Fair Market Rent Data</p>
-            </Link>
-          </div>
-
-          {/* Search Bar */}
-          <div className="max-w-2xl">
-            <SearchInput />
-          </div>
-        </div>
+        <AppHeader
+          showSearch={true}
+          className="mb-6"
+        />
 
         <div className="mt-4 sm:mt-6">
       {/* Breadcrumbs */}

@@ -16,7 +16,20 @@ type ScoreGaugeProps = {
   maxValue?: number;
   label?: string;
   description?: string;
+  loading?: boolean;
 };
+
+export function ScoreGaugeSkeleton() {
+  return (
+    <div className="flex items-center gap-4">
+      <div className="w-[120px] h-[60px] bg-[var(--border-color)] rounded animate-pulse" />
+      <div className="flex-1">
+        <div className="h-3 bg-[var(--border-color)] rounded w-32 mb-2 animate-pulse" />
+        <div className="h-3 bg-[var(--border-color)] rounded w-48 animate-pulse" />
+      </div>
+    </div>
+  );
+}
 
 // Helper function to get CSS variable value safely
 function getCSSVariable(variableName: string, fallback: string): string {
@@ -53,8 +66,12 @@ export default function ScoreGauge({
   score, 
   maxValue = 140,
   label = 'State Median Investment Score',
-  description = 'Based on median scores across all counties'
+  description = 'Based on median scores across all counties',
+  loading = false
 }: ScoreGaugeProps) {
+  if (loading) {
+    return <ScoreGaugeSkeleton />;
+  }
   // Track theme changes to trigger rerender
   const [themeKey, setThemeKey] = useState<string>('light');
   
@@ -93,12 +110,18 @@ export default function ScoreGauge({
       ? getCSSVariable('--border-color', 'rgba(237, 237, 237, 0.1)')
       : getCSSVariable('--bg-tertiary', '#f5f5f5');
     
+    // Insufficient data state: show muted chart with same shape
     if (score === null || score === undefined) {
+      // Use a muted gray color with reduced opacity for insufficient data
+      const mutedColor = themeKey === 'dark' 
+        ? 'rgba(156, 163, 175, 0.3)' // muted gray with opacity for dark mode
+        : 'rgba(156, 163, 175, 0.4)'; // muted gray with opacity for light mode
+      
       return {
         datasets: [
           {
             data: [maxValue],
-            backgroundColor: [emptyBgColor],
+            backgroundColor: [mutedColor],
             borderWidth: 0,
             cutout: '75%',
           },
@@ -140,8 +163,10 @@ export default function ScoreGauge({
 
   const displayScore = score !== null && score !== undefined ? Math.round(score) : null;
 
+  const isInsufficientData = score === null || score === undefined;
+
   return (
-    <div className="flex items-center gap-4">
+    <div className={`flex items-center gap-4 ${isInsufficientData ? 'opacity-60' : ''}`}>
       <div className="relative" style={{ width: '120px', height: '60px' }}>
         <Doughnut key={themeKey} data={chartData} options={options} />
         <div className="absolute inset-0 flex items-end justify-center pb-1">
@@ -162,8 +187,12 @@ export default function ScoreGauge({
         </div>
       </div>
       <div className="flex-1">
-        <div className="text-xs font-semibold text-[var(--text-primary)] mb-1">{label}</div>
-        <div className="text-xs text-[var(--text-tertiary)]">{description}</div>
+        <div className={`text-xs font-semibold mb-1 ${isInsufficientData ? 'text-[var(--text-tertiary)]' : 'text-[var(--text-primary)]'}`}>
+          {label}
+        </div>
+        <div className="text-xs text-[var(--text-tertiary)]">
+          {isInsufficientData ? 'Insufficient data to calculate score' : description}
+        </div>
       </div>
     </div>
   );

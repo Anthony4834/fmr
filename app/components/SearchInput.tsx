@@ -17,6 +17,11 @@ interface AutocompleteResult {
 interface SearchInputProps {
   onSelect?: (value: string, type: 'zip' | 'city' | 'county' | 'address' | 'state') => void;
   autoFocus?: boolean;
+  // Filter mode: simple controlled input without autocomplete
+  filterMode?: boolean;
+  value?: string;
+  onChange?: (value: string) => void;
+  placeholder?: string;
 }
 
 function normalizeLoose(s: string) {
@@ -120,7 +125,14 @@ function dedupeSuggestionsByType(items: AutocompleteResult[]) {
   return out;
 }
 
-export default function SearchInput({ onSelect, autoFocus = false }: SearchInputProps) {
+export default function SearchInput({ 
+  onSelect, 
+  autoFocus = false,
+  filterMode = false,
+  value: controlledValue,
+  onChange,
+  placeholder = 'Search by address, city, ZIP code, county, or state...'
+}: SearchInputProps) {
   const router = useRouter();
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<AutocompleteResult[]>([]);
@@ -131,6 +143,18 @@ export default function SearchInput({ onSelect, autoFocus = false }: SearchInput
   const [completedQuery, setCompletedQuery] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Use controlled value if provided, otherwise use internal state
+  const currentQuery = filterMode && controlledValue !== undefined ? controlledValue : query;
+  const handleQueryChange = (newValue: string) => {
+    if (filterMode) {
+      if (onChange) {
+        onChange(newValue);
+      }
+    } else {
+      setQuery(newValue);
+    }
+  };
 
   // Default navigation handler when onSelect is not provided
   const navigateToSelection = (value: string, type: 'zip' | 'city' | 'county' | 'address' | 'state') => {
@@ -270,9 +294,10 @@ export default function SearchInput({ onSelect, autoFocus = false }: SearchInput
   }, 220);
   
   useEffect(() => {
+    if (filterMode) return; // Skip autocomplete in filter mode
     queryRef.current = query;
     fetchSuggestions(query);
-  }, [query, fetchSuggestions]);
+  }, [query, fetchSuggestions, filterMode]);
 
   // Optional autofocus on initial load (used on homepage)
   useEffect(() => {
@@ -355,13 +380,15 @@ export default function SearchInput({ onSelect, autoFocus = false }: SearchInput
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const next = e.target.value;
-    setQuery(next);
-    setShowSuggestions(true);
-    setSelectedIndex(-1);
-    // Clear "completed" marker so we don't show an empty-state while debounced request hasn't fired
-    setCompletedQuery('');
-    if (autoSelectTimerRef.current) {
-      window.clearTimeout(autoSelectTimerRef.current);
+    handleQueryChange(next);
+    if (!filterMode) {
+      setShowSuggestions(true);
+      setSelectedIndex(-1);
+      // Clear "completed" marker so we don't show an empty-state while debounced request hasn't fired
+      setCompletedQuery('');
+      if (autoSelectTimerRef.current) {
+        window.clearTimeout(autoSelectTimerRef.current);
+      }
     }
   };
   
@@ -419,8 +446,8 @@ export default function SearchInput({ onSelect, autoFocus = false }: SearchInput
 
     if (selectedIndex >= 0 && activeSuggestions[selectedIndex]) {
       handleSelect(activeSuggestions[selectedIndex]);
-    } else if (query.trim()) {
-      const trimmed = query.trim();
+    } else if (currentQuery.trim()) {
+      const trimmed = currentQuery.trim();
 
       // State quick-detect (must be before ZIP/city/county/address fallbacks).
       // Supports: "WA", "Washington", "WA state", "Washington state".
@@ -503,17 +530,17 @@ export default function SearchInput({ onSelect, autoFocus = false }: SearchInput
 
   const displayedSuggestions = useMemo(() => {
     // Only show suggestions that correspond to the current input, to avoid stale flashes
-    if (normalizeLoose(suggestionsForQuery) !== normalizeLoose(query)) return [];
+    if (normalizeLoose(suggestionsForQuery) !== normalizeLoose(currentQuery)) return [];
     return suggestions;
-  }, [query, suggestions, suggestionsForQuery]);
+  }, [currentQuery, suggestions, suggestionsForQuery]);
 
   // Auto-submit: if there's exactly one address suggestion and it matches the current input
   // (must be based on rendered suggestion state to avoid timing/staleness issues)
   useEffect(() => {
     if (!showSuggestions) return;
     if (isLoading || isSubmitting) return;
-    if (query.trim().length < 3) return;
-    if (normalizeLoose(completedQuery) !== normalizeLoose(query)) return;
+    if (currentQuery.trim().length < 3) return;
+    if (normalizeLoose(completedQuery) !== normalizeLoose(currentQuery)) return;
     if (displayedSuggestions.length !== 1) return;
 
     const only = displayedSuggestions[0];
@@ -522,8 +549,8 @@ export default function SearchInput({ onSelect, autoFocus = false }: SearchInput
     // - only auto-submit for address-like inputs
     // - only when we have exactly one address suggestion for the *current* query
     // - light sanity check: if a house number exists in input, it must appear in suggestion text
-    if (!looksLikeAddress(query)) return;
-    const hn = extractHouseNumber(query);
+    if (!looksLikeAddress(currentQuery)) return;
+    const hn = extractHouseNumber(currentQuery);
     if (hn) {
       const hay = `${only.display} ${only.value}`.toLowerCase();
       if (!hay.includes(hn)) return;
@@ -535,7 +562,7 @@ export default function SearchInput({ onSelect, autoFocus = false }: SearchInput
     autoSelectTimerRef.current = window.setTimeout(() => {
       // Re-check staleness right before selecting
       const liveValue = inputRef.current?.value ?? '';
-      if (normalizeLoose(liveValue) !== normalizeLoose(query)) return;
+      if (normalizeLoose(liveValue) !== normalizeLoose(currentQuery)) return;
       handleSelect(only);
     }, 140);
 
@@ -544,17 +571,18 @@ export default function SearchInput({ onSelect, autoFocus = false }: SearchInput
         window.clearTimeout(autoSelectTimerRef.current);
       }
     };
-  }, [completedQuery, displayedSuggestions, isLoading, isSubmitting, query, showSuggestions]);
+  }, [completedQuery, displayedSuggestions, isLoading, isSubmitting, currentQuery, showSuggestions]);
 
   const showEmptyState =
     !isLoading &&
-    query.trim().length >= 2 &&
-    normalizeLoose(completedQuery) === normalizeLoose(query) &&
+    currentQuery.trim().length >= 2 &&
+    normalizeLoose(completedQuery) === normalizeLoose(currentQuery) &&
     displayedSuggestions.length === 0;
 
   const shouldRenderDropdown =
+    !filterMode &&
     showSuggestions &&
-    ((isLoading && query.trim().length >= 2 && displayedSuggestions.length === 0) ||
+    ((isLoading && currentQuery.trim().length >= 2 && displayedSuggestions.length === 0) ||
       displayedSuggestions.length > 0 ||
       showEmptyState);
 
@@ -582,10 +610,11 @@ export default function SearchInput({ onSelect, autoFocus = false }: SearchInput
           </div>
           <input
             type="text"
-            value={query}
+            value={currentQuery}
             onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
+            onKeyDown={filterMode ? undefined : handleKeyDown}
             onFocus={() => {
+              if (filterMode) return;
               if (skipOpenOnFocusRef.current) {
                 skipOpenOnFocusRef.current = false;
                 return;
@@ -594,12 +623,12 @@ export default function SearchInput({ onSelect, autoFocus = false }: SearchInput
               setSelectedIndex(-1);
             }}
             ref={inputRef}
-            placeholder="Find a state, city, county, zip, or address"
+            placeholder={placeholder}
             className={`w-full pl-11 ${
-              query.trim().length > 0 ? 'pr-28 sm:pr-40' : 'pr-16 sm:pr-24'
+              currentQuery.trim().length > 0 ? 'pr-28 sm:pr-40' : 'pr-16 sm:pr-24'
             } py-3 sm:py-3.5 text-[15px] sm:text-base bg-[var(--bg-secondary)] border border-[#e5e5e5] rounded-xl appearance-none focus:outline-none focus:ring-0 focus:ring-offset-0 focus:border-[var(--text-tertiary)] transition-colors placeholder:text-[var(--text-muted)] text-[var(--text-primary)]`}
-            aria-autocomplete="list"
-            aria-expanded={showSuggestions}
+            aria-autocomplete={filterMode ? "none" : "list"}
+            aria-expanded={filterMode ? false : showSuggestions}
           />
           <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
             {(isLoading || isSubmitting) && (
@@ -607,16 +636,18 @@ export default function SearchInput({ onSelect, autoFocus = false }: SearchInput
                 <div className="animate-spin rounded-full h-4 w-4 border-2 border-[var(--text-primary)] border-t-transparent"></div>
               </div>
             )}
-            {query.trim().length > 0 && (
+            {currentQuery.trim().length > 0 && (
               <button
                 type="button"
                 aria-label="Clear search"
                 onClick={() => {
-                  setQuery('');
-                  setSuggestions([]);
-                  setSuggestionsForQuery('');
-                  setCompletedQuery('');
-                  setSelectedIndex(-1);
+                  handleQueryChange('');
+                  if (!filterMode) {
+                    setSuggestions([]);
+                    setSuggestionsForQuery('');
+                    setCompletedQuery('');
+                    setSelectedIndex(-1);
+                  }
                   inputRef.current?.focus();
                 }}
                 className="h-8 sm:h-9 px-2.5 sm:px-3 text-[11px] sm:text-xs font-semibold rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors"
@@ -625,21 +656,23 @@ export default function SearchInput({ onSelect, autoFocus = false }: SearchInput
                 <span className="hidden sm:inline">Clear</span>
               </button>
             )}
-            <button
-              type="submit"
-              aria-label="Search"
-              className="h-8 sm:h-9 px-3 sm:px-4 text-[11px] sm:text-xs font-semibold rounded-lg bg-[var(--text-primary)] text-[var(--bg-primary)] hover:opacity-90 transition-opacity"
-            >
-              <span className="sm:hidden">Go</span>
-              <span className="hidden sm:inline">Search</span>
-            </button>
+            {!filterMode && (
+              <button
+                type="submit"
+                aria-label="Search"
+                className="h-8 sm:h-9 px-3 sm:px-4 text-[11px] sm:text-xs font-semibold rounded-lg bg-[var(--text-primary)] text-[var(--bg-primary)] hover:opacity-90 transition-opacity"
+              >
+                <span className="sm:hidden">Go</span>
+                <span className="hidden sm:inline">Search</span>
+              </button>
+            )}
           </div>
         </div>
       </form>
 
       {shouldRenderDropdown && (
         <div className="absolute z-10 w-full mt-2 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl overflow-hidden">
-          {isLoading && query.trim().length >= 2 && displayedSuggestions.length === 0 ? (
+          {isLoading && currentQuery.trim().length >= 2 && displayedSuggestions.length === 0 ? (
             <div className="px-4 py-3 text-sm text-[var(--text-secondary)]">
               Searching…
             </div>

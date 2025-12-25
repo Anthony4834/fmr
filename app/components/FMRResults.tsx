@@ -32,7 +32,14 @@ export default function FMRResults({
   const router = useRouter();
   const [showAllZips, setShowAllZips] = useState(false);
   const [areaScore, setAreaScore] = useState<number | null>(null);
-  const [areaScoreLoading, setAreaScoreLoading] = useState(false);
+  // Initialize loading to true if we have data that should trigger a fetch
+  const [areaScoreLoading, setAreaScoreLoading] = useState(() => {
+    if (!data) return false;
+    const shouldFetch = (data.queriedType === 'zip' || data.queriedType === 'address') && data.zipCode
+      || (data.queriedType === 'county' && data.countyName && data.stateCode)
+      || (data.queriedType === 'city' && data.cityName && data.stateCode);
+    return shouldFetch;
+  });
 
   // Reset ZIP display state when data changes
   useEffect(() => {
@@ -43,6 +50,18 @@ export default function FMRResults({
   useEffect(() => {
     if (!data) {
       setAreaScore(null);
+      setAreaScoreLoading(false);
+      return;
+    }
+
+    // Check if we should fetch before setting loading state
+    const shouldFetch = (data.queriedType === 'zip' || data.queriedType === 'address') && data.zipCode
+      || (data.queriedType === 'county' && data.countyName && data.stateCode)
+      || (data.queriedType === 'city' && data.cityName && data.stateCode);
+    
+    if (!shouldFetch) {
+      setAreaScore(null);
+      setAreaScoreLoading(false);
       return;
     }
 
@@ -120,13 +139,7 @@ export default function FMRResults({
 
         {/* Investment Score Gauge Skeleton */}
         <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-[var(--bg-content)] rounded-lg border border-[var(--border-color)]">
-          <div className="flex items-center gap-4">
-            <div className="w-[120px] h-[60px] bg-[var(--border-color)] rounded animate-pulse" />
-            <div className="flex-1">
-              <div className="h-3 bg-[var(--border-color)] rounded w-32 mb-2 animate-pulse" />
-              <div className="h-3 bg-[var(--border-color)] rounded w-48 animate-pulse" />
-            </div>
-          </div>
+          <ScoreGauge loading={true} />
         </div>
 
         {/* Table Skeleton */}
@@ -539,14 +552,8 @@ export default function FMRResults({
       {(dataNonNull.queriedType === 'county' || dataNonNull.queriedType === 'city' || dataNonNull.queriedType === 'zip' || dataNonNull.queriedType === 'address') && (
         <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-[var(--bg-content)] rounded-lg border border-[var(--border-color)] relative">
           {areaScoreLoading ? (
-            <div className="flex items-center gap-4">
-              <div className="w-[120px] h-[60px] bg-[var(--border-color)] rounded animate-pulse" />
-              <div className="flex-1">
-                <div className="h-3 bg-[var(--border-color)] rounded w-32 mb-2 animate-pulse" />
-                <div className="h-3 bg-[var(--border-color)] rounded w-48 animate-pulse" />
-              </div>
-            </div>
-          ) : areaScore !== null ? (
+            <ScoreGauge loading={true} />
+          ) : (
             <>
               <ScoreGauge 
                 score={areaScore} 
@@ -578,7 +585,7 @@ export default function FMRResults({
                 <InvestorScoreInfoIcon />
               </div>
             </>
-          ) : null}
+          )}
         </div>
       )}
 

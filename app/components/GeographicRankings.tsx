@@ -2,7 +2,7 @@
 
 import { useState, useRef, useLayoutEffect } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import SearchBar from './SearchBar';
+import SearchInput from './SearchInput';
 import VirtualizedRankingList from './VirtualizedRankingList';
 import { useGeographicRankings } from '@/app/hooks/useGeographicRankings';
 
@@ -163,7 +163,8 @@ export default function GeographicRankings({ year }: GeographicRankingsProps) {
         </div>
 
         {/* Search Bar */}
-        <SearchBar
+        <SearchInput
+          filterMode={true}
           value={searchQuery}
           onChange={handleSearchChange}
           placeholder={getSearchPlaceholder()}

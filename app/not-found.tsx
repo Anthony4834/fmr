@@ -1,7 +1,5 @@
 import Link from 'next/link';
-import SearchInput from '@/app/components/SearchInput';
-import InvestorScoreInfoButton from '@/app/components/InvestorScoreInfoButton';
-import ThemeSwitcher from '@/app/components/ThemeSwitcher';
+import AppHeader from '@/app/components/AppHeader';
 import NewBadge from '@/app/components/NewBadge';
 
 export default function NotFound() {
@@ -11,20 +9,14 @@ export default function NotFound() {
         {/* Header */}
         <div className="mb-4 sm:mb-6">
           <div className="mb-2 sm:mb-3 flex items-start justify-between gap-3 flex-wrap">
-            <Link href="/" className="hover:opacity-70 transition-opacity">
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
-                fmr.fyi
-              </h1>
-              <p className="text-xs text-[var(--text-tertiary)] font-medium tracking-wide uppercase">
-                Fair Market Rent Data
-              </p>
-            </Link>
-
+            <div className="flex-1 min-w-0">
+              <AppHeader className="mb-0" showSearch={true} />
+            </div>
             <a
               href="https://chromewebstore.google.com/detail/fmrfyi-%E2%80%93-fair-market-rent/gkemjakehildeolcagbibhmbcddkkflb"
               target="_blank"
               rel="noopener noreferrer"
-              className="group inline-flex items-center gap-2 px-3 py-2 bg-[var(--text-primary)] text-[var(--bg-primary)] text-xs sm:text-sm font-medium rounded-lg hover:opacity-90 transition-opacity"
+              className="group inline-flex items-center gap-2 px-3 py-2 bg-[var(--text-primary)] text-[var(--bg-primary)] text-xs sm:text-sm font-medium rounded-lg hover:opacity-90 transition-opacity flex-shrink-0"
             >
               <span className="flex items-center gap-1.5">
                 <span className="hidden sm:inline">Get Chrome Extension</span>
@@ -33,24 +25,8 @@ export default function NotFound() {
               </span>
             </a>
           </div>
-
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <p className="text-sm sm:text-base text-[var(--text-secondary)] max-w-2xl">
-              Search HUD Fair Market Rent data by address, city, ZIP code, county, or parish
-            </p>
-            <div className="flex items-center gap-3">
-              <InvestorScoreInfoButton />
-              <ThemeSwitcher />
-            </div>
-          </div>
         </div>
 
-        {/* Search */}
-        <div className="mb-10">
-          <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg p-4 sm:p-6">
-            <SearchInput />
-          </div>
-        </div>
 
         {/* 404 */}
         <section className="max-w-xl mx-auto text-center">

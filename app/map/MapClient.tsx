@@ -2,8 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import SearchInput from '@/app/components/SearchInput';
-import InvestorScoreInfoButton from '@/app/components/InvestorScoreInfoButton';
-import ThemeSwitcher from '@/app/components/ThemeSwitcher';
+import AppHeader from '@/app/components/AppHeader';
 import USStateMap from '@/app/components/USStateMap';
 import { buildCitySlug, buildCountySlug } from '@/lib/location-slugs';
 
@@ -88,23 +87,10 @@ export default function MapClient() {
       />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-8 sm:py-8 md:py-10 lg:py-10">
         {/* Header */}
-        <div className="mb-4 sm:mb-5 flex-shrink-0">
-          <div className="flex items-start justify-between gap-2 sm:gap-3 mb-3 sm:mb-4">
-            <a href="/" className="block hover:opacity-70 transition-opacity min-w-0">
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[var(--text-primary)] tracking-tight">
-                fmr.fyi
-              </h1>
-              <p className="text-[10px] sm:text-xs text-[var(--text-tertiary)] font-medium tracking-wide uppercase mt-0.5">Fair Market Rent Data</p>
-            </a>
-            <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
-              <InvestorScoreInfoButton />
-              <ThemeSwitcher />
-            </div>
-          </div>
-
-          {/* Search Input - no wrapper card */}
-          <SearchInput onSelect={handleSearch} />
-        </div>
+        <AppHeader
+          showSearch={true}
+          onSearchSelect={handleSearch}
+        />
 
         <div className="flex flex-col gap-3 sm:gap-4">
 

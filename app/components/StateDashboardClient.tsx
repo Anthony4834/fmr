@@ -12,8 +12,8 @@ import PercentageBadge from './PercentageBadge';
 import Tooltip from './Tooltip';
 import ScoreGauge from './ScoreGauge';
 import InvestorScoreInfoIcon from './InvestorScoreInfoIcon';
-import InvestorScoreInfoButton from './InvestorScoreInfoButton';
-import ThemeSwitcher from './ThemeSwitcher';
+import AppHeader from './AppHeader';
+import FMRTable from './FMRTable';
 import { formatCountyName } from '@/lib/county-utils';
 
 // Dynamically import ChoroplethMap to avoid SSR issues with Leaflet
@@ -334,23 +334,11 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
     <main className="min-h-screen bg-[var(--bg-primary)] antialiased">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-10 sm:py-8 md:py-10 lg:py-10">
         {/* Header */}
-        <div className="mb-4 sm:mb-5 flex-shrink-0">
-          <div className="flex items-start justify-between gap-2 sm:gap-3 mb-3 sm:mb-4">
-            <button onClick={handleReset} className="text-left hover:opacity-70 transition-opacity min-w-0">
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[var(--text-primary)] tracking-tight">
-                fmr.fyi
-              </h1>
-              <p className="text-[10px] sm:text-xs text-[var(--text-tertiary)] font-medium tracking-wide uppercase mt-0.5">Fair Market Rent Data</p>
-            </button>
-            <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
-              <InvestorScoreInfoButton />
-              <ThemeSwitcher />
-            </div>
-          </div>
-
-          {/* Search Input - no wrapper card */}
-          <SearchInput onSelect={handleSearch} />
-        </div>
+        <AppHeader
+          onTitleClick={handleReset}
+          showSearch={true}
+          onSearchSelect={handleSearch}
+        />
 
         <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 items-start">
           {/* Primary card */}
@@ -399,58 +387,34 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
             </div>
 
             {/* State Median Score Gauge */}
-            {stateMedianScore !== null && (
-              <div className="mb-4 sm:mb-6">
-                <div className="bg-[var(--bg-content)] rounded-lg border border-[var(--border-color)] p-4 sm:p-5 relative">
-                  <ScoreGauge 
-                    score={stateMedianScore} 
-                    maxValue={140}
-                    label="State Median Investment Score"
-                    description="Based on median scores across all counties"
-                  />
-                  <div className="absolute top-4 right-4">
-                    <InvestorScoreInfoIcon />
-                  </div>
-                </div>
+            <div className="mb-4 sm:mb-6">
+              <div className="bg-[var(--bg-content)] rounded-lg border border-[var(--border-color)] p-4 sm:p-5 relative">
+                {countyRankingsLoading ? (
+                  <ScoreGauge loading={true} />
+                ) : (
+                  <>
+                    <ScoreGauge 
+                      score={stateMedianScore} 
+                      maxValue={140}
+                      label="State Median Investment Score"
+                      description="Based on median scores across all counties"
+                    />
+                    <div className="absolute top-4 right-4">
+                      <InvestorScoreInfoIcon />
+                    </div>
+                  </>
+                )}
               </div>
-            )}
+            </div>
 
             {/* Statewide ZIP-based metrics */}
             <div className="mb-4 sm:mb-6">
               {stateMetricsLoading ? (
                 <>
-                  <div className="border border-[var(--border-color)] rounded-lg bg-[var(--bg-secondary)] overflow-visible">
-                    <div className="overflow-x-auto overflow-y-visible">
-                      <table className="w-full text-xs sm:text-sm">
-                        <thead className="bg-[var(--bg-tertiary)] border-b border-[var(--border-color)]">
-                          <tr className="text-left">
-                            <th className="px-3 sm:px-4 py-2 text-xs font-semibold text-[var(--text-secondary)]">BR</th>
-                            <th className="px-3 sm:px-4 py-2 text-xs font-semibold text-[var(--text-secondary)]">Median rent</th>
-                            <th className="px-3 sm:px-4 py-2 text-xs font-semibold text-[var(--text-secondary)]">YoY</th>
-                            <th className="px-3 sm:px-4 py-2 text-xs font-semibold text-[var(--text-secondary)]">3Y CAGR</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-[var(--border-color)]">
-                          {[...Array(5)].map((_, i) => (
-                            <tr key={i}>
-                              <td className="px-3 sm:px-4 py-2">
-                                <div className="h-4 bg-[var(--border-color)] rounded w-8 animate-pulse" />
-                              </td>
-                              <td className="px-3 sm:px-4 py-2">
-                                <div className="h-4 bg-[var(--border-color)] rounded w-20 animate-pulse" />
-                              </td>
-                              <td className="px-3 sm:px-4 py-2">
-                                <div className="h-4 bg-[var(--border-color)] rounded w-12 animate-pulse" />
-                              </td>
-                              <td className="px-3 sm:px-4 py-2">
-                                <div className="h-4 bg-[var(--border-color)] rounded w-12 animate-pulse" />
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
+                  <FMRTable
+                    data={[]}
+                    loading={true}
+                  />
                   {/* Bedroom curve chart skeleton */}
                   <div className="mt-3 sm:mt-4">
                     <div className="flex items-center justify-between gap-3 mb-2">
@@ -466,73 +430,18 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
                 <div className="text-xs text-[var(--text-tertiary)] py-2">No statewide metrics available.</div>
               ) : (
                 <>
-                  <div className="border border-[var(--border-color)] rounded-lg bg-[var(--bg-secondary)] overflow-visible">
-                    <div className="overflow-x-auto overflow-y-visible">
-                      <table className="w-full text-xs sm:text-sm">
-                        <thead className="bg-[var(--bg-tertiary)] border-b border-[var(--border-color)]">
-                          <tr className="text-left">
-                            <th className="px-3 sm:px-4 py-2 text-xs font-semibold text-[var(--text-secondary)]">BR</th>
-                            <th className="px-3 sm:px-4 py-2 text-xs font-semibold text-[var(--text-secondary)]">Median rent</th>
-                            <th className="px-3 sm:px-4 py-2 text-xs font-semibold text-[var(--text-secondary)]">YoY</th>
-                            <th className="px-3 sm:px-4 py-2 text-xs font-semibold text-[var(--text-secondary)] overflow-visible">
-                              <div className="flex items-center gap-1">
-                                3Y CAGR
-                                <Tooltip
-                                  content={
-                                    <span>
-                                      Compound Annual Growth Rate over 3 years ({stateMetrics.prev3Year}→{stateMetrics.year})
-                                    </span>
-                                  }
-                                  side="bottom"
-                                  align="end"
-                                >
-                                  <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    viewBox="0 0 20 20"
-                                    fill="currentColor"
-                                    className="w-3.5 h-3.5 text-[var(--text-tertiary)] cursor-help"
-                                  >
-                                    <path
-                                      fillRule="evenodd"
-                                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                                      clipRule="evenodd"
-                                    />
-                                  </svg>
-                                </Tooltip>
-                              </div>
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-[var(--border-color)]">
-                          {stateMetrics.byBedroom.map((b) => {
-                            const yoy = b.medianYoY;
-                            const yoyIcon = yoy === null ? '' : yoy >= 0 ? '▲' : '▼';
-                            const yoyClass = yoy === null ? 'text-[var(--text-primary)]' : yoy >= 0 ? 'text-[var(--map-color-high)]' : 'text-[var(--map-color-low)]';
-                            return (
-                              <tr key={b.br}>
-                                <td className="px-3 sm:px-4 py-2 font-medium text-[var(--text-primary)]">{b.br}</td>
-                                <td className="px-3 sm:px-4 py-2 tabular-nums text-[var(--text-primary)]">
-                                  {b.medianFMR !== null ? formatCurrency(b.medianFMR) : '—'}
-                                </td>
-                                <td className="px-3 sm:px-4 py-2 tabular-nums">
-                                  {yoy !== null ? (
-                                    <span className={`${yoyClass} font-semibold`}>
-                                      {yoyIcon} {Math.abs(yoy).toFixed(1)}%
-                                    </span>
-                                  ) : (
-                                    '—'
-                                  )}
-                                </td>
-                                <td className="px-3 sm:px-4 py-2 tabular-nums text-[var(--text-primary)]">
-                                  {b.medianCAGR3 !== null ? `${b.medianCAGR3.toFixed(1)}%` : '—'}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
+                  <FMRTable
+                    data={stateMetrics.byBedroom.map((b) => ({
+                      br: b.br,
+                      rent: b.medianFMR,
+                      yoy: b.medianYoY,
+                      cagr3: b.medianCAGR3,
+                    }))}
+                    loading={false}
+                    prevYear={stateMetrics.prevYear}
+                    prev3Year={stateMetrics.prev3Year}
+                    currentYear={stateMetrics.year}
+                  />
 
                   {/* Bedroom curve chart below table */}
                   <div className="mt-3 sm:mt-4">
