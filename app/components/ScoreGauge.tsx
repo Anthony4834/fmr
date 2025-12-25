@@ -12,7 +12,7 @@ import {
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 type ScoreGaugeProps = {
-  score: number | null;
+  score?: number | null;
   maxValue?: number;
   label?: string;
   description?: string;
@@ -63,7 +63,7 @@ function getTextColorForScore(score: number | null, themeKey?: string): string {
 }
 
 export default function ScoreGauge({ 
-  score, 
+  score = null, 
   maxValue = 140,
   label = 'State Median Investment Score',
   description = 'Based on median scores across all counties',

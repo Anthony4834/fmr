@@ -66,22 +66,35 @@ export default function AppHeader({
   children,
   className = '',
 }: AppHeaderProps) {
-  const TitleComponent = onTitleClick ? 'button' : Link;
-  const titleProps = onTitleClick
-    ? { onClick: onTitleClick, className: 'text-left hover:opacity-70 transition-opacity min-w-0' }
-    : { href: titleHref, className: 'block hover:opacity-70 transition-opacity min-w-0' };
+  const titleContent = (
+    <>
+      <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[var(--text-primary)] tracking-tight">
+        fmr.fyi
+      </h1>
+      <p className="text-[10px] sm:text-xs text-[var(--text-tertiary)] font-medium tracking-wide uppercase mt-0.5">
+        Fair Market Rent Data
+      </p>
+    </>
+  );
 
   return (
     <div className={`mb-4 sm:mb-5 flex-shrink-0 ${className}`}>
       <div className="flex items-start justify-between gap-2 sm:gap-3 mb-3 sm:mb-4">
-        <TitleComponent {...titleProps}>
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[var(--text-primary)] tracking-tight">
-            fmr.fyi
-          </h1>
-          <p className="text-[10px] sm:text-xs text-[var(--text-tertiary)] font-medium tracking-wide uppercase mt-0.5">
-            Fair Market Rent Data
-          </p>
-        </TitleComponent>
+        {onTitleClick ? (
+          <button
+            onClick={onTitleClick}
+            className="text-left hover:opacity-70 transition-opacity min-w-0"
+          >
+            {titleContent}
+          </button>
+        ) : (
+          <Link
+            href={titleHref}
+            className="block hover:opacity-70 transition-opacity min-w-0"
+          >
+            {titleContent}
+          </Link>
+        )}
         <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
           <InvestorScoreInfoButton />
           <ThemeSwitcher />
