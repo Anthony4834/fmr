@@ -562,8 +562,8 @@ export default function SearchInput({ onSelect, autoFocus = false }: SearchInput
     <div ref={containerRef} className="relative w-full">
       <form onSubmit={handleSubmit}>
         <div className="relative">
-          <div className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <div className="pointer-events-none absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]">
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path
                 d="M10 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z"
                 stroke="currentColor"
@@ -594,10 +594,10 @@ export default function SearchInput({ onSelect, autoFocus = false }: SearchInput
               setSelectedIndex(-1);
             }}
             ref={inputRef}
-            placeholder="Search state, ZIP, city, county/parish, or address…"
-            className={`w-full pl-10 ${
+            placeholder="Find a state, city, county, zip, or address"
+            className={`w-full pl-11 ${
               query.trim().length > 0 ? 'pr-28 sm:pr-40' : 'pr-16 sm:pr-24'
-            } py-2.5 sm:py-3.5 text-[14px] sm:text-[15px] bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl appearance-none focus:outline-none focus:ring-0 focus:ring-offset-0 focus:border-[var(--text-primary)] transition-colors placeholder:text-[var(--text-muted)] text-[var(--text-primary)]`}
+            } py-3 sm:py-3.5 text-[15px] sm:text-base bg-[var(--bg-secondary)] border border-[#e5e5e5] rounded-xl appearance-none focus:outline-none focus:ring-0 focus:ring-offset-0 focus:border-[var(--text-tertiary)] transition-colors placeholder:text-[var(--text-muted)] text-[var(--text-primary)]`}
             aria-autocomplete="list"
             aria-expanded={showSuggestions}
           />

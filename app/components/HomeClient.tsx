@@ -14,6 +14,7 @@ import IdealPurchasePriceCard from './IdealPurchasePriceCard';
 import InvestorScoreInfoButton from './InvestorScoreInfoButton';
 import ThemeSwitcher from './ThemeSwitcher';
 import NewBadge from './NewBadge';
+import ChromeExtensionModal from './ChromeExtensionModal';
 import { formatCountyName } from '@/lib/county-utils';
 
 function getTextColorForScore(score: number | null): string {
@@ -781,11 +782,11 @@ export default function HomeClient(props: {
 
   return (
     <main className="min-h-screen bg-[var(--bg-primary)] antialiased">
+      <ChromeExtensionModal />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-8 sm:py-8 md:py-10 lg:py-10">
         {/* Header */}
-        <div className="mb-4 sm:mb-6 lg:mb-4 flex-shrink-0">
-          {/* Mobile: stacked layout, Desktop: side-by-side */}
-          <div className="flex items-start justify-between gap-2 sm:gap-3 mb-2 sm:mb-3">
+        <div className="mb-4 sm:mb-5 flex-shrink-0">
+          <div className="flex items-start justify-between gap-2 sm:gap-3 mb-3 sm:mb-4">
             <button onClick={handleReset} className="text-left hover:opacity-70 transition-opacity min-w-0">
               <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[var(--text-primary)] tracking-tight">
                 fmr.fyi
@@ -798,43 +799,11 @@ export default function HomeClient(props: {
             </div>
           </div>
 
-          {/* Description */}
-          <p className="text-xs sm:text-sm text-[var(--text-secondary)] mb-3 sm:mb-4">
-            Search HUD Fair Market Rent data by address, city, ZIP code, county, or parish
-          </p>
-
-          {/* Extension banner - full width on mobile */}
-          <a
-            href="https://chromewebstore.google.com/detail/fmrfyi-%E2%80%93-fair-market-rent/gkemjakehildeolcagbibhmbcddkkflb"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group inline-flex items-center gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] text-[var(--text-primary)] text-xs font-medium rounded-lg hover:bg-[var(--bg-hover)] transition-colors duration-200"
-          >
-            <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0 text-[var(--text-secondary)]" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 0C8.21 0 4.831 1.757 2.632 4.501l3.953 6.848A5.454 5.454 0 0 1 12 6.545h10.691A12 12 0 0 0 12 0zM1.931 5.47A11.943 11.943 0 0 0 0 12c0 6.012 4.42 10.991 10.189 11.864l3.953-6.847a5.45 5.45 0 0 1-6.865-2.29zm13.342 2.166a5.446 5.446 0 0 1 1.45 7.09l.002.001h-.002l-3.953 6.848c.062.002.124.006.187.006 6.627 0 12-5.373 12-12 0-.807-.084-1.594-.236-2.355H15.273zM12 16.364a4.364 4.364 0 1 1 0-8.728 4.364 4.364 0 0 1 0 8.728z"/>
-            </svg>
-            <span className="hidden sm:inline">Get Chrome Extension</span>
-            <span className="sm:hidden">Chrome Extension</span>
-            <NewBadge />
-            <svg
-              className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0 text-[var(--text-tertiary)] transition-transform group-hover:translate-x-0.5"
-              viewBox="0 0 16 16"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="M6 3l5 5-5 5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </a>
+          {/* Search Input - no wrapper card */}
+          <SearchInput onSelect={handleSearch} />
         </div>
 
         <div className="flex flex-col gap-3 sm:gap-4">
-          {/* Search Input - Always visible */}
-          <div className="flex-shrink-0">
-            <div className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] p-4 sm:p-6">
-              <SearchInput onSelect={handleSearch} />
-            </div>
-          </div>
 
           {showResults ? (
             <div className="flex flex-col lg:flex-row gap-3 sm:gap-4 items-start">
@@ -1152,16 +1121,43 @@ export default function HomeClient(props: {
         )}
 
         <div className="mt-6 sm:mt-8 lg:mt-4 pt-3 sm:pt-4 lg:pt-3 border-t border-[var(--border-color)] flex-shrink-0">
-          <div className="mb-2 sm:mb-3 lg:mb-2">
-            <p className="text-xs font-medium text-[var(--text-primary)] mb-0.5">fmr.fyi</p>
-            <p className="text-xs text-[var(--text-tertiary)]">Fair Market Rent data made simple</p>
-          </div>
-          <div className="space-y-1 sm:space-y-1.5">
-            <p className="text-xs text-[var(--text-tertiary)]">
-              Data source:{' '}
-              <span className="text-[var(--text-secondary)] font-medium">U.S. Department of Housing and Urban Development (HUD)</span>
-            </p>
-            <p className="text-xs text-[var(--text-muted)]">Fiscal Year 2026 • Updated October 2025</p>
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
+            <div>
+              <div className="mb-2 sm:mb-3 lg:mb-2">
+                <p className="text-xs font-medium text-[var(--text-primary)] mb-0.5">fmr.fyi</p>
+                <p className="text-xs text-[var(--text-tertiary)]">Fair Market Rent data made simple</p>
+              </div>
+              <div className="space-y-1 sm:space-y-1.5">
+                <p className="text-xs text-[var(--text-tertiary)]">
+                  Data source:{' '}
+                  <span className="text-[var(--text-secondary)] font-medium">U.S. Department of Housing and Urban Development (HUD)</span>
+                </p>
+                <p className="text-xs text-[var(--text-muted)]">Fiscal Year 2026 • Updated October 2025</p>
+              </div>
+            </div>
+
+            {/* Chrome Extension link */}
+            <a
+              href="https://chromewebstore.google.com/detail/fmrfyi-%E2%80%93-fair-market-rent/gkemjakehildeolcagbibhmbcddkkflb"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group inline-flex items-center gap-2 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+            >
+              <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 0C8.21 0 4.831 1.757 2.632 4.501l3.953 6.848A5.454 5.454 0 0 1 12 6.545h10.691A12 12 0 0 0 12 0zM1.931 5.47A11.943 11.943 0 0 0 0 12c0 6.012 4.42 10.991 10.189 11.864l3.953-6.847a5.45 5.45 0 0 1-6.865-2.29zm13.342 2.166a5.446 5.446 0 0 1 1.45 7.09l.002.001h-.002l-3.953 6.848c.062.002.124.006.187.006 6.627 0 12-5.373 12-12 0-.807-.084-1.594-.236-2.355H15.273zM12 16.364a4.364 4.364 0 1 1 0-8.728 4.364 4.364 0 0 1 0 8.728z"/>
+              </svg>
+              <span>Get the Chrome Extension</span>
+              <NewBadge />
+              <svg
+                className="w-3.5 h-3.5 flex-shrink-0 transition-transform group-hover:translate-x-0.5"
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M6 3l5 5-5 5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </a>
           </div>
         </div>
       </div>

@@ -25,10 +25,9 @@ export default function ExtensionShowcase() {
   const features = [
     'See FMR data on any property listing',
     <>Full <span className="font-semibold text-transparent bg-clip-text bg-gradient-to-r from-[#f59e0b] to-[#f97316]">fmr.fyi</span> data, one click away</>,
-    'Works on Zillow, Redfin, Realtor.com, and more',
+    'Works on Zillow and Redfin — more sites coming soon',
   ];
 
-  // Trigger explosion only once when component comes into view
   useEffect(() => {
     if (hasBeenInView && !isExploded) {
       const timer = setTimeout(() => setIsExploded(true), 600);
@@ -36,7 +35,6 @@ export default function ExtensionShowcase() {
     }
   }, [hasBeenInView, isExploded]);
 
-  // Mode change just swaps images - no animation replay
   const handleModeChange = (newMode: ExtensionMode) => {
     if (newMode !== mode) {
       setMode(newMode);
@@ -113,7 +111,7 @@ export default function ExtensionShowcase() {
             </a>
           </div>
 
-          {/* Right: Extension Screenshot - Simplified for mobile */}
+          {/* Right: Extension Screenshot */}
           <div className={`transition-all duration-700 delay-200 ${hasBeenInView ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-8'}`}>
             {/* Mode toggle */}
             <div className="flex justify-center sm:justify-end mb-4 sm:mb-6">
@@ -143,52 +141,26 @@ export default function ExtensionShowcase() {
 
             {/* Mobile: Simple stacked view */}
             <div className="lg:hidden space-y-4">
-              {/* Main screenshot */}
-              <div className="relative rounded-xl overflow-hidden bg-[#1a1a1a] border border-white/10">
-                <div className="relative" style={{ aspectRatio: '3356 / 1742' }}>
-                  <Image
-                    src={screenshots.cashFlow}
-                    alt="Extension Cash Flow Mode"
-                    fill
-                    className={`object-cover object-top transition-opacity duration-300 ${
-                      mode === 'cashFlow' ? 'opacity-100' : 'opacity-0'
-                    }`}
-                    priority
-                  />
-                  <Image
-                    src={screenshots.fmr}
-                    alt="Extension FMR Mode"
-                    fill
-                    className={`object-cover object-top transition-opacity duration-300 ${
-                      mode === 'fmr' ? 'opacity-100' : 'opacity-0'
-                    }`}
-                    priority
-                  />
-                </div>
+              <div className="rounded-xl overflow-hidden border border-white/10">
+                <Image
+                  src={mode === 'cashFlow' ? screenshots.cashFlow : screenshots.fmr}
+                  alt={`Extension ${mode === 'cashFlow' ? 'Cash Flow' : 'FMR'} Mode`}
+                  width={2611}
+                  height={1355}
+                  className="block w-full h-auto"
+                  priority
+                />
               </div>
               
-              {/* Zoomed detail */}
-              <div className="relative rounded-xl overflow-hidden bg-[#1a1a1a] border border-white/10">
-                <div className="relative" style={{ aspectRatio: '912 / 864' }}>
-                  <Image
-                    src={zoomedScreenshots.cashFlow}
-                    alt="Extension Cash Flow Mode - Detail"
-                    fill
-                    className={`object-cover transition-opacity duration-300 ${
-                      mode === 'cashFlow' ? 'opacity-100' : 'opacity-0'
-                    }`}
-                    priority
-                  />
-                  <Image
-                    src={zoomedScreenshots.fmr}
-                    alt="Extension FMR Mode - Detail"
-                    fill
-                    className={`object-cover transition-opacity duration-300 ${
-                      mode === 'fmr' ? 'opacity-100' : 'opacity-0'
-                    }`}
-                    priority
-                  />
-                </div>
+              <div className="relative rounded-xl overflow-hidden border border-white/10 inline-block">
+                <Image
+                  src={mode === 'cashFlow' ? zoomedScreenshots.cashFlow : zoomedScreenshots.fmr}
+                  alt={`Extension ${mode === 'cashFlow' ? 'Cash Flow' : 'FMR'} Mode - Detail`}
+                  width={679}
+                  height={599}
+                  className="block w-full h-auto max-w-[280px]"
+                  priority
+                />
                 <div className="absolute top-2 right-2">
                   <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-[#22c55e] shadow-lg">
                     <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
@@ -198,48 +170,58 @@ export default function ExtensionShowcase() {
               </div>
             </div>
 
-            {/* Desktop: 3D Exploded View Container */}
+            {/* Desktop: Exploded View */}
             <div
               className="hidden lg:block relative"
-              style={{
-                perspective: '1200px',
-              }}
+              style={{ perspective: '1200px' }}
             >
               {/* Connection Line */}
-              <div
+              <svg
                 className="absolute pointer-events-none z-10"
                 style={{
-                  left: '210px',
-                  top: '175px',
-                  width: '100px',
-                  height: '70px',
+                  left: '350px',
+                  top: '180px',
+                  width: '320px',
+                  height: '180px',
                   opacity: isExploded ? 1 : 0,
                   transition: 'opacity 0.4s ease-out 0.2s',
+                  overflow: 'visible',
+                  filter: 'drop-shadow(0 0 4px rgba(34, 197, 94, 0.5))',
                 }}
               >
-                <svg width="100%" height="100%" style={{ overflow: 'visible' }}>
-                  <defs>
-                    <linearGradient id="connectorGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="#22c55e" />
-                      <stop offset="100%" stopColor="#16a34a" />
-                    </linearGradient>
-                  </defs>
-                  <line x1="0" y1="0" x2="100" y2="70" stroke="white" strokeWidth="3" strokeLinecap="round" opacity="0.15" />
-                  <line x1="0" y1="0" x2="100" y2="70" stroke="url(#connectorGradient)" strokeWidth="2" strokeLinecap="round" />
-                  <circle cx="100" cy="70" r="5" fill="#22c55e" fillOpacity="0.25" />
-                  <circle cx="100" cy="70" r="3" fill="#22c55e" />
-                  <circle cx="100" cy="70" r="1.5" fill="white" />
-                </svg>
-              </div>
+                <defs>
+                  <linearGradient id="connectorGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#22c55e" />
+                    <stop offset="100%" stopColor="#16a34a" />
+                  </linearGradient>
+                  <filter id="glow">
+                    <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                    <feMerge>
+                      <feMergeNode in="coloredBlur"/>
+                      <feMergeNode in="SourceGraphic"/>
+                    </feMerge>
+                  </filter>
+                </defs>
+                {/* Background shadow line for visibility */}
+                <line x1="0" y1="0" x2="-250" y2="-113" stroke="rgba(0, 0, 0, 0.4)" strokeWidth="6" strokeLinecap="round" />
+                {/* Main line from main screenshot to center of zoomed image */}
+                <line x1="0" y1="0" x2="-250" y2="-113" stroke="white" strokeWidth="4" strokeLinecap="round" opacity="0.3" />
+                <line x1="0" y1="0" x2="-250" y2="-113" stroke="url(#connectorGradient)" strokeWidth="3" strokeLinecap="round" filter="url(#glow)" />
+                {/* End point circle */}
+                <circle cx="-250" cy="-113" r="7" fill="rgba(0, 0, 0, 0.3)" />
+                <circle cx="-250" cy="-113" r="6" fill="#22c55e" fillOpacity="0.4" />
+                <circle cx="-250" cy="-113" r="4" fill="#22c55e" />
+                <circle cx="-250" cy="-113" r="2" fill="white" />
+              </svg>
 
-              {/* Zoomed Detail Card - image has skew baked in (+2deg X, -6deg Y) */}
+              {/* Zoomed Detail Card */}
               <div
                 className="absolute z-20 cursor-pointer"
                 onMouseEnter={() => setIsZoomedHovered(true)}
                 onMouseLeave={() => setIsZoomedHovered(false)}
                 style={{
-                  top: isExploded ? '-90px' : '20px',
-                  left: isExploded ? '-70px' : '40px',
+                  top: isExploded ? '-30px' : '40px',
+                  left: isExploded ? '-10px' : '60px',
                   opacity: hasBeenInView ? (isExploded ? 1 : 0.4) : 0,
                   transform: isExploded
                     ? isZoomedHovered
@@ -249,44 +231,24 @@ export default function ExtensionShowcase() {
                   transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
                 }}
               >
-                {/* Image container - no skew needed, baked into image */}
                 <div
-                  className="relative overflow-hidden rounded-xl"
+                  className="rounded-xl overflow-hidden"
                   style={{
-                    width: '280px',
                     boxShadow: isZoomedHovered
-                      ? `
-                        0 35px 60px -15px rgba(0, 0, 0, 0.6),
-                        0 0 0 2px rgba(34, 197, 94, 0.4),
-                        0 0 40px rgba(34, 197, 94, 0.2)
-                      `
-                      : `
-                        0 25px 50px -12px rgba(0, 0, 0, 0.5),
-                        0 0 0 1px rgba(34, 197, 94, 0.3)
-                      `,
+                      ? '0 35px 60px -15px rgba(0, 0, 0, 0.6), 0 0 0 2px rgba(34, 197, 94, 0.4), 0 0 40px rgba(34, 197, 94, 0.2)'
+                      : '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(34, 197, 94, 0.3)',
                     transition: 'box-shadow 0.3s ease-out',
                   }}
                 >
-                  <div className="relative" style={{ aspectRatio: '912 / 864' }}>
-                    <Image
-                      src={zoomedScreenshots.cashFlow}
-                      alt="Extension Cash Flow Mode - Detail"
-                      fill
-                      className={`object-cover transition-opacity duration-300 ${
-                        mode === 'cashFlow' ? 'opacity-100' : 'opacity-0'
-                      }`}
-                      priority
-                    />
-                    <Image
-                      src={zoomedScreenshots.fmr}
-                      alt="Extension FMR Mode - Detail"
-                      fill
-                      className={`object-cover transition-opacity duration-300 ${
-                        mode === 'fmr' ? 'opacity-100' : 'opacity-0'
-                      }`}
-                      priority
-                    />
-                  </div>
+                  <Image
+                    src={mode === 'cashFlow' ? zoomedScreenshots.cashFlow : zoomedScreenshots.fmr}
+                    alt={`Extension ${mode === 'cashFlow' ? 'Cash Flow' : 'FMR'} Mode - Detail`}
+                    width={679}
+                    height={599}
+                    className="block"
+                    priority
+                    style={{ width: '220px', height: 'auto' }}
+                  />
                 </div>
 
                 {/* LIVE badge */}
@@ -305,7 +267,7 @@ export default function ExtensionShowcase() {
                 </div>
               </div>
 
-              {/* Main screenshot card - subtle shift when exploded */}
+              {/* Main screenshot card */}
               <div
                 className="relative"
                 style={{
@@ -319,12 +281,9 @@ export default function ExtensionShowcase() {
                 }}
               >
                 <div
-                  className="rounded-xl overflow-hidden bg-[#1a1a1a]"
+                  className="rounded-xl overflow-hidden"
                   style={{
-                    boxShadow: `
-                      0 0 0 1px rgba(255,255,255,0.08),
-                      0 25px 50px -12px rgba(0, 0, 0, 0.5)
-                    `,
+                    boxShadow: '0 0 0 1px rgba(255,255,255,0.08), 0 25px 50px -12px rgba(0, 0, 0, 0.5)',
                   }}
                 >
                   {/* Browser toolbar */}
@@ -364,44 +323,16 @@ export default function ExtensionShowcase() {
                     </div>
                   </div>
 
-                  {/* Screenshot with crossfade */}
-                  <div className="relative" style={{ aspectRatio: '3356 / 1742' }}>
+                  {/* Screenshot */}
+                  <div className="relative">
                     <Image
-                      src={screenshots.cashFlow}
-                      alt="Extension Cash Flow Mode"
-                      fill
-                      className={`object-cover object-top transition-opacity duration-300 ${
-                        mode === 'cashFlow' ? 'opacity-100' : 'opacity-0'
-                      }`}
+                      src={mode === 'cashFlow' ? screenshots.cashFlow : screenshots.fmr}
+                      alt={`Extension ${mode === 'cashFlow' ? 'Cash Flow' : 'FMR'} Mode`}
+                      width={2611}
+                      height={1355}
+                      className="block"
                       priority
-                    />
-                    <Image
-                      src={screenshots.fmr}
-                      alt="Extension FMR Mode"
-                      fill
-                      className={`object-cover object-top transition-opacity duration-300 ${
-                        mode === 'fmr' ? 'opacity-100' : 'opacity-0'
-                      }`}
-                      priority
-                    />
-
-                    {/* Highlight zone */}
-                    <div
-                      className="absolute rounded pointer-events-none"
-                      style={{
-                        left: 'calc(58.5% - 76.5px)',
-                        top: 'calc(58% - 73px)',
-                        width: '153px',
-                        height: '146px',
-                        opacity: isExploded ? 1 : 0,
-                        border: '3px solid white',
-                        boxShadow: `
-                          0 0 0 1px rgba(34, 197, 94, 0.5),
-                          inset 0 0 0 1px rgba(34, 197, 94, 0.3),
-                          0 0 30px rgba(34, 197, 94, 0.4)
-                        `,
-                        transition: 'opacity 0.5s ease-out 0.2s',
-                      }}
+                      style={{ width: '580px', height: 'auto' }}
                     />
                   </div>
                 </div>

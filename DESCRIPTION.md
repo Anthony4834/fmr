@@ -8,7 +8,7 @@ Our web platform allows you to quickly search for FMR data by address, city, ZIP
 
 ## Chrome Extension
 
-Our Chrome extension transforms how you evaluate rental properties by displaying instant cash flow calculations directly on property listings from Zillow, Redfin, Realtor.com, and Homes.com.
+Our Chrome extension transforms how you evaluate rental properties by displaying instant cash flow calculations directly on property listings from Zillow and Redfin. More sites coming soon.
 
 ### Key Features:
 

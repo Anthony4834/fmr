@@ -102,11 +102,11 @@ const faqs = [
     questions: [
       {
         q: 'What does the Chrome extension do?',
-        a: 'The fmr.fyi Chrome extension overlays FMR data and cash flow analysis directly on property listings from sites like Zillow, Redfin, and Realtor.com. This lets you instantly see Section 8 potential without leaving the listing page.',
+        a: 'The fmr.fyi Chrome extension overlays FMR data and cash flow analysis directly on property listings from Zillow and Redfin. This lets you instantly see Section 8 potential without leaving the listing page. More sites coming soon.',
       },
       {
         q: 'Which websites does the extension support?',
-        a: 'The extension currently supports Zillow, Redfin, Realtor.com, Trulia, and several other major real estate listing sites. We regularly add support for additional platforms.',
+        a: 'The extension currently supports Zillow and Redfin. We\'re actively working on adding support for additional platforms — more sites coming soon.',
       },
       {
         q: 'Is the extension free?',
