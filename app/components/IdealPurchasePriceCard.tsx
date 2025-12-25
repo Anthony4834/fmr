@@ -293,7 +293,7 @@ export default function IdealPurchasePriceCard({
       sp.set('county', q.county);
       sp.set('state', q.state);
     }
-    if ([...sp.keys()].length === 0) {
+    if (Array.from(sp.keys()).length === 0) {
       setMarket(null);
       setMarketError('Missing location inputs for market data.');
       return;

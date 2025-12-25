@@ -278,7 +278,7 @@ export async function computeDashboardInsights(opts: {
     // Get county names and city names for ZIPs
     const topZipCodes = topZipsSorted.map((z: any) => String(z.zip_code));
     const bottomZipCodes = bottomZipsSorted.map((z: any) => String(z.zip_code));
-    const allZipCodes = [...new Set([...topZipCodes, ...bottomZipCodes])];
+    const allZipCodes = Array.from(new Set([...topZipCodes, ...bottomZipCodes]));
 
     const zipCountyMap = new Map<string, { countyName: string; stateCode: string; cityName?: string }>();
     if (allZipCodes.length > 0) {
@@ -328,7 +328,7 @@ export async function computeDashboardInsights(opts: {
     }
 
     // Fallback: fetch any missing ZIPs in one query
-    const missingZipCodes = [...new Set([...topZipCodes, ...bottomZipCodes])].filter((z) => !zipCountyMap.has(z));
+    const missingZipCodes = Array.from(new Set([...topZipCodes, ...bottomZipCodes])).filter((z) => !zipCountyMap.has(z));
     if (missingZipCodes.length > 0) {
       const fallbackPlaceholders = missingZipCodes.map((_, i) => `$${i + 1}`).join(', ');
       const fallbackMappings = await sql.query(
@@ -468,7 +468,7 @@ export async function computeDashboardInsights(opts: {
       .slice(0, 50);
 
     const anomalyZipCodes = processedAnomalies.map((a: any) => a.zip_code);
-    const allAnomalyZipCodes = [...new Set([...allZipCodes, ...anomalyZipCodes])];
+    const allAnomalyZipCodes = Array.from(new Set([...allZipCodes, ...anomalyZipCodes]));
 
     if (allAnomalyZipCodes.length > allZipCodes.length) {
       const additionalZipCodes = anomalyZipCodes.filter((z: string) => !allZipCodes.includes(z));

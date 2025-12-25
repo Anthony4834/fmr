@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
         
         // Fallback: if no ZIP found at end, try to find any ZIP code but prefer ones near the end
         if (!zipCode) {
-          const allZipMatches = [...address.matchAll(/\b(\d{5})(-\d{4})?\b/g)];
+          const allZipMatches = Array.from(address.matchAll(/\b(\d{5})(-\d{4})?\b/g));
           if (allZipMatches.length > 0) {
             // Prefer the last match (closer to end of address)
             const lastMatch = allZipMatches[allZipMatches.length - 1];
