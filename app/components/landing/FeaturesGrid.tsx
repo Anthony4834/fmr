@@ -72,32 +72,32 @@ function FeatureCard({ feature, index, isVisible }: {
 }) {
   return (
     <div
-      className={`group p-6 bg-white rounded-xl border border-[#e5e5e5] hover:border-[#0a0a0a]/20 hover:shadow-lg transition-all duration-300 ${
+      className={`group p-6 sm:p-8 bg-white rounded-2xl border border-[#e5e5e5]/60 hover:border-[#e5e5e5] transition-all duration-300 ${
         isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
       }`}
-      style={{ transitionDelay: `${index * 100}ms` }}
+      style={{ transitionDelay: `${index * 80}ms` }}
     >
-      <div className="w-12 h-12 rounded-lg bg-[#0a0a0a] text-white flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
+      <div className="w-10 h-10 rounded-xl bg-[#0a0a0a]/[0.04] text-[#0a0a0a]/70 flex items-center justify-center mb-5">
         {feature.icon}
       </div>
-      <h3 className="text-lg font-semibold text-[#0a0a0a] mb-2">{feature.title}</h3>
-      <p className="text-sm text-[#737373] leading-relaxed">{feature.description}</p>
+      <h3 className="text-base font-medium text-[#0a0a0a] mb-2">{feature.title}</h3>
+      <p className="text-sm text-[#737373]/80 font-light leading-relaxed">{feature.description}</p>
     </div>
   );
 }
 
 export default function FeaturesGrid() {
-  const { ref, hasBeenInView } = useIntersectionObserver<HTMLElement>({ threshold: 0.1, mobileThreshold: 0.2 });
+  const { ref, hasBeenInView } = useIntersectionObserver<HTMLElement>({ threshold: 0.3, mobileThreshold: 0.4 });
 
   return (
-    <section ref={ref} className="py-12 sm:py-20 md:py-28 bg-[#fafafa]">
+    <section ref={ref} className="py-16 sm:py-24 md:py-32 bg-[#fafafa]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section header */}
-        <div className={`text-center mb-8 sm:mb-12 md:mb-16 transition-all duration-700 ${hasBeenInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#0a0a0a] mb-3 sm:mb-4">
+        <div className={`mb-10 sm:mb-14 md:mb-20 transition-all duration-700 ${hasBeenInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-medium text-[#0a0a0a] mb-3 sm:mb-4 tracking-tight">
             Everything You Need
           </h2>
-          <p className="text-base sm:text-lg text-[#737373] max-w-2xl mx-auto">
+          <p className="text-base sm:text-lg text-[#737373]/80 font-light max-w-lg">
             A complete toolkit for Section 8 and rental property investors
           </p>
         </div>

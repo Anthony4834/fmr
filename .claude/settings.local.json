@@ -8,7 +8,8 @@
       "Bash(bun add:*)",
       "Bash(bun run dev)",
       "Bash(grep:*)",
-      "Bash(sort:*)"
+      "Bash(sort:*)",
+      "Bash(npx tsc:*)"
     ]
   }
 }

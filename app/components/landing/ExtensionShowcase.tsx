@@ -7,7 +7,7 @@ import { useIntersectionObserver } from '@/app/hooks/useIntersectionObserver';
 type ExtensionMode = 'cashFlow' | 'fmr';
 
 export default function ExtensionShowcase() {
-  const { ref, hasBeenInView } = useIntersectionObserver<HTMLElement>({ threshold: 0.3, mobileThreshold: 0.4 });
+  const { ref, hasBeenInView } = useIntersectionObserver<HTMLElement>({ threshold: 0.4, mobileThreshold: 0.5 });
   const [mode, setMode] = useState<ExtensionMode>('cashFlow');
   const [isExploded, setIsExploded] = useState(false);
   const [isZoomedHovered, setIsZoomedHovered] = useState(false);
@@ -44,27 +44,27 @@ export default function ExtensionShowcase() {
   return (
     <section
       ref={ref}
-      className="py-12 sm:py-20 md:py-28 overflow-hidden relative"
+      className="py-16 sm:py-24 md:py-32 overflow-hidden relative"
       style={{
         background: 'linear-gradient(180deg, #0a0a0a 0%, #111111 50%, #0a0a0a 100%)',
       }}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-12 lg:gap-16 items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 sm:gap-14 lg:gap-20 items-center">
           {/* Left: Text content */}
           <div className={`transition-all duration-700 ${hasBeenInView ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-8'}`}>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#f59e0b]/10 border border-[#f59e0b]/20 mb-6">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#f59e0b]/[0.08] border border-[#f59e0b]/15 mb-8">
               <Image
                 src="/chrome.png"
                 alt="Chrome"
-                width={16}
-                height={16}
+                width={14}
+                height={14}
                 className="rounded-sm"
               />
-              <span className="text-sm font-medium text-[#f59e0b]">Chrome Extension</span>
+              <span className="text-sm font-normal text-[#f59e0b]/90">Chrome Extension</span>
             </div>
 
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-4 sm:mb-6">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-medium text-white mb-5 sm:mb-6 tracking-tight">
               Analyze Any Listing.
               <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#f59e0b] to-[#f97316]">
@@ -72,12 +72,12 @@ export default function ExtensionShowcase() {
               </span>
             </h2>
 
-            <p className="text-base sm:text-lg text-white/60 mb-6 sm:mb-8">
+            <p className="text-base sm:text-lg text-white/50 font-light mb-8 sm:mb-10 leading-relaxed">
               Our Chrome extension overlays FMR data and cash flow analysis directly
               on property listings. No more switching between tabs.
             </p>
 
-            <ul className="space-y-3 sm:space-y-4 mb-6 sm:mb-8">
+            <ul className="space-y-4 sm:space-y-5 mb-8 sm:mb-10">
               {features.map((feature, i) => (
                 <li
                   key={i}
@@ -86,10 +86,10 @@ export default function ExtensionShowcase() {
                   }`}
                   style={{ transitionDelay: `${300 + i * 150}ms` }}
                 >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-[#22c55e] shrink-0 mt-0.5">
-                    <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="text-[#22c55e]/80 shrink-0 mt-0.5">
+                    <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
-                  <span className="text-white/80">{feature}</span>
+                  <span className="text-white/60 font-light">{feature}</span>
                 </li>
               ))}
             </ul>
@@ -98,13 +98,13 @@ export default function ExtensionShowcase() {
               href="https://chromewebstore.google.com/detail/fmrfyi-%E2%80%93-fair-market-rent/gkemjakehildeolcagbibhmbcddkkflb"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-3 px-6 py-3 bg-white text-[#0a0a0a] font-semibold rounded-lg hover:bg-white/90 transition-colors"
+              className="inline-flex items-center gap-3 px-5 py-2.5 bg-white text-[#0a0a0a] font-medium rounded-lg hover:bg-white/95 transition-colors text-sm"
             >
               <Image
                 src="/chrome.png"
                 alt="Chrome"
-                width={24}
-                height={24}
+                width={20}
+                height={20}
                 className="rounded"
               />
               Add to Chrome — It&apos;s Free
@@ -114,24 +114,24 @@ export default function ExtensionShowcase() {
           {/* Right: Extension Screenshot */}
           <div className={`transition-all duration-700 delay-200 ${hasBeenInView ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-8'}`}>
             {/* Mode toggle */}
-            <div className="flex justify-center sm:justify-end mb-4 sm:mb-6">
-              <div className="inline-flex rounded-lg bg-white/[0.03] border border-white/[0.08] p-1">
+            <div className="flex justify-center sm:justify-end mb-5 sm:mb-8">
+              <div className="inline-flex rounded-xl bg-white/[0.03] border border-white/[0.06] p-1">
                 <button
                   onClick={() => handleModeChange('cashFlow')}
-                  className={`px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-md transition-all duration-300 ${
+                  className={`px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-normal rounded-lg transition-all duration-300 ${
                     mode === 'cashFlow'
                       ? 'bg-white text-[#0a0a0a]'
-                      : 'text-white/50 hover:text-white/80'
+                      : 'text-white/40 hover:text-white/70'
                   }`}
                 >
                   Cash Flow
                 </button>
                 <button
                   onClick={() => handleModeChange('fmr')}
-                  className={`px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-md transition-all duration-300 ${
+                  className={`px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-normal rounded-lg transition-all duration-300 ${
                     mode === 'fmr'
                       ? 'bg-white text-[#0a0a0a]'
-                      : 'text-white/50 hover:text-white/80'
+                      : 'text-white/40 hover:text-white/70'
                   }`}
                 >
                   FMR
@@ -141,7 +141,7 @@ export default function ExtensionShowcase() {
 
             {/* Mobile: Simple stacked view */}
             <div className="lg:hidden space-y-4">
-              <div className="rounded-xl overflow-hidden border border-white/10">
+              <div className="rounded-2xl overflow-hidden border border-white/[0.06]">
                 <Image
                   src={mode === 'cashFlow' ? screenshots.cashFlow : screenshots.fmr}
                   alt={`Extension ${mode === 'cashFlow' ? 'Cash Flow' : 'FMR'} Mode`}
@@ -151,8 +151,8 @@ export default function ExtensionShowcase() {
                   priority
                 />
               </div>
-              
-              <div className="relative rounded-xl overflow-hidden border border-white/10 inline-block">
+
+              <div className="relative rounded-2xl overflow-hidden border border-white/[0.06] inline-block">
                 <Image
                   src={mode === 'cashFlow' ? zoomedScreenshots.cashFlow : zoomedScreenshots.fmr}
                   alt={`Extension ${mode === 'cashFlow' ? 'Cash Flow' : 'FMR'} Mode - Detail`}
@@ -162,9 +162,9 @@ export default function ExtensionShowcase() {
                   priority
                 />
                 <div className="absolute top-2 right-2">
-                  <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-[#22c55e] shadow-lg">
-                    <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                    <span className="text-[10px] font-semibold text-white">LIVE</span>
+                  <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-[#22c55e]/90">
+                    <div className="w-1 h-1 rounded-sm bg-white animate-pulse" />
+                    <span className="text-[10px] font-medium text-white">LIVE</span>
                   </div>
                 </div>
               </div>
@@ -175,7 +175,7 @@ export default function ExtensionShowcase() {
               className="hidden lg:block relative"
               style={{ perspective: '1200px' }}
             >
-              {/* Connection Line */}
+              {/* Connection Line - Animated dashed line flowing toward zoomed card */}
               <svg
                 className="absolute pointer-events-none z-10"
                 style={{
@@ -186,33 +186,73 @@ export default function ExtensionShowcase() {
                   opacity: isExploded ? 1 : 0,
                   transition: 'opacity 0.4s ease-out 0.2s',
                   overflow: 'visible',
-                  filter: 'drop-shadow(0 0 4px rgba(34, 197, 94, 0.5))',
                 }}
               >
                 <defs>
-                  <linearGradient id="connectorGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#22c55e" />
-                    <stop offset="100%" stopColor="#16a34a" />
+                  <linearGradient id="connectorGradient" x1="100%" y1="100%" x2="0%" y2="0%">
+                    <stop offset="0%" stopColor="#fb923c" />
+                    <stop offset="50%" stopColor="#f97316" />
+                    <stop offset="100%" stopColor="#ea580c" />
                   </linearGradient>
+                  {/* Glow filter for better visibility */}
                   <filter id="glow">
-                    <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                    <feGaussianBlur stdDeviation="1.5" result="coloredBlur"/>
                     <feMerge>
                       <feMergeNode in="coloredBlur"/>
                       <feMergeNode in="SourceGraphic"/>
                     </feMerge>
                   </filter>
+                  {/* Shadow filter */}
+                  <filter id="lineShadow" x="-50%" y="-50%" width="200%" height="200%">
+                    <feDropShadow dx="0" dy="0" stdDeviation="2" floodColor="#000000" floodOpacity="0.6"/>
+                  </filter>
                 </defs>
-                {/* Background shadow line for visibility */}
-                <line x1="0" y1="0" x2="-250" y2="-113" stroke="rgba(0, 0, 0, 0.4)" strokeWidth="6" strokeLinecap="round" />
-                {/* Main line from main screenshot to center of zoomed image */}
-                <line x1="0" y1="0" x2="-250" y2="-113" stroke="white" strokeWidth="4" strokeLinecap="round" opacity="0.3" />
-                <line x1="0" y1="0" x2="-250" y2="-113" stroke="url(#connectorGradient)" strokeWidth="3" strokeLinecap="round" filter="url(#glow)" />
-                {/* End point circle */}
-                <circle cx="-250" cy="-113" r="7" fill="rgba(0, 0, 0, 0.3)" />
-                <circle cx="-250" cy="-113" r="6" fill="#22c55e" fillOpacity="0.4" />
-                <circle cx="-250" cy="-113" r="4" fill="#22c55e" />
-                <circle cx="-250" cy="-113" r="2" fill="white" />
+                {/* Background stroke for contrast - dark outline */}
+                <line
+                  x1="0"
+                  y1="0"
+                  x2="-250"
+                  y2="-113"
+                  stroke="rgba(0, 0, 0, 0.7)"
+                  strokeWidth="2.5"
+                  strokeDasharray="12 10"
+                  strokeLinecap="round"
+                  className="animate-dash-flow"
+                  style={{ filter: 'url(#lineShadow)' }}
+                />
+                {/* Animated dashed line - dashes flow toward the zoomed card */}
+                <line
+                  x1="0"
+                  y1="0"
+                  x2="-250"
+                  y2="-113"
+                  stroke="url(#connectorGradient)"
+                  strokeWidth="2"
+                  strokeDasharray="12 10"
+                  strokeLinecap="round"
+                  className="animate-dash-flow"
+                  style={{ filter: 'url(#glow)' }}
+                />
+                {/* End point - orange indicator with glow */}
+                <circle cx="-250" cy="-113" r="4.5" fill="rgba(0, 0, 0, 0.5)" />
+                <circle cx="-250" cy="-113" r="4" fill="#fb923c" fillOpacity="0.8" style={{ filter: 'url(#glow)' }} />
+                <circle cx="-250" cy="-113" r="2.5" fill="#f97316" style={{ filter: 'url(#glow)' }} />
               </svg>
+
+              {/* CSS for dash animation */}
+              <style jsx>{`
+                @keyframes dashFlow {
+                  0% {
+                    stroke-dashoffset: 0;
+                  }
+                  100% {
+                    stroke-dashoffset: -44;
+                  }
+                }
+                .animate-dash-flow {
+                  animation: dashFlow 2.5s linear infinite;
+                }
+              `}</style>
 
               {/* Zoomed Detail Card */}
               <div
@@ -232,11 +272,11 @@ export default function ExtensionShowcase() {
                 }}
               >
                 <div
-                  className="rounded-xl overflow-hidden"
+                  className="rounded-2xl overflow-hidden"
                   style={{
                     boxShadow: isZoomedHovered
-                      ? '0 35px 60px -15px rgba(0, 0, 0, 0.6), 0 0 0 2px rgba(34, 197, 94, 0.4), 0 0 40px rgba(34, 197, 94, 0.2)'
-                      : '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(34, 197, 94, 0.3)',
+                      ? '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(34, 197, 94, 0.3)'
+                      : '0 20px 40px -10px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(34, 197, 94, 0.2)',
                     transition: 'box-shadow 0.3s ease-out',
                   }}
                 >
@@ -260,9 +300,9 @@ export default function ExtensionShowcase() {
                     transition: 'all 0.4s ease-out 0.3s',
                   }}
                 >
-                  <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-[#22c55e] shadow-lg">
-                    <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                    <span className="text-[10px] font-semibold text-white">LIVE</span>
+                  <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-[#22c55e]/90">
+                    <div className="w-1 h-1 rounded-sm bg-white animate-pulse" />
+                    <span className="text-[10px] font-medium text-white">LIVE</span>
                   </div>
                 </div>
               </div>
@@ -281,9 +321,9 @@ export default function ExtensionShowcase() {
                 }}
               >
                 <div
-                  className="rounded-xl overflow-hidden"
+                  className="rounded-2xl overflow-hidden"
                   style={{
-                    boxShadow: '0 0 0 1px rgba(255,255,255,0.08), 0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+                    boxShadow: '0 0 0 1px rgba(255,255,255,0.06), 0 20px 40px -10px rgba(0, 0, 0, 0.4)',
                   }}
                 >
                   {/* Browser toolbar */}

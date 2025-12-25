@@ -34,40 +34,40 @@ function StatCard({ value, label, prefix = '', suffix = '', delay = 0 }: {
   suffix?: string;
   delay?: number;
 }) {
-  const { ref, hasBeenInView } = useIntersectionObserver<HTMLDivElement>({ threshold: 0.3, mobileThreshold: 0.5 });
-  
+  const { ref, hasBeenInView } = useIntersectionObserver<HTMLDivElement>({ threshold: 0.5, mobileThreshold: 0.6 });
+
   // Use custom animation instead of useCountUp to avoid pauses
   const [displayValue, setDisplayValue] = useState(0);
   const animationRef = useRef<number>();
   const startTimeRef = useRef<number>();
   const hasStartedRef = useRef(false);
-  
+
   useEffect(() => {
     if (!hasBeenInView || hasStartedRef.current) return;
     hasStartedRef.current = true;
-    
+
     const duration = 2000;
-    
+
     const animate = (timestamp: number) => {
       if (!startTimeRef.current) {
         startTimeRef.current = timestamp;
       }
-      
+
       const elapsed = timestamp - startTimeRef.current;
       const progress = Math.min(elapsed / duration, 1);
       // easeOut cubic for smooth deceleration
       const easedProgress = 1 - Math.pow(1 - progress, 3);
       const currentValue = Math.round(value * easedProgress);
-      
+
       setDisplayValue(currentValue);
-      
+
       if (progress < 1) {
         animationRef.current = requestAnimationFrame(animate);
       }
     };
-    
+
     animationRef.current = requestAnimationFrame(animate);
-    
+
     return () => {
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
@@ -81,15 +81,15 @@ function StatCard({ value, label, prefix = '', suffix = '', delay = 0 }: {
   return (
     <div
       ref={ref}
-      className={`bg-white rounded-xl border border-[#e5e5e5] p-6 sm:p-8 text-center transition-all duration-700 ${
+      className={`bg-white rounded-2xl border border-[#e5e5e5]/60 p-6 sm:p-8 text-left transition-all duration-700 ${
         hasBeenInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
       }`}
       style={{ transitionDelay: `${delay}ms` }}
     >
-      <div className="text-3xl sm:text-4xl md:text-5xl font-bold text-[#0a0a0a] tabular-nums">
+      <div className="text-3xl sm:text-4xl md:text-5xl font-light text-[#0a0a0a] tabular-nums tracking-tight">
         {prefix}{formattedCount}{suffix}
       </div>
-      <div className="text-sm sm:text-base text-[#737373] mt-2">{label}</div>
+      <div className="text-sm sm:text-base text-[#737373]/70 mt-2 font-light">{label}</div>
     </div>
   );
 }
@@ -140,17 +140,17 @@ function MarketTicker() {
 }
 
 export default function LiveDataPreview() {
-  const { ref, hasBeenInView } = useIntersectionObserver<HTMLElement>({ threshold: 0.1, mobileThreshold: 0.25 });
+  const { ref, hasBeenInView } = useIntersectionObserver<HTMLElement>({ threshold: 0.35, mobileThreshold: 0.45 });
 
   return (
-    <section ref={ref} className="py-12 sm:py-20 md:py-28 bg-[#fafafa]">
+    <section ref={ref} className="py-16 sm:py-24 md:py-32 bg-[#fafafa]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section header */}
-        <div className={`text-center mb-8 sm:mb-12 transition-all duration-700 ${hasBeenInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#0a0a0a] mb-3 sm:mb-4">
+        <div className={`mb-10 sm:mb-14 transition-all duration-700 ${hasBeenInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-medium text-[#0a0a0a] mb-3 sm:mb-4 tracking-tight">
             Markets are moving. Stay ahead.
           </h2>
-          <p className="text-base sm:text-lg text-[#737373] max-w-2xl mx-auto">
+          <p className="text-base sm:text-lg text-[#737373]/80 font-light max-w-lg">
             Track year-over-year FMR changes across the country
           </p>
         </div>

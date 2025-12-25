@@ -110,22 +110,22 @@ function ScoreFactor({ icon, title, description, delay, isVisible }: {
 }) {
   return (
     <div
-      className={`flex gap-3 transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
+      className={`flex gap-4 transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
       style={{ transitionDelay: `${delay}ms` }}
     >
-      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-[#16a34a]/10 flex items-center justify-center text-[#16a34a]">
+      <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-[#0a0a0a]/[0.04] flex items-center justify-center text-[#0a0a0a]/60">
         {icon}
       </div>
       <div>
-        <h4 className="font-semibold text-[#0a0a0a] text-sm">{title}</h4>
-        <p className="text-sm text-[#737373] mt-0.5">{description}</p>
+        <h4 className="font-medium text-[#0a0a0a] text-sm">{title}</h4>
+        <p className="text-sm text-[#737373]/70 mt-0.5 font-light">{description}</p>
       </div>
     </div>
   );
 }
 
 export default function MapShowcase({ onReady }: MapShowcaseProps) {
-  const { ref, hasBeenInView } = useIntersectionObserver<HTMLElement>({ threshold: 0.1, mobileThreshold: 0.25 });
+  const { ref, hasBeenInView } = useIntersectionObserver<HTMLElement>({ threshold: 0.3, mobileThreshold: 0.4 });
   const [countyScores, setCountyScores] = useState<CountyScore[]>([]);
   const [loading, setLoading] = useState(true);
   const onReadyCalledRef = useRef(false);
@@ -173,14 +173,14 @@ export default function MapShowcase({ onReady }: MapShowcaseProps) {
   }, [onReady]);
 
   return (
-    <section ref={ref} className="py-12 sm:py-20 md:py-28 bg-[#fafafa] overflow-hidden">
+    <section ref={ref} className="py-16 sm:py-24 md:py-32 bg-[#fafafa] overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section header */}
-        <div className={`text-center mb-8 sm:mb-12 md:mb-16 transition-all duration-700 ${hasBeenInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#0a0a0a] mb-3 sm:mb-4">
+        <div className={`mb-10 sm:mb-14 md:mb-20 transition-all duration-700 ${hasBeenInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-medium text-[#0a0a0a] mb-3 sm:mb-4 tracking-tight">
             Discover Cash Flowing Markets
           </h2>
-          <p className="text-base sm:text-lg text-[#737373] max-w-2xl mx-auto">
+          <p className="text-base sm:text-lg text-[#737373]/80 font-light max-w-xl">
             Our Investment Score helps you identify markets with the best rental yield potential
           </p>
         </div>
@@ -193,26 +193,26 @@ export default function MapShowcase({ onReady }: MapShowcaseProps) {
             style={{ perspective: '1200px' }}
           >
             <div
-              className={`relative bg-white rounded-xl border border-[#e5e5e5] overflow-hidden shadow-2xl transition-transform duration-1000 ${hasBeenInView ? 'rotate-0' : ''}`}
+              className={`relative bg-white rounded-2xl border border-[#e5e5e5]/60 overflow-hidden shadow-lg transition-transform duration-1000 ${hasBeenInView ? 'rotate-0' : ''}`}
               style={{
                 transform: hasBeenInView ? 'rotateY(6deg) rotateX(2deg)' : 'rotateY(20deg) rotateX(5deg)',
                 transformStyle: 'preserve-3d',
               }}
             >
               {/* Map legend bar */}
-              <div className="px-4 py-3 border-b border-[#e5e5e5] bg-[#fafafa]">
+              <div className="px-4 py-3 border-b border-[#e5e5e5]/40 bg-[#fafafa]/50">
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 rounded bg-[#16a34a]" />
-                    <span className="text-xs text-[#525252]">130+</span>
+                    <div className="w-2.5 h-2.5 rounded-sm bg-[#16a34a]" />
+                    <span className="text-xs text-[#737373] font-light">130+</span>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 rounded bg-[#44e37e]" />
-                    <span className="text-xs text-[#525252]">95-129</span>
+                    <div className="w-2.5 h-2.5 rounded-sm bg-[#44e37e]" />
+                    <span className="text-xs text-[#737373] font-light">95-129</span>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 rounded bg-[#fca5a5]" />
-                    <span className="text-xs text-[#525252]">&lt;95</span>
+                    <div className="w-2.5 h-2.5 rounded-sm bg-[#fca5a5]" />
+                    <span className="text-xs text-[#737373] font-light">&lt;95</span>
                   </div>
                 </div>
               </div>
@@ -244,16 +244,16 @@ export default function MapShowcase({ onReady }: MapShowcaseProps) {
             <div className="space-y-8">
               {/* Score intro */}
               <div className={`transition-all duration-700 ${hasBeenInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#16a34a]/10 text-[#16a34a] text-sm font-medium mb-4">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                    <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#16a34a]/[0.08] text-[#16a34a] text-sm font-normal mb-5">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                   Investment Score
                 </div>
-                <h3 className="text-2xl font-bold text-[#0a0a0a] mb-3">
+                <h3 className="text-xl sm:text-2xl font-medium text-[#0a0a0a] mb-3 tracking-tight">
                   What Goes Into the Score?
                 </h3>
-                <p className="text-[#737373]">
+                <p className="text-[#737373]/80 font-light leading-relaxed">
                   Our proprietary Investment Score analyzes multiple data points to rate each market&apos;s potential for rental property investing.
                 </p>
               </div>
@@ -316,11 +316,11 @@ export default function MapShowcase({ onReady }: MapShowcaseProps) {
               <div className={`transition-all duration-700 ${hasBeenInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`} style={{ transitionDelay: '800ms' }}>
                 <Link
                   href="/map"
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-[#0a0a0a] text-white font-medium rounded-lg hover:opacity-90 transition-opacity"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#0a0a0a] text-white font-normal rounded-lg hover:bg-[#0a0a0a]/90 transition-colors text-sm"
                 >
                   Explore the Interactive Map
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                    <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                    <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </Link>
               </div>

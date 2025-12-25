@@ -192,7 +192,7 @@ export default function LandingClient({ calculatorExample }: LandingClientProps)
 
       <main className="min-h-screen">
         {/* Hero Section - Dark */}
-        <LandingHero />
+        <LandingHero isLoadingComplete={isReady} />
 
         {/* Live Data Preview - Light */}
         <LiveDataPreview />

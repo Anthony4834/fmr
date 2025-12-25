@@ -407,25 +407,25 @@ function CalculatorDemo({ enabled, initialExample, onExampleChange }: {
   }
 
   return (
-    <div className="bg-white/5 rounded-2xl border border-white/10 overflow-hidden">
+    <div className="bg-white/[0.03] rounded-2xl border border-white/[0.06] overflow-hidden">
       {/* Mode tabs */}
-      <div className="flex border-b border-white/10">
+      <div className="flex border-b border-white/[0.06]">
         <button
           onClick={() => setMode('cashFlow')}
-          className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+          className={`flex-1 px-4 py-3 text-sm font-normal transition-colors ${
             mode === 'cashFlow'
-              ? 'bg-white/10 text-white'
-              : 'text-white/60 hover:text-white hover:bg-white/5'
+              ? 'bg-white/[0.06] text-white'
+              : 'text-white/40 hover:text-white/70 hover:bg-white/[0.03]'
           }`}
         >
           Cash Flow Calculator
         </button>
         <button
           onClick={() => setMode('maxPrice')}
-          className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+          className={`flex-1 px-4 py-3 text-sm font-normal transition-colors ${
             mode === 'maxPrice'
-              ? 'bg-white/10 text-white'
-              : 'text-white/60 hover:text-white hover:bg-white/5'
+              ? 'bg-white/[0.06] text-white'
+              : 'text-white/40 hover:text-white/70 hover:bg-white/[0.03]'
           }`}
         >
           Max Purchase Price
@@ -607,7 +607,7 @@ function encodeCalculatorConfig(example: LandingCalculatorExample | null): strin
 }
 
 export default function InvestmentShowcase({ initialExample }: InvestmentShowcaseProps) {
-  const { ref, hasBeenInView } = useIntersectionObserver<HTMLElement>({ threshold: 0.2, mobileThreshold: 0.35 });
+  const { ref, hasBeenInView } = useIntersectionObserver<HTMLElement>({ threshold: 0.35, mobileThreshold: 0.45 });
   
   // Track the current example (starts with initial, may be updated by CalculatorDemo)
   const [currentExample, setCurrentExample] = useState<LandingCalculatorExample | null>(initialExample || null);
@@ -618,18 +618,18 @@ export default function InvestmentShowcase({ initialExample }: InvestmentShowcas
     : '/';
 
   return (
-    <section ref={ref} className="py-12 sm:py-20 md:py-28 bg-[#0a0a0a]">
+    <section ref={ref} className="py-16 sm:py-24 md:py-32 bg-[#0a0a0a]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section header */}
-        <div className={`text-center mb-8 sm:mb-12 md:mb-16 transition-all duration-700 ${hasBeenInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-sm font-medium text-white/70 mb-3 sm:mb-4">
-            <span className="text-base font-bold">$</span>
+        <div className={`mb-10 sm:mb-14 md:mb-20 transition-all duration-700 ${hasBeenInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.06] text-sm font-normal text-white/50 mb-5">
+            <span className="text-sm font-medium">$</span>
             Analyze Deals
           </div>
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-3 sm:mb-4">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-medium text-white mb-3 sm:mb-4 tracking-tight">
             Know Your Numbers Before You Buy
           </h2>
-          <p className="text-base sm:text-lg text-white/60 max-w-2xl mx-auto">
+          <p className="text-base sm:text-lg text-white/50 font-light max-w-xl">
             Our cash flow calculator helps you make data-driven decisions with real FMR data
           </p>
         </div>
@@ -650,41 +650,41 @@ export default function InvestmentShowcase({ initialExample }: InvestmentShowcas
             <div className="space-y-8">
               {/* What it does */}
               <div>
-                <h3 className="text-2xl font-bold text-white mb-4">
+                <h3 className="text-xl sm:text-2xl font-medium text-white mb-4 tracking-tight">
                   Excellerate Your Research
                 </h3>
-                <p className="text-white/60">
+                <p className="text-white/50 font-light leading-relaxed">
                   Pick a market. We automatically pull HUD Fair Market Rent, local tax rates, and current mortgage rates. Just enter a price — or a cash flow target — and get your answer.
                 </p>
               </div>
 
               {/* Auto-filled data */}
               <div className="space-y-4">
-                <div className="text-sm font-medium text-white/40 uppercase tracking-wide">Auto-filled from real data</div>
+                <div className="text-xs font-normal text-white/30 uppercase tracking-wider">Auto-filled from real data</div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="bg-white/5 rounded-lg px-4 py-3 border border-white/10">
-                    <div className="text-xs text-white/50 mb-1">Rent</div>
-                    <div className="text-sm text-white font-medium">HUD FMR</div>
+                  <div className="bg-white/[0.03] rounded-xl px-4 py-3 border border-white/[0.06]">
+                    <div className="text-xs text-white/40 mb-1 font-light">Rent</div>
+                    <div className="text-sm text-white/80 font-normal">HUD FMR</div>
                   </div>
-                  <div className="bg-white/5 rounded-lg px-4 py-3 border border-white/10">
-                    <div className="text-xs text-white/50 mb-1">Taxes</div>
-                    <div className="text-sm text-white font-medium">Census ACS</div>
+                  <div className="bg-white/[0.03] rounded-xl px-4 py-3 border border-white/[0.06]">
+                    <div className="text-xs text-white/40 mb-1 font-light">Taxes</div>
+                    <div className="text-sm text-white/80 font-normal">Census ACS</div>
                   </div>
-                  <div className="bg-white/5 rounded-lg px-4 py-3 border border-white/10">
-                    <div className="text-xs text-white/50 mb-1">Mortgage Rate</div>
-                    <div className="text-sm text-white font-medium">Daily updated</div>
+                  <div className="bg-white/[0.03] rounded-xl px-4 py-3 border border-white/[0.06]">
+                    <div className="text-xs text-white/40 mb-1 font-light">Mortgage Rate</div>
+                    <div className="text-sm text-white/80 font-normal">Daily updated</div>
                   </div>
                 </div>
               </div>
 
               {/* Optional customization note */}
-              <div className="flex gap-3 bg-white/5 rounded-lg p-4 border border-white/10">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-white/40 shrink-0 mt-0.5">
-                  <path d="M12 20V10M18 20V4M6 20v-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <div className="flex gap-3 bg-white/[0.03] rounded-xl p-4 border border-white/[0.06]">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="text-white/30 shrink-0 mt-0.5">
+                  <path d="M12 20V10M18 20V4M6 20v-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
                 <div>
-                  <div className="text-sm text-white font-medium mb-1">Fine-tune your numbers</div>
-                  <div className="text-sm text-white/50">Override any default to match your actual deal, we'll save your preferences for next time.</div>
+                  <div className="text-sm text-white/70 font-normal mb-1">Fine-tune your numbers</div>
+                  <div className="text-sm text-white/40 font-light">Override any default to match your actual deal, we'll save your preferences for next time.</div>
                 </div>
               </div>
 
@@ -692,11 +692,11 @@ export default function InvestmentShowcase({ initialExample }: InvestmentShowcas
               <div className="pt-2">
                 <Link
                   href={calculatorUrl}
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-white text-[#0a0a0a] font-medium rounded-lg hover:bg-white/90 transition-colors"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-[#0a0a0a] font-medium rounded-lg hover:bg-white/95 transition-colors text-sm"
                 >
                   Try the Calculator
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                    <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                    <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </Link>
               </div>

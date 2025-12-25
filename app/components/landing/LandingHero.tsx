@@ -1,130 +1,101 @@
 'use client';
 
-import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useCountUp } from '@/app/hooks/useCountUp';
 
-// Floating particle component
-function FloatingParticle({ delay, duration, size, startX, startY }: {
+// Single digit wheel - tracks its own position for smooth transitions
+function DigitWheel({ targetDigit, delay, isFirstAnimation }: {
+  targetDigit: number;
   delay: number;
-  duration: number;
-  size: number;
-  startX: number;
-  startY: number;
+  isFirstAnimation: boolean;
 }) {
+  // Position 0 = X, positions 1-10 = digits 0-9
+  const [position, setPosition] = useState(0); // Start at X
+  const isFirstRef = useRef(true);
+
+  useEffect(() => {
+    if (isFirstAnimation && isFirstRef.current) {
+      // First animation: from X to target
+      isFirstRef.current = false;
+      const timer = setTimeout(() => {
+        setPosition(targetDigit + 1);
+      }, delay);
+      return () => clearTimeout(timer);
+    } else if (!isFirstRef.current) {
+      // Subsequent changes: animate directly to new target
+      setPosition(targetDigit + 1);
+    }
+  }, [targetDigit, delay, isFirstAnimation]);
+
+  const items = ['X', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+
   return (
     <div
-      className="absolute rounded-full bg-white/5 pointer-events-none"
-      style={{
-        width: size,
-        height: size,
-        left: `${startX}%`,
-        top: `${startY}%`,
-        animation: `float ${duration}s ease-in-out ${delay}s infinite`,
-      }}
-    />
+      className="relative h-[1.1em] overflow-hidden inline-block"
+      style={{ width: '0.6em' }}
+    >
+      <div
+        className="transition-transform duration-[1200ms]"
+        style={{
+          transform: `translateY(-${position * 1.1}em)`,
+          transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
+        }}
+      >
+        {items.map((item, i) => (
+          <div key={i} className="h-[1.1em] flex items-center justify-center">
+            {item}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
-// Format number with commas, padding with zeros to match target length
-function formatWithPlaceholder(num: number, targetValue: number): string {
-  const targetStr = targetValue.toLocaleString();
-  const numStr = num.toLocaleString();
-  
-  // If current number has fewer digits, pad with leading zeros
-  if (numStr.length < targetStr.length) {
-    // Count how many digit positions we need
-    const targetDigits = targetStr.replace(/,/g, '').length;
-    const currentDigits = numStr.replace(/,/g, '').length;
-    const padding = targetDigits - currentDigits;
-    
-    if (padding > 0) {
-      // Pad with zeros and add commas appropriately
-      const paddedNum = num.toString().padStart(targetDigits, '0');
-      // Add commas every 3 digits from the right
-      return paddedNum.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-    }
-  }
-  
-  return numStr;
-}
-
-// Animated rent value display with smooth transitions between values
-function AnimatedRentValue({ value, label, delay, isUpdating, isInitial, showPlaceholder }: {
+// Animated rent value display with number wheel effect
+function AnimatedRentValue({ value, label, delay, isUpdating, showPlaceholder, animationEnabled }: {
   value: number;
   label: string;
   delay: number;
   isUpdating?: boolean;
-  isInitial?: boolean;
   showPlaceholder?: boolean;
+  animationEnabled?: boolean;
 }) {
-  const prevValueRef = useRef<number>(0);
-  const [displayValue, setDisplayValue] = useState(0);
-  const [showingPlaceholder, setShowingPlaceholder] = useState(true);
-  const animationRef = useRef<number>();
-  const startTimeRef = useRef<number>();
-  
+  const [isFirstAnimation, setIsFirstAnimation] = useState(false);
+  const hasAnimatedRef = useRef(false);
+
   useEffect(() => {
-    if (showPlaceholder) {
-      setDisplayValue(0);
-      prevValueRef.current = 0;
-      setShowingPlaceholder(true);
-      return;
+    if (animationEnabled && !showPlaceholder && value > 0 && !hasAnimatedRef.current) {
+      hasAnimatedRef.current = true;
+      const timer = setTimeout(() => setIsFirstAnimation(true), 100);
+      return () => clearTimeout(timer);
     }
+  }, [animationEnabled, showPlaceholder, value]);
 
-    // Start animation from 0
-    const startValue = 0;
-    const endValue = value;
-    const duration = 800;
-    
-    const animate = (timestamp: number) => {
-      if (!startTimeRef.current) {
-        startTimeRef.current = timestamp;
-      }
-      
-      const elapsed = timestamp - startTimeRef.current;
-      const progress = Math.min(elapsed / duration, 1);
-      
-      // easeOut cubic
-      const easedProgress = 1 - Math.pow(1 - progress, 3);
-      const currentValue = Math.round(startValue + (endValue - startValue) * easedProgress);
-      
-      // Only hide placeholder once we have a non-zero value to show
-      if (currentValue > 0 && showingPlaceholder) {
-        setShowingPlaceholder(false);
-      }
-      
-      setDisplayValue(currentValue);
-      
-      if (progress < 1) {
-        animationRef.current = requestAnimationFrame(animate);
-      } else {
-        prevValueRef.current = endValue;
-      }
-    };
-    
-    startTimeRef.current = undefined;
-    animationRef.current = requestAnimationFrame(animate);
-    
-    return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-    };
-  }, [value, showPlaceholder, showingPlaceholder]);
-
-  // Show "X,XXX" until animation produces a non-zero value, then show the animated number
-  const formattedValue = (showPlaceholder || showingPlaceholder)
-    ? 'X,XXX' 
-    : formatWithPlaceholder(displayValue, value);
+  // Format as X,XXX - always 4 digits with comma
+  // Pad number to ensure 4 digits, then insert comma
+  const paddedNum = Math.max(0, value).toString().padStart(4, '0');
+  const formatted = paddedNum.slice(0, 1) + ',' + paddedNum.slice(1);
+  const chars = formatted.split('');
 
   return (
-    <div className={`text-center transition-opacity duration-300 ${isUpdating ? 'opacity-80' : 'opacity-100'}`}>
-      <div className="text-3xl sm:text-4xl md:text-5xl font-bold text-white tabular-nums">
-        ${formattedValue}
+    <div className={`text-left transition-opacity duration-300 ${isUpdating ? 'opacity-80' : 'opacity-100'}`}>
+      <div className="text-3xl sm:text-4xl md:text-5xl font-light text-white tabular-nums tracking-tight flex">
+        <span>$</span>
+        {chars.map((char, i) => (
+          /\d/.test(char) ? (
+            <DigitWheel
+              key={i}
+              targetDigit={parseInt(char, 10)}
+              delay={delay + i * 50}
+              isFirstAnimation={isFirstAnimation}
+            />
+          ) : (
+            <span key={i}>{char}</span>
+          )
+        ))}
       </div>
-      <div className="text-xs sm:text-sm text-white/60 mt-1">{label}</div>
+      <div className="text-xs sm:text-sm text-white/40 mt-1.5 font-light">{label}</div>
     </div>
   );
 }
@@ -141,11 +112,24 @@ function isValidZip(zip: string): boolean {
   return /^\d{5}$/.test(zip.trim());
 }
 
-export default function LandingHero() {
+interface LandingHeroProps {
+  isLoadingComplete?: boolean;
+}
+
+export default function LandingHero({ isLoadingComplete = false }: LandingHeroProps) {
   const router = useRouter();
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [animationsReady, setAnimationsReady] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const heroRef = useRef<HTMLDivElement>(null);
+
+  // Delay animations until loading screen is complete
+  useEffect(() => {
+    if (isLoadingComplete) {
+      // Add a small delay after loading completes to ensure smooth transition
+      const timer = setTimeout(() => setAnimationsReady(true), 300);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoadingComplete]);
 
   // Search and FMR state
   const [zipInput, setZipInput] = useState('');
@@ -153,32 +137,11 @@ export default function LandingHero() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [currentZip, setCurrentZip] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [hasAnimatedOnce, setHasAnimatedOnce] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
 
   const isValidInput = isValidZip(zipInput);
-  
-  // Mark initial animation as complete after first render
-  useEffect(() => {
-    const timer = setTimeout(() => setHasAnimatedOnce(true), 3500);
-    return () => clearTimeout(timer);
-  }, []);
 
-  // Generate particles on mount
-  const particles = useMemo(() => {
-    return Array.from({ length: 20 }, (_, i) => ({
-      id: i,
-      delay: Math.random() * 5,
-      duration: 15 + Math.random() * 10,
-      size: 4 + Math.random() * 8,
-      startX: Math.random() * 100,
-      startY: Math.random() * 100,
-    }));
-  }, []);
 
-  useEffect(() => {
-    setIsLoaded(true);
-  }, []);
 
   // Parallax effect on mouse move
   useEffect(() => {
@@ -293,15 +256,9 @@ export default function LandingHero() {
         }}
       />
 
-      {/* Floating particles */}
-      <div className="absolute inset-0 overflow-hidden">
-        {particles.map((p) => (
-          <FloatingParticle key={p.id} {...p} />
-        ))}
-      </div>
 
       {/* Navigation */}
-      <nav className={`absolute top-0 left-0 right-0 z-20 transition-all duration-700 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
+      <nav className={`absolute top-0 left-0 right-0 z-20 transition-all duration-700 ${animationsReady ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-6 flex items-center justify-between">
           <Link href="/" className="text-xl font-bold text-white tracking-tight">
             fmr.fyi
@@ -323,7 +280,7 @@ export default function LandingHero() {
               href="https://chromewebstore.google.com/detail/fmrfyi-%E2%80%93-fair-market-rent/gkemjakehildeolcagbibhmbcddkkflb"
               target="_blank"
               rel="noopener noreferrer"
-              className="px-4 py-2 text-sm font-medium rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors backdrop-blur-sm border border-white/10"
+              className="px-4 py-2 text-sm font-normal rounded-lg bg-white/[0.06] text-white/80 hover:text-white hover:bg-white/10 transition-colors border border-white/10"
             >
               Get Extension
             </a>
@@ -332,15 +289,15 @@ export default function LandingHero() {
       </nav>
 
       {/* Main content */}
-      <div className={`relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center mt-[10vh] sm:mt-0 transition-all duration-1000 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+      <div className={`relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-left mt-[10vh] sm:mt-0 transition-all duration-1000 ${animationsReady ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
         {/* Badge */}
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 mb-3 sm:mb-8">
-          <span className="w-2 h-2 rounded-full bg-[#16a34a] animate-pulse" />
-          <span className="text-xs sm:text-sm text-white/70">FY 2026 Data Available</span>
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 mb-4 sm:mb-10">
+          <span className="w-1.5 h-1.5 rounded-sm bg-[#16a34a]" />
+          <span className="text-xs sm:text-sm text-white/50 font-light tracking-wide">FY 2026 Data Available</span>
         </div>
 
         {/* Headline */}
-        <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white tracking-tight leading-[1.1] mb-3 sm:mb-6">
+        <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-medium text-white tracking-tight leading-[1.1] mb-4 sm:mb-8">
           Fair Market Rent,{' '}
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#16a34a] to-[#44e37e]">
             Made Simple
@@ -348,41 +305,40 @@ export default function LandingHero() {
         </h1>
 
         {/* Subheadline */}
-        <p className="text-base sm:text-lg md:text-xl text-white/60 max-w-2xl mx-auto mb-5 sm:mb-12">
+        <p className="text-base sm:text-lg md:text-xl text-white/50 font-light max-w-xl mb-8 sm:mb-14 leading-relaxed">
           Instantly access HUD FMR data, calculate cash flow, and discover
           the best markets for Section 8 investing.
         </p>
 
         {/* Animated rent values */}
-        <div className={`flex flex-wrap justify-center gap-4 sm:gap-8 md:gap-12 lg:gap-16 mb-2 sm:mb-3 transition-all duration-1000 delay-300 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          <AnimatedRentValue value={fmrValues.oneBr} label="1 Bedroom" delay={500} isUpdating={isUpdating} isInitial={!hasSearched && !hasAnimatedOnce} showPlaceholder={!hasSearched && fmrValues.oneBr === 0} />
-          <AnimatedRentValue value={fmrValues.twoBr} label="2 Bedroom" delay={700} isUpdating={isUpdating} isInitial={!hasSearched && !hasAnimatedOnce} showPlaceholder={!hasSearched && fmrValues.twoBr === 0} />
-          <AnimatedRentValue value={fmrValues.threeBr} label="3 Bedroom" delay={900} isUpdating={isUpdating} isInitial={!hasSearched && !hasAnimatedOnce} showPlaceholder={!hasSearched && fmrValues.threeBr === 0} />
+        <div className={`flex flex-wrap justify-start gap-6 sm:gap-10 md:gap-14 mb-2 sm:mb-4 transition-all duration-1000 delay-300 ${animationsReady ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <AnimatedRentValue value={fmrValues.oneBr} label="1 Bedroom" delay={0} isUpdating={isUpdating} showPlaceholder={!hasSearched && fmrValues.oneBr === 0} animationEnabled={animationsReady} />
+          <AnimatedRentValue value={fmrValues.twoBr} label="2 Bedroom" delay={200} isUpdating={isUpdating} showPlaceholder={!hasSearched && fmrValues.twoBr === 0} animationEnabled={animationsReady} />
+          <AnimatedRentValue value={fmrValues.threeBr} label="3 Bedroom" delay={400} isUpdating={isUpdating} showPlaceholder={!hasSearched && fmrValues.threeBr === 0} animationEnabled={animationsReady} />
         </div>
 
         {/* Current ZIP indicator - expands to fit content */}
-        <div className={`min-h-[24px] sm:min-h-[32px] mb-3 sm:mb-4 flex items-center justify-center transition-all duration-300 ${currentZip ? 'mb-4 sm:mb-6' : ''}`}>
+        <div className={`min-h-[24px] sm:min-h-[32px] mb-4 sm:mb-6 flex items-center justify-start transition-all duration-300 ${currentZip ? 'mb-5 sm:mb-8' : ''}`}>
           {currentZip && (
             <button
               onClick={handleViewDetails}
-              className="text-xs sm:text-sm text-[#44e37e] hover:text-[#16a34a] transition-colors flex items-center gap-2"
+              className="text-xs sm:text-sm text-[#44e37e]/80 hover:text-[#44e37e] transition-colors flex items-center gap-2 font-light"
             >
               <span>FMR for ZIP {currentZip}</span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="sm:w-4 sm:h-4">
-                <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
           )}
           {error && (
-            <span className="text-xs sm:text-sm text-red-400">{error}</span>
+            <span className="text-xs sm:text-sm text-red-400/80 font-light">{error}</span>
           )}
         </div>
 
         {/* Search input */}
-        <form onSubmit={handleSearchSubmit} className={`max-w-md mx-auto transition-all duration-1000 delay-500 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          <div className="relative group">
-            <div className="absolute -inset-0.5 bg-gradient-to-r from-[#16a34a]/10 to-[#0ea5e9]/10 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            <div className="relative flex items-center bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl overflow-hidden hover:border-white/15 transition-colors">
+        <form onSubmit={handleSearchSubmit} className={`max-w-md transition-all duration-1000 delay-500 ${animationsReady ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <div className="relative">
+            <div className="relative flex items-center bg-white/[0.03] border border-white/10 rounded-xl overflow-hidden hover:border-white/20 transition-colors">
               <div className="pl-4 text-white/40">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                   <path d="M10 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
@@ -402,10 +358,10 @@ export default function LandingHero() {
               <button
                 type="submit"
                 disabled={!isValidInput || isUpdating}
-                className={`m-2 px-6 py-2.5 sm:py-3 font-semibold rounded-lg text-sm sm:text-base transition-all ${
+                className={`m-1.5 px-6 py-2.5 sm:py-3 font-medium rounded-lg text-sm sm:text-base transition-all ${
                   isValidInput && !isUpdating
                     ? 'bg-white text-[#0a0a0a] hover:bg-white/90 cursor-pointer'
-                    : 'bg-white/20 text-white/40 cursor-not-allowed'
+                    : 'bg-white/10 text-white/30 cursor-not-allowed'
                 }`}
               >
                 {isUpdating ? (
@@ -424,37 +380,17 @@ export default function LandingHero() {
         </form>
 
         {/* Scroll indicator */}
-        <div className={`mt-8 sm:mt-12 transition-all duration-1000 delay-1000 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}>
-          <div className="flex flex-col items-center gap-2 text-white/40">
-            <span className="text-xs">Scroll to explore</span>
-            <div className="w-6 h-10 rounded-full border-2 border-white/20 flex justify-center pt-2">
-              <div className="w-1 h-3 bg-white/40 rounded-full animate-bounce" />
-            </div>
+        <div className={`mt-12 sm:mt-16 transition-all duration-1000 delay-1000 ${animationsReady ? 'opacity-100' : 'opacity-0'}`}>
+          <div className="flex items-center gap-3 text-white/30">
+            <div className="w-8 h-[1px] bg-white/20" />
+            <span className="text-xs font-light tracking-wider uppercase">Scroll</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="animate-bounce">
+              <path d="M12 5v14M19 12l-7 7-7-7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
           </div>
         </div>
       </div>
 
-      {/* CSS for floating animation */}
-      <style jsx>{`
-        @keyframes float {
-          0%, 100% {
-            transform: translateY(0) translateX(0);
-            opacity: 0.3;
-          }
-          25% {
-            transform: translateY(-20px) translateX(10px);
-            opacity: 0.6;
-          }
-          50% {
-            transform: translateY(-10px) translateX(-5px);
-            opacity: 0.4;
-          }
-          75% {
-            transform: translateY(-30px) translateX(5px);
-            opacity: 0.5;
-          }
-        }
-      `}</style>
     </section>
   );
 }
