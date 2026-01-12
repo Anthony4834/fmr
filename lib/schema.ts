@@ -374,6 +374,7 @@ export async function createSchema() {
       high_estimate NUMERIC(10, 2),
       low_estimate_per_sqft NUMERIC(10, 2),
       high_estimate_per_sqft NUMERIC(10, 2),
+      data_status VARCHAR(20) CHECK (data_status IN ('available', 'insufficient_comps', 'no_data')),
       scraped_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -408,6 +409,27 @@ export async function createSchema() {
   );
   await execute(
     "CREATE INDEX IF NOT EXISTS idx_rentcast_scraped_at ON rentcast_market_rents(scraped_at DESC);"
+  );
+  
+  // Add data_status column if it doesn't exist (for existing tables)
+  // Must run BEFORE creating index on this column
+  await execute(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'rentcast_market_rents' 
+        AND column_name = 'data_status'
+      ) THEN
+        ALTER TABLE rentcast_market_rents 
+        ADD COLUMN data_status VARCHAR(20) CHECK (data_status IN ('available', 'insufficient_comps', 'no_data'));
+      END IF;
+    END $$;
+  `);
+  
+  // Create index on data_status after ensuring column exists
+  await execute(
+    "CREATE INDEX IF NOT EXISTS idx_rentcast_data_status ON rentcast_market_rents(data_status);"
   );
 
   // Section 8 Investment Score (precomputed for fast lookups)

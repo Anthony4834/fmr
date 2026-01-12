@@ -35,9 +35,8 @@
     "fix:remaining-missing-fmr-zips": "bun scripts/fix-remaining-missing-fmr-zips.ts",
     "normalize:county-names": "bun scripts/normalize-county-names-from-fips.ts",
     "index:investment-scores": "bun scripts/index-investment-scores.ts",
-    "scrape:rentcast": "bun scripts/scrape-rentcast.ts",
-    "calculate:rentcast-frequency": "bun scripts/calculate-rentcast-frequency.ts",
-    "test:rentcast": "bun scripts/test-rentcast-scraper.ts"
+    "scrape:rentcast": "bun scripts/rentcast-local-scraper.ts",
+    "scrape:rentcast:reset": "bun scripts/rentcast-local-scraper.ts --reset"
   },
   "dependencies": {
     "@vercel/analytics": "^1.6.1",
@@ -45,9 +44,12 @@
     "chart.js": "^4",
     "csv-parse": "^5.5.0",
     "dotenv": "^16.4.0",
+    "framer-motion": "^12.25.0",
     "leaflet": "^1.9.4",
+    "lucide-react": "^0.562.0",
     "next": "^14.2.0",
     "playwright": "^1.57.0",
+    "puppeteer-core": "^24.34.0",
     "react": "^18.3.0",
     "react-chartjs-2": "^5.3.1",
     "react-dom": "^18.3.0",

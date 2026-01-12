@@ -226,8 +226,22 @@ html:not([data-theme]) {
   body {
     color: var(--text-primary);
     background-color: var(--bg-primary);
-    font-feature-settings: 'rlig' 1, 'calt' 1;
+    font-family: var(--font-sans), system-ui, sans-serif;
+    font-feature-settings: 'rlig' 1, 'calt' 1, "cv02", "cv03", "cv04", "cv11";
     transition: background-color 0.2s ease, color 0.2s ease;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display), system-ui, sans-serif;
+    letter-spacing: -0.02em;
+  }
+  
+  .font-display {
+    font-family: var(--font-display), system-ui, sans-serif;
+  }
+  
+  input::placeholder {
+    color: hsl(220 15% 65%);
   }
 }
 
@@ -272,5 +286,39 @@ html:not([data-theme]) {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* V2 Design Utilities */
+.text-gradient {
+  background: linear-gradient(135deg, hsl(192 85% 42%) 0%, hsl(16 90% 55%) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.grid-pattern {
+  background-image: 
+    linear-gradient(to right, hsl(220 15% 88% / 0.4) 1px, transparent 1px),
+    linear-gradient(to bottom, hsl(220 15% 88% / 0.4) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* V2 Design Token Mappings - matching mockup HSL values */
+:root {
+  --primary: 192 85% 42%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 15% 94%;
+  --secondary-foreground: 220 30% 25%;
+  --muted: 220 15% 94%;
+  --muted-foreground: 220 15% 45%;
+  --accent: 16 90% 55%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 220 15% 88%;
+  --card: 0 0% 100%;
+  --card-foreground: 220 30% 12%;
+  --background: 210 20% 98%;
+  --foreground: 220 30% 12%;
 }
 

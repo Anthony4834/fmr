@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sql } from '@vercel/postgres';
-import { spawn } from 'child_process';
 
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 export const revalidate = 0;
-export const maxDuration = 300; // 5 minutes max
+export const maxDuration = 300; // 5 minutes
 
-function isAuthorized(req: NextRequest) {
-  // Vercel Cron adds `x-vercel-cron: 1`. We accept that as an internal scheduler signal.
+function isAuthorized(req: NextRequest): boolean {
   const vercelCron = req.headers.get('x-vercel-cron');
   if (vercelCron === '1') return true;
 
@@ -24,104 +21,55 @@ function isAuthorized(req: NextRequest) {
   return q === secret;
 }
 
-export async function GET(req: NextRequest) {
+export async function GET(req: NextRequest): Promise<Response> {
   try {
     if (!isAuthorized(req)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check if we're currently rate-limited
-    const stateResult = await sql`
-      SELECT rate_limit_resume_at, consecutive_rate_limits, total_requests_made, total_successful_scrapes
-      FROM rentcast_scraping_state
-      ORDER BY id LIMIT 1
-    `;
+    // Get optional parameters
+    const limitParam = req.nextUrl.searchParams.get('limit');
+    const bedroomParam = req.nextUrl.searchParams.get('bedroom');
+    const resetParam = req.nextUrl.searchParams.get('reset');
 
-    if (stateResult.rows.length > 0) {
-      const state = stateResult.rows[0];
-      if (state.rate_limit_resume_at) {
-        const resumeAt = new Date(state.rate_limit_resume_at);
-        if (resumeAt > new Date()) {
-          const waitMs = resumeAt.getTime() - Date.now();
-          return NextResponse.json({
-            ok: false,
-            message: 'Rate limit active',
-            resumeAt: resumeAt.toISOString(),
-            waitSeconds: Math.ceil(waitMs / 1000),
-            stats: {
-              totalRequests: state.total_requests_made,
-              totalScrapes: state.total_successful_scrapes,
-            },
-          });
-        }
-      }
+    // Build command arguments
+    const args: string[] = [];
+    if (limitParam) {
+      args.push('--limit', limitParam);
+    }
+    if (bedroomParam) {
+      args.push('--bedroom', bedroomParam);
+    }
+    if (resetParam === 'true') {
+      args.push('--reset');
     }
 
-    // Get batch size from query param (default 20 to fit within 5-minute timeout)
-    const batchSize = parseInt(req.nextUrl.searchParams.get('limit') || '20', 10);
+    // Use dynamic import for child_process (Node.js built-in)
+    const { exec } = await import('child_process');
+    const { promisify } = await import('util');
+    const execAsync = promisify(exec);
 
-    // Run the scraper script
-    // In Vercel's serverless environment, we process a batch each time
-    // The cron runs every 15 minutes, so we process ~20-50 requests per run
-    const scriptPath = 'scripts/scrape-rentcast.ts';
-    
-    return new Promise((resolve) => {
-      const proc = spawn('bun', [scriptPath, '--limit', String(batchSize)], {
-        stdio: ['inherit', 'pipe', 'pipe'],
-        env: { ...process.env },
-      });
+    const command = `bun scripts/rentcast-local-scraper.ts ${args.join(' ')}`;
+    const { stdout, stderr } = await execAsync(command, {
+      env: { ...process.env, POSTGRES_URL: process.env.POSTGRES_URL },
+      maxBuffer: 10 * 1024 * 1024, // 10MB buffer
+    });
 
-      let stdout = '';
-      let stderr = '';
-
-      proc.stdout?.on('data', (data) => {
-        stdout += data.toString();
-      });
-
-      proc.stderr?.on('data', (data) => {
-        stderr += data.toString();
-      });
-
-      proc.on('close', (code) => {
-        if (code === 0) {
-          resolve(
-            NextResponse.json({
-              ok: true,
-              message: 'Scraper completed',
-              batchSize,
-              output: stdout.slice(-500), // Last 500 chars
-            })
-          );
-        } else {
-          resolve(
-            NextResponse.json(
-              {
-                ok: false,
-                message: 'Scraper failed',
-                code,
-                error: stderr.slice(-500),
-                output: stdout.slice(-500),
-              },
-              { status: 500 }
-            )
-          );
-        }
-      });
-
-      proc.on('error', (err) => {
-        resolve(
-          NextResponse.json(
-            {
-              ok: false,
-              message: 'Failed to start scraper',
-              error: err.message,
-            },
-            { status: 500 }
-          )
-        );
-      });
+    return NextResponse.json({
+      ok: true,
+      timestamp: new Date().toISOString(),
+      output: stdout,
+      warnings: stderr,
     });
   } catch (e: any) {
-    return NextResponse.json({ error: String(e?.message || e) }, { status: 500 });
+    console.error('[rentcast cron] Error:', e);
+    return NextResponse.json(
+      { 
+        error: String(e?.message || e),
+        stderr: e?.stderr,
+        stdout: e?.stdout,
+      }, 
+      { status: 500 }
+    );
   }
 }

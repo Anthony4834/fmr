@@ -35,6 +35,7 @@
   "exclude": [
     "node_modules",
     "chrome",
-    "scripts"
+    "scripts",
+    "app/landing/v2-mockup"
   ]
 }

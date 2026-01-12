@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 import { sql } from '@vercel/postgres';
 import { computeCashFlow } from '@/lib/investment';
 import LandingClient from './LandingClient';
-import type { LandingCalculatorExample } from '@/app/components/landing/InvestmentShowcase';
+import type { LandingCalculatorExample } from '@/app/components/landing/CalculatorShowcaseV2';
 
 export const revalidate = 3600; // Revalidate every hour
 

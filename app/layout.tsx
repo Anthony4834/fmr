@@ -1,10 +1,26 @@
 import { Analytics as VercelAnalytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
 import Script from "next/script";
+import { Space_Grotesk, IBM_Plex_Sans } from "next/font/google";
 import Analytics from "./components/Analytics";
 import StructuredData from "./components/StructuredData";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import "./globals.css";
+
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  variable: "--font-display",
+  display: "swap",
+  weight: ["300", "400", "500", "600", "700"],
+});
+
+const ibmPlexSans = IBM_Plex_Sans({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  display: "swap",
+  weight: ["400", "500", "600", "700"],
+  style: ["normal", "italic"],
+});
 
 const googleVerification = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION;
 
@@ -43,7 +59,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="scroll-smooth" suppressHydrationWarning>
+    <html lang="en" className={`scroll-smooth ${spaceGrotesk.variable} ${ibmPlexSans.variable}`} suppressHydrationWarning>
       <head>
         {/* Inline script for immediate theme application - must be first */}
         <script
