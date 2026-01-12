@@ -361,6 +361,55 @@ export async function createSchema() {
     "CREATE INDEX IF NOT EXISTS idx_mortgage_rates_type_fetched ON mortgage_rates(rate_type, fetched_at DESC);"
   );
 
+  // RentCast market rent data (scraped from rentcast.io)
+  await execute(`
+    CREATE TABLE IF NOT EXISTS rentcast_market_rents (
+      id SERIAL PRIMARY KEY,
+      zip_code VARCHAR(10) NOT NULL,
+      bedroom_count INTEGER NOT NULL CHECK (bedroom_count >= 0 AND bedroom_count <= 4),
+      estimated_monthly_rent NUMERIC(10, 2),
+      rent_per_sqft NUMERIC(10, 2),
+      rent_per_bedroom NUMERIC(10, 2),
+      low_estimate NUMERIC(10, 2),
+      high_estimate NUMERIC(10, 2),
+      low_estimate_per_sqft NUMERIC(10, 2),
+      high_estimate_per_sqft NUMERIC(10, 2),
+      scraped_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(zip_code, bedroom_count)
+    );
+  `);
+
+  // RentCast scraping state and rate limit tracking
+  await execute(`
+    CREATE TABLE IF NOT EXISTS rentcast_scraping_state (
+      id SERIAL PRIMARY KEY,
+      current_zip_code VARCHAR(10),
+      current_bedroom_count INTEGER CHECK (current_bedroom_count >= 0 AND current_bedroom_count <= 4),
+      last_successful_zip VARCHAR(10),
+      last_successful_bedroom INTEGER,
+      last_successful_at TIMESTAMPTZ,
+      rate_limit_hit_at TIMESTAMPTZ,
+      rate_limit_resume_at TIMESTAMPTZ,
+      consecutive_rate_limits INTEGER DEFAULT 0,
+      total_requests_made INTEGER DEFAULT 0,
+      total_successful_scrapes INTEGER DEFAULT 0,
+      total_rate_limits INTEGER DEFAULT 0,
+      average_request_interval_ms INTEGER DEFAULT 0,
+      last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(id)
+    );
+  `);
+
+  // RentCast scraping indexes
+  await execute(
+    "CREATE INDEX IF NOT EXISTS idx_rentcast_zip_bedroom ON rentcast_market_rents(zip_code, bedroom_count);"
+  );
+  await execute(
+    "CREATE INDEX IF NOT EXISTS idx_rentcast_scraped_at ON rentcast_market_rents(scraped_at DESC);"
+  );
+
   // Section 8 Investment Score (precomputed for fast lookups)
   await execute(`
     CREATE TABLE IF NOT EXISTS investment_score (

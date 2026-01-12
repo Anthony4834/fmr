@@ -59,7 +59,7 @@ export async function updateCurrentYearData(year?: number): Promise<void> {
     console.log('\n📝 Next steps:');
     console.log('   - Run "bun run create-test-views" to regenerate test coverage views');
     console.log('   - Verify data counts and test sample queries');
-    console.log('   - See YEARLY_UPDATE_GUIDE.md for complete update checklist');
+    console.log('   - See docs/YEARLY_UPDATE_GUIDE.md for complete update checklist');
   } catch (error) {
     console.error(`\n❌ Error updating data for year ${targetYear}:`, error);
     throw error;

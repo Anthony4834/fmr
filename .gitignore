@@ -42,3 +42,20 @@ bun.lockb
 /data/*.xlsx
 /data/*.xls
 
+# markdown files (except README.md in root and docs/)
+*.md
+!README.md
+!docs/**/*.md
+
+# development files
+.dev/
+!.dev/README.md
+
+# temporary data files
+*.csv
+*.txt
+!data/**/*.csv
+!data/**/*.txt
+!app/**/*.txt
+!chrome/**/*.txt
+

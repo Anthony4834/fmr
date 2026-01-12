@@ -50,7 +50,7 @@ This project includes reusable, configurable scripts for indexing FMR and SAFMR 
 
 ### Yearly Updates
 
-**📖 See [YEARLY_UPDATE_GUIDE.md](./YEARLY_UPDATE_GUIDE.md) for complete instructions including data sources and step-by-step process.**
+**📖 See [YEARLY_UPDATE_GUIDE.md](./docs/YEARLY_UPDATE_GUIDE.md) for complete instructions including data sources and step-by-step process.**
 
 Quick update for the current year (typically run in October):
 
