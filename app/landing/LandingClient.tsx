@@ -488,7 +488,7 @@ export default function LandingClient({ calculatorExample }: LandingClientProps)
   }, [mapReady, progress]);
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: 'hsl(210 20% 98%)' }}>
+    <div className="min-h-screen w-full overflow-x-hidden" style={{ backgroundColor: 'hsl(210 20% 98%)' }}>
       {/* Loading overlay */}
       <LoadingOverlay 
         progress={progress} 
@@ -499,7 +499,7 @@ export default function LandingClient({ calculatorExample }: LandingClientProps)
       {/* Navigation */}
       <NavV2 isReady={isReady} />
 
-      <main className="relative">
+      <main className="relative w-full">
         {/* Hero Section */}
         <LandingHeroV2 isReady={isReady} />
 

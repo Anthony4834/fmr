@@ -61,6 +61,9 @@ export default function MapConnector() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // Remove connectors completely - they're causing issues on desktop
+  return null;
+  
   if (!coords || isMobile) return null;
 
   // Path: Start (BOTTOM-CENTER of source) → down → turn left → down → End (left side of map)

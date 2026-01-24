@@ -61,6 +61,9 @@ export default function CalculatorConnector() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // Remove connectors completely - they're causing issues on desktop
+  return null;
+  
   if (!coords || isMobile) return null;
 
   // Path: Start (RIGHT-CENTER of source) → right → down → right past target → left into target
