@@ -151,10 +151,29 @@ async function handleRateLimit(request: NextRequest): Promise<NextResponse> {
     if (!token) {
       console.log('[Middleware] No extension token, trying NextAuth session');
       try {
+        // NextAuth v5 uses 'authjs' cookie prefix, try both v5 and v4 cookie names
+        // The secureCookie option matches what NextAuth uses in production (HTTPS)
+        const isSecure = request.url.startsWith('https://');
+        
+        // Try v5 cookie name first (authjs prefix)
         token = await getToken({ 
           req: request,
           secret: process.env.NEXTAUTH_SECRET,
+          cookieName: isSecure ? '__Secure-authjs.session-token' : 'authjs.session-token',
         }) as AuthToken | null;
+        
+        // If not found, try v4 cookie name (next-auth prefix) for backwards compatibility
+        if (!token) {
+          token = await getToken({ 
+            req: request,
+            secret: process.env.NEXTAUTH_SECRET,
+            cookieName: isSecure ? '__Secure-next-auth.session-token' : 'next-auth.session-token',
+          }) as AuthToken | null;
+        }
+        
+        if (token) {
+          console.log('[Middleware] NextAuth session found:', { tier: token.tier, role: token.role, id: token.id });
+        }
       } catch (tokenError) {
         // If token extraction fails, treat as logged-out user
         console.warn('Failed to extract auth token:', tokenError);
