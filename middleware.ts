@@ -40,6 +40,15 @@ export async function middleware(request: NextRequest) {
       return response;
     }
 
+    // Skip rate limiting for contact endpoint (it has its own separate rate limiting)
+    if (pathname === '/api/contact') {
+      const response = NextResponse.next();
+      response.headers.set('Access-Control-Allow-Origin', '*');
+      response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+      response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      return response;
+    }
+
     // Apply rate limiting to all other API routes
     return await handleRateLimit(request);
   }

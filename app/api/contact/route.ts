@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { sendContactEmail } from '@/lib/email';
 import { normalizeResponseTime } from '@/lib/auth-rate-limit';
+import { checkContactFormRateLimit } from '@/lib/rate-limit';
 import crypto from 'crypto';
 
 /**
@@ -87,10 +88,30 @@ export async function POST(request: Request) {
       );
     }
 
-    // Basic rate limiting - check IP
+    // Check contact form rate limit (separate from general API rate limits)
+    const rateLimitResult = await checkContactFormRateLimit(request);
+    if (!rateLimitResult.success) {
+      await normalizeResponseTime(startTime);
+      const retryAfter = Math.ceil((rateLimitResult.reset - Date.now()) / 1000);
+      return NextResponse.json(
+        {
+          error: 'Rate limit exceeded',
+          message: 'Too many contact form submissions. Please try again later.',
+        },
+        {
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': rateLimitResult.limit.toString(),
+            'X-RateLimit-Remaining': rateLimitResult.remaining.toString(),
+            'X-RateLimit-Reset': rateLimitResult.reset.toString(),
+            'Retry-After': retryAfter.toString(),
+          },
+        }
+      );
+    }
+
+    // Get IP for email logging
     const ip = getClientIP(request);
-    // Simple in-memory rate limiting (could be improved with Redis)
-    // For now, we'll rely on Resend's rate limiting
 
     // Generate reference ID
     const referenceId = generateReferenceId();

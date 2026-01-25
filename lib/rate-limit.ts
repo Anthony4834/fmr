@@ -29,6 +29,24 @@ const RATE_LIMITS: Record<UserTier, { limit: number; window: Duration }> = {
 const rateLimiters: Partial<Record<UserTier, Ratelimit>> = {};
 
 /**
+ * Contact form rate limiter (separate from general API rate limits)
+ * Allows 10 submissions per hour per IP
+ */
+let contactFormRateLimiter: Ratelimit | null = null;
+
+function getContactFormRateLimiter(): Ratelimit {
+  if (!contactFormRateLimiter) {
+    contactFormRateLimiter = new Ratelimit({
+      redis: redis,
+      limiter: Ratelimit.slidingWindow(10, '1 h'), // 10 submissions per hour
+      analytics: true,
+      prefix: 'ratelimit:contact',
+    });
+  }
+  return contactFormRateLimiter;
+}
+
+/**
  * Get or create a rate limiter for a specific tier
  */
 function getRateLimiter(tier: UserTier): Ratelimit | null {
@@ -138,6 +156,31 @@ export async function checkRateLimit(
   return {
     success: result.success,
     limit: RATE_LIMITS[tier].limit,
+    remaining: result.remaining,
+    reset: result.reset,
+  };
+}
+
+/**
+ * Check rate limit for contact form submissions
+ * Uses a separate rate limit (10 per hour per IP) independent of general API limits
+ */
+export async function checkContactFormRateLimit(
+  request: Request
+): Promise<{
+  success: boolean;
+  limit: number;
+  remaining: number;
+  reset: number;
+}> {
+  const limiter = getContactFormRateLimiter();
+  const ip = getClientIP(request);
+  const identifier = `ip:${ip}`;
+  const result = await limiter.limit(identifier);
+
+  return {
+    success: result.success,
+    limit: 10,
     remaining: result.remaining,
     reset: result.reset,
   };

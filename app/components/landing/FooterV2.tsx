@@ -63,9 +63,9 @@ export default function FooterV2() {
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
         {/* Main footer content */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-5 gap-6 sm:gap-8 md:gap-10 mb-8 sm:mb-12">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 sm:gap-8 md:gap-10 mb-8 sm:mb-12">
           {/* Brand column */}
-          <div className="col-span-2 lg:col-span-2">
+          <div className="col-span-1 sm:col-span-2 lg:col-span-2">
             <Link href="/" className="flex items-center gap-2 sm:gap-2.5 mb-3 sm:mb-4">
               <div 
                 className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center overflow-hidden"
@@ -96,7 +96,7 @@ export default function FooterV2() {
               The fastest way to find HUD Fair Market Rent data. Built for Section 8 investors who want to make data-driven decisions.
             </p>
             <p 
-              className="text-xs hidden sm:block"
+              className="text-xs"
               style={{ 
                 color: mutedColor,
                 fontFamily: 'var(--font-sans), system-ui, sans-serif',
@@ -154,7 +154,7 @@ export default function FooterV2() {
           </div>
           
           {/* Resources links */}
-          <div className="hidden sm:block">
+          <div>
             <h3 
               className="font-semibold text-xs sm:text-sm mb-3 sm:mb-4"
               style={{ 
@@ -196,7 +196,7 @@ export default function FooterV2() {
           </div>
           
           {/* Browse links */}
-          <div className="hidden sm:block">
+          <div>
             <h3 
               className="font-semibold text-xs sm:text-sm mb-3 sm:mb-4"
               style={{ 
