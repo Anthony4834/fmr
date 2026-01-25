@@ -59,13 +59,15 @@ const GoogleIcon = ({ className }: { className?: string }) => (
 
 
 export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalProps) {
-  const [mode, setMode] = useState<'login' | 'signup'>(initialMode);
+  const [mode, setMode] = useState<'login' | 'signup' | 'verification' | 'forgot-password'>(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [verificationCode, setVerificationCode] = useState(['', '', '', '', '', '']);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isDark, setIsDark] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
 
   // Check theme
   useEffect(() => {
@@ -89,8 +91,18 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
       setEmail('');
       setPassword('');
       setName('');
+      setVerificationCode(['', '', '', '', '', '']);
+      setResendCooldown(0);
     }
   }, [isOpen, initialMode]);
+
+  // Resend cooldown timer
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendCooldown]);
 
   // Handle escape key
   useEffect(() => {
@@ -140,20 +152,35 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
           return;
         }
 
-        // Auto sign in after successful signup
-        const result = await signIn('credentials', {
-          email,
-          password,
-          redirect: false,
+        // Show verification screen
+        if (data.requiresVerification) {
+          setMode('verification');
+          setResendCooldown(60);
+        } else {
+          // Should not happen, but handle gracefully
+          setError('Account created. Please verify your email.');
+        }
+      } else if (mode === 'forgot-password') {
+        // Forgot password flow
+        const response = await fetch('/api/auth/forgot-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
         });
 
-        if (result?.error) {
-          setError('Account created. Please log in.');
-          setMode('login');
-        } else {
-          onClose();
-          window.location.reload();
+        const data = await response.json();
+
+        if (!response.ok) {
+          setError(data.error || 'Failed to send reset link');
+          setIsLoading(false);
+          return;
         }
+
+        // Show success message
+        setError('');
+        alert('If an account exists, you will receive a password reset link');
+        setMode('login');
+        setEmail('');
       } else {
         // Login flow
         const result = await signIn('credentials', {
@@ -173,6 +200,112 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
       setError('An error occurred. Please try again.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleVerification = async (codeOverride?: string) => {
+    const code = codeOverride || verificationCode.join('');
+    if (code.length !== 6) {
+      setError('Please enter the 6-digit code');
+      return;
+    }
+
+    setError('');
+    setIsLoading(true);
+
+    try {
+      const response = await fetch('/api/auth/verify-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || 'Invalid verification code');
+        setIsLoading(false);
+        return;
+      }
+
+      // Auto sign in after verification
+      const result = await signIn('credentials', {
+        email,
+        password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        setError('Email verified. Please log in.');
+        setMode('login');
+      } else {
+        onClose();
+        window.location.reload();
+      }
+    } catch (err) {
+      setError('An error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    if (resendCooldown > 0) return;
+
+    setError('');
+    setIsLoading(true);
+
+    try {
+      const response = await fetch('/api/auth/resend-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || 'Failed to resend code');
+      } else {
+        setResendCooldown(60);
+        setError('');
+        alert('Verification code sent to your email');
+      }
+    } catch (err) {
+      setError('An error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCodeChange = (index: number, value: string) => {
+    if (!/^\d*$/.test(value)) return; // Only allow digits
+
+    const newCode = [...verificationCode];
+    newCode[index] = value.slice(-1); // Only take last character
+    setVerificationCode(newCode);
+
+    // Auto-advance to next input
+    if (value && index < 5) {
+      const nextInput = document.getElementById(`code-${index + 1}`);
+      nextInput?.focus();
+    }
+
+    // Auto-submit when all 6 digits are entered
+    if (newCode.every(digit => digit !== '') && newCode.join('').length === 6) {
+      // Use the newCode directly to avoid race condition
+      handleVerification(newCode.join(''));
+    }
+  };
+
+  const handleCodePaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData('text').slice(0, 6);
+    if (/^\d{6}$/.test(pasted)) {
+      const newCode = pasted.split('');
+      setVerificationCode(newCode);
+      // Auto-submit with the pasted code directly to avoid race condition
+      handleVerification(pasted);
     }
   };
 
@@ -221,7 +354,10 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
             className="text-xl font-display font-bold"
             style={{ color: textForeground }}
           >
-            {mode === 'login' ? 'Welcome back' : 'Create an account'}
+            {mode === 'login' ? 'Welcome back' 
+             : mode === 'signup' ? 'Create an account'
+             : mode === 'verification' ? 'Verify your email'
+             : 'Reset password'}
           </h2>
           <p 
             className="text-sm mt-1"
@@ -229,46 +365,224 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
           >
             {mode === 'login' 
               ? 'Sign in to access your account' 
-              : 'Get 200 daily requests with a free account'}
+              : mode === 'signup'
+              ? 'Get 200 daily requests with a free account'
+              : mode === 'verification'
+              ? 'Enter the 6-digit code sent to your email'
+              : 'Enter your email to receive a reset link'}
           </p>
         </div>
 
         {/* Body */}
         <div className="p-6 space-y-4">
-          {/* OAuth buttons */}
-          <div className="space-y-3">
-            <button
-              type="button"
-              onClick={() => handleOAuthSignIn('google')}
-              disabled={isLoading}
-              className="w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg border font-medium transition-all hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ 
-                borderColor: inputBorder,
-                color: textForeground,
-              }}
-            >
-              <GoogleIcon className="w-5 h-5" />
-              Continue with Google
-            </button>
-          </div>
+          {mode === 'verification' ? (
+            /* Verification Code Input */
+            <div className="space-y-4">
+              <div className="flex gap-2 justify-center">
+                {verificationCode.map((digit, index) => (
+                  <input
+                    key={index}
+                    id={`code-${index}`}
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e) => handleCodeChange(index, e.target.value)}
+                    onPaste={index === 0 ? handleCodePaste : undefined}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Backspace' && !digit && index > 0) {
+                        const prevInput = document.getElementById(`code-${index - 1}`);
+                        prevInput?.focus();
+                      }
+                    }}
+                    className="w-12 h-14 text-center text-xl font-semibold rounded-lg border focus:outline-none focus:ring-2"
+                    style={{
+                      backgroundColor: inputBg,
+                      borderColor: inputBorder,
+                      color: textForeground,
+                    }}
+                    autoFocus={index === 0}
+                  />
+                ))}
+              </div>
 
-          {/* Divider */}
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t" style={{ borderColor: borderColor }} />
+              {error && (
+                <div 
+                  className="text-sm p-3 rounded-lg"
+                  style={{ 
+                    color: destructiveColor,
+                    backgroundColor: destructiveBg,
+                  }}
+                >
+                  {error}
+                </div>
+              )}
+
+              <div className="text-center space-y-2">
+              <button
+                type="button"
+                onClick={() => handleVerification()}
+                disabled={isLoading || verificationCode.join('').length !== 6}
+                  className="w-full px-4 py-2.5 rounded-lg font-semibold transition-all duration-200 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  style={{
+                    backgroundColor: primaryColor,
+                    color: '#ffffff',
+                  }}
+                >
+                  {isLoading ? (
+                    <>
+                      <LoaderIcon className="w-4 h-4" />
+                      Verifying...
+                    </>
+                  ) : (
+                    'Verify Email'
+                  )}
+                </button>
+
+                <div className="flex items-center justify-center gap-2 text-sm">
+                  <span style={{ color: textMuted }}>Didn't receive a code?</span>
+                  <button
+                    type="button"
+                    onClick={handleResendCode}
+                    disabled={resendCooldown > 0 || isLoading}
+                    className="font-medium transition-colors hover:underline disabled:opacity-50"
+                    style={{ color: primaryColor }}
+                  >
+                    {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend code'}
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('signup');
+                    setVerificationCode(['', '', '', '', '', '']);
+                    setError('');
+                  }}
+                  className="text-sm font-medium transition-colors hover:underline"
+                  style={{ color: textMuted }}
+                >
+                  Wrong email?
+                </button>
+              </div>
             </div>
-            <div className="relative flex justify-center text-xs">
-              <span 
-                className="px-2"
-                style={{ backgroundColor: cardBg, color: textMuted }}
+          ) : mode === 'forgot-password' ? (
+            /* Forgot Password Form */
+            <form onSubmit={handleEmailSignIn} className="space-y-4">
+              <div className="space-y-1.5">
+                <label 
+                  htmlFor="forgot-email" 
+                  className="text-sm font-medium"
+                  style={{ color: textForeground }}
+                >
+                  Email
+                </label>
+                <div className="relative">
+                  <MailIcon 
+                    className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" 
+                    style={{ color: textMuted }}
+                  />
+                  <input
+                    id="forgot-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    required
+                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border text-sm transition-colors focus:outline-none focus:ring-2"
+                    style={{ 
+                      backgroundColor: inputBg,
+                      borderColor: inputBorder,
+                      color: textForeground,
+                    }}
+                    autoComplete="email"
+                  />
+                </div>
+              </div>
+
+              {error && (
+                <div 
+                  className="text-sm p-3 rounded-lg"
+                  style={{ 
+                    color: destructiveColor,
+                    backgroundColor: destructiveBg,
+                  }}
+                >
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full px-4 py-2.5 rounded-lg font-semibold transition-all duration-200 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                style={{
+                  backgroundColor: primaryColor,
+                  color: '#ffffff',
+                }}
               >
-                or continue with email
-              </span>
-            </div>
-          </div>
+                {isLoading ? (
+                  <>
+                    <LoaderIcon className="w-4 h-4" />
+                    Sending...
+                  </>
+                ) : (
+                  'Send Reset Link'
+                )}
+              </button>
 
-          {/* Email form */}
-          <form onSubmit={handleEmailSignIn} className="space-y-4">
+              <div className="text-center text-sm">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('login');
+                    setEmail('');
+                    setError('');
+                  }}
+                  className="font-medium transition-colors hover:underline"
+                  style={{ color: primaryColor }}
+                >
+                  Back to login
+                </button>
+              </div>
+            </form>
+          ) : (
+            /* Login/Signup Form */
+            <>
+              {/* OAuth buttons */}
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => handleOAuthSignIn('google')}
+                  disabled={isLoading}
+                  className="w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg border font-medium transition-all hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ 
+                    borderColor: inputBorder,
+                    color: textForeground,
+                  }}
+                >
+                  <GoogleIcon className="w-5 h-5" />
+                  Continue with Google
+                </button>
+              </div>
+
+              {/* Divider */}
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t" style={{ borderColor: borderColor }} />
+                </div>
+                <div className="relative flex justify-center text-xs">
+                  <span 
+                    className="px-2"
+                    style={{ backgroundColor: cardBg, color: textMuted }}
+                  >
+                    or continue with email
+                  </span>
+                </div>
+              </div>
+
+              {/* Email form */}
+              <form onSubmit={handleEmailSignIn} className="space-y-4">
             {mode === 'signup' && (
               <div className="space-y-1.5">
                 <label 
@@ -333,13 +647,28 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
             </div>
 
             <div className="space-y-1.5">
-              <label 
-                htmlFor="password" 
-                className="text-sm font-medium"
-                style={{ color: textForeground }}
-              >
-                Password
-              </label>
+              <div className="flex items-center justify-between">
+                <label 
+                  htmlFor="password" 
+                  className="text-sm font-medium"
+                  style={{ color: textForeground }}
+                >
+                  Password
+                </label>
+                {mode === 'login' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode('forgot-password');
+                      setError('');
+                    }}
+                    className="text-xs font-medium transition-colors hover:underline"
+                    style={{ color: primaryColor }}
+                  >
+                    Forgot password?
+                  </button>
+                )}
+              </div>
               <div className="relative">
                 <LockIcon 
                   className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" 
@@ -395,25 +724,27 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
                 mode === 'login' ? 'Sign in' : 'Create account'
               )}
             </button>
-          </form>
+              </form>
 
-          {/* Toggle mode */}
-          <div className="text-center text-sm">
-            <span style={{ color: textMuted }}>
-              {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                setMode(mode === 'login' ? 'signup' : 'login');
-                setError('');
-              }}
-              className="font-medium transition-colors hover:underline"
-              style={{ color: primaryColor }}
-            >
-              {mode === 'login' ? 'Sign up' : 'Log in'}
-            </button>
-          </div>
+              {/* Toggle mode */}
+              <div className="text-center text-sm">
+                <span style={{ color: textMuted }}>
+                  {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode(mode === 'login' ? 'signup' : 'login');
+                    setError('');
+                  }}
+                  className="font-medium transition-colors hover:underline"
+                  style={{ color: primaryColor }}
+                >
+                  {mode === 'login' ? 'Sign up' : 'Log in'}
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

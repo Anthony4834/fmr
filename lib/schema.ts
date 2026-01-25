@@ -710,10 +710,41 @@ export async function createSchema() {
       image TEXT,
       password_hash TEXT,  -- bcrypt hash, null for OAuth-only users
       tier VARCHAR(20) NOT NULL DEFAULT 'free' CHECK (tier IN ('free', 'paid')),
+      role VARCHAR(20) DEFAULT 'user' CHECK (role IN ('user', 'admin')),
+      signup_method VARCHAR(20) CHECK (signup_method IN ('credentials', 'google', 'admin_created')),
       locked_until TIMESTAMPTZ,  -- account lockout timestamp
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
+  `);
+
+  // Add role column if it doesn't exist (for existing tables)
+  await execute(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'users' AND column_name = 'role'
+      ) THEN
+        ALTER TABLE users ADD COLUMN role VARCHAR(20) DEFAULT 'user' CHECK (role IN ('user', 'admin'));
+      END IF;
+    END $$;
+  `);
+
+  // Add signup_method column if it doesn't exist
+  await execute(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'users' AND column_name = 'signup_method'
+      ) THEN
+        ALTER TABLE users ADD COLUMN signup_method VARCHAR(20) CHECK (signup_method IN ('credentials', 'google', 'admin_created'));
+        -- Update existing users based on presence of password_hash
+        UPDATE users SET signup_method = 'credentials' WHERE password_hash IS NOT NULL AND signup_method IS NULL;
+        UPDATE users SET signup_method = 'google' WHERE password_hash IS NULL AND signup_method IS NULL;
+      END IF;
+    END $$;
   `);
 
   // OAuth accounts with ENCRYPTED tokens
@@ -754,7 +785,32 @@ export async function createSchema() {
       identifier VARCHAR(255) NOT NULL,
       token_hash VARCHAR(255) NOT NULL,
       expires TIMESTAMPTZ NOT NULL,
+      type VARCHAR(20) CHECK (type IN ('email_verification', 'password_reset')),
       PRIMARY KEY (identifier, token_hash)
+    );
+  `);
+
+  // Add type column if it doesn't exist
+  await execute(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'verification_tokens' AND column_name = 'type'
+      ) THEN
+        ALTER TABLE verification_tokens ADD COLUMN type VARCHAR(20) CHECK (type IN ('email_verification', 'password_reset'));
+      END IF;
+    END $$;
+  `);
+
+  // Verification attempts table for tracking brute force attempts
+  await execute(`
+    CREATE TABLE IF NOT EXISTS verification_attempts (
+      id SERIAL PRIMARY KEY,
+      email VARCHAR(255) NOT NULL,
+      ip_address VARCHAR(45) NOT NULL,
+      success BOOLEAN NOT NULL,
+      attempted_at TIMESTAMPTZ DEFAULT NOW()
     );
   `);
 
@@ -782,6 +838,12 @@ export async function createSchema() {
   );
   await execute(
     "CREATE INDEX IF NOT EXISTS idx_verification_tokens_identifier ON verification_tokens(identifier);"
+  );
+  await execute(
+    "CREATE INDEX IF NOT EXISTS idx_verification_attempts_email ON verification_attempts(email, attempted_at DESC);"
+  );
+  await execute(
+    "CREATE INDEX IF NOT EXISTS idx_verification_attempts_ip ON verification_attempts(ip_address, attempted_at DESC);"
   );
 
   console.log("Schema created successfully!");

@@ -88,11 +88,12 @@ const config: NextAuthConfig = {
           email: string;
           name: string | null;
           password_hash: string | null;
+          email_verified: string | null;
           tier: string;
           role: string;
           image: string | null;
         }>(
-          'SELECT id, email, name, password_hash, tier, role, image FROM users WHERE LOWER(email) = LOWER($1)',
+          'SELECT id, email, name, password_hash, email_verified, tier, role, image FROM users WHERE LOWER(email) = LOWER($1)',
           [email]
         );
 
@@ -105,6 +106,14 @@ const config: NextAuthConfig = {
         if (!user || !user.password_hash || !isValid) {
           await recordLoginAttempt(email, ip, false);
           // Generic error - never reveal if email exists
+          throw new Error('Invalid credentials');
+        }
+
+        // Check if email is verified for credential users
+        // OAuth users (no password_hash) are allowed even without email_verified
+        if (!user.email_verified && user.password_hash) {
+          await recordLoginAttempt(email, ip, false);
+          // Generic error - don't reveal the specific reason
           throw new Error('Invalid credentials');
         }
 

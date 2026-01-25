@@ -14,6 +14,7 @@ import IdealPurchasePriceCard from './IdealPurchasePriceCard';
 import AppHeader from './AppHeader';
 import NewBadge from './NewBadge';
 import ChromeExtensionModal from './ChromeExtensionModal';
+import FooterV2 from './landing/FooterV2';
 import { formatCountyName } from '@/lib/county-utils';
 import { useRateLimit } from '@/app/contexts/RateLimitContext';
 
@@ -1123,47 +1124,8 @@ export default function HomeClient(props: {
           </div>
         )}
 
-        <div className="mt-6 sm:mt-8 lg:mt-4 pt-3 sm:pt-4 lg:pt-3 border-t border-[var(--border-color)] flex-shrink-0">
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
-            <div>
-              <div className="mb-2 sm:mb-3 lg:mb-2">
-                <p className="text-xs font-medium text-[var(--text-primary)] mb-0.5">fmr.fyi</p>
-                <p className="text-xs text-[var(--text-tertiary)]">Fair Market Rent data made simple</p>
-              </div>
-              <div className="space-y-1 sm:space-y-1.5">
-                <p className="text-xs text-[var(--text-tertiary)]">
-                  Data source:{' '}
-                  <span className="text-[var(--text-secondary)] font-medium">U.S. Department of Housing and Urban Development (HUD)</span>
-                </p>
-                <p className="text-xs text-[var(--text-muted)]">Fiscal Year 2026 • Updated October 2025</p>
-              </div>
-            </div>
-
-            {/* Chrome Extension link */}
-            <a
-              href="https://chromewebstore.google.com/detail/fmrfyi-%E2%80%93-fair-market-rent/gkemjakehildeolcagbibhmbcddkkflb"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group inline-flex items-center gap-2 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
-            >
-              <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 0C8.21 0 4.831 1.757 2.632 4.501l3.953 6.848A5.454 5.454 0 0 1 12 6.545h10.691A12 12 0 0 0 12 0zM1.931 5.47A11.943 11.943 0 0 0 0 12c0 6.012 4.42 10.991 10.189 11.864l3.953-6.847a5.45 5.45 0 0 1-6.865-2.29zm13.342 2.166a5.446 5.446 0 0 1 1.45 7.09l.002.001h-.002l-3.953 6.848c.062.002.124.006.187.006 6.627 0 12-5.373 12-12 0-.807-.084-1.594-.236-2.355H15.273zM12 16.364a4.364 4.364 0 1 1 0-8.728 4.364 4.364 0 0 1 0 8.728z"/>
-              </svg>
-              <span>Get the Chrome Extension</span>
-              <NewBadge />
-              <svg
-                className="w-3.5 h-3.5 flex-shrink-0 transition-transform group-hover:translate-x-0.5"
-                viewBox="0 0 16 16"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M6 3l5 5-5 5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </a>
-          </div>
-        </div>
       </div>
+      <FooterV2 />
     </main>
   );
 }

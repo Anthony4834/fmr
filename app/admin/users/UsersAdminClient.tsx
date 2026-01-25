@@ -9,6 +9,7 @@ interface User {
   name: string | null;
   role: string;
   tier: string;
+  signupMethod: string | null;
   createdAt: string;
 }
 
@@ -32,6 +33,16 @@ export default function UsersAdminClient({
   const [search, setSearch] = useState(initialSearch);
   const [updating, setUpdating] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    email: '',
+    name: '',
+    tier: 'free',
+    role: 'user',
+    password: '',
+    sendSetupEmail: true,
+  });
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,15 +122,61 @@ export default function UsersAdminClient({
     }
   };
 
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreating(true);
+
+    try {
+      const response = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(createForm),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.error || 'Failed to create user');
+        return;
+      }
+
+      // Reset form and close modal
+      setCreateForm({
+        email: '',
+        name: '',
+        tier: 'free',
+        role: 'user',
+        password: '',
+        sendSetupEmail: true,
+      });
+      setShowCreateModal(false);
+      router.refresh();
+    } catch (error) {
+      alert('Failed to create user');
+    } finally {
+      setCreating(false);
+    }
+  };
+
   return (
     <div className="px-4 py-6 sm:px-0">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-          User Management
-        </h1>
-        <p className="text-sm text-gray-600 dark:text-gray-400">
-          Total users: {initialTotal}
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+              User Management
+            </h1>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Total users: {initialTotal}
+            </p>
+          </div>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md transition-colors"
+          >
+            Create User
+          </button>
+        </div>
       </div>
 
       <div className="mb-6">
@@ -157,6 +214,15 @@ export default function UsersAdminClient({
                   )}
                   <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
                     Joined: {new Date(user.createdAt).toLocaleDateString()}
+                    <span className="ml-2">• 
+                      {user.signupMethod === 'credentials' 
+                        ? ' Email' 
+                        : user.signupMethod === 'google' 
+                        ? ' Google' 
+                        : user.signupMethod === 'admin_created'
+                        ? ' Admin'
+                        : ' Unknown'}
+                    </span>
                   </p>
                 </div>
                 <div className="flex items-center gap-4 ml-4">
@@ -229,6 +295,131 @@ export default function UsersAdminClient({
                 Next
               </a>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Create User Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 w-full max-w-md">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+              Create New User
+            </h2>
+            <form onSubmit={handleCreateUser} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Email *
+                </label>
+                <input
+                  type="email"
+                  value={createForm.email}
+                  onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Name
+                </label>
+                <input
+                  type="text"
+                  value={createForm.name}
+                  onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Role
+                </label>
+                <select
+                  value={createForm.role}
+                  onChange={(e) => setCreateForm({ ...createForm, role: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                >
+                  <option value="user">User</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Tier
+                </label>
+                <select
+                  value={createForm.tier}
+                  onChange={(e) => setCreateForm({ ...createForm, tier: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                >
+                  <option value="free">Free</option>
+                  <option value="paid">Paid</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={createForm.sendSetupEmail}
+                    onChange={(e) => setCreateForm({ ...createForm, sendSetupEmail: e.target.checked, password: '' })}
+                    className="mr-2"
+                  />
+                  <span className="text-sm text-gray-700 dark:text-gray-300">
+                    Send setup email (password reset link)
+                  </span>
+                </label>
+              </div>
+
+              {!createForm.sendSetupEmail && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Password *
+                  </label>
+                  <input
+                    type="password"
+                    value={createForm.password}
+                    onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
+                    required={!createForm.sendSetupEmail}
+                    minLength={8}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Must be at least 8 characters
+                  </p>
+                </div>
+              )}
+
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCreateModal(false);
+                    setCreateForm({
+                      email: '',
+                      name: '',
+                      tier: 'free',
+                      role: 'user',
+                      password: '',
+                      sendSetupEmail: true,
+                    });
+                  }}
+                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={creating}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-medium rounded-md transition-colors"
+                >
+                  {creating ? 'Creating...' : 'Create User'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

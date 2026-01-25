@@ -1,18 +1,37 @@
 import { NextResponse } from 'next/server';
-import { query } from '@/lib/db';
-import { hashPassword, validatePassword, PASSWORD_MIN_LENGTH } from '@/lib/auth';
+import { query, execute } from '@/lib/db';
+import { hashPassword, validatePassword } from '@/lib/auth';
+import { checkSignupAllowed, normalizeResponseTime } from '@/lib/auth-rate-limit';
+import { generateVerificationCode, sendVerificationEmail } from '@/lib/email';
+import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
+
+/**
+ * Extract IP address from request headers
+ */
+function getClientIP(request: Request): string {
+  const forwardedFor = request.headers.get('x-forwarded-for');
+  if (forwardedFor) {
+    return forwardedFor.split(',')[0].trim();
+  }
+  return request.headers.get('x-real-ip') || 'unknown';
+}
 
 /**
  * POST /api/auth/signup
  * Create a new user account with email/password.
+ * Requires email verification before login.
  */
 export async function POST(request: Request) {
+  const startTime = Date.now();
+  
   try {
     const body = await request.json();
     const { email, password, name } = body;
 
     // Validate required fields
     if (!email || typeof email !== 'string') {
+      await normalizeResponseTime(startTime);
       return NextResponse.json(
         { error: 'Email is required' },
         { status: 400 }
@@ -22,6 +41,7 @@ export async function POST(request: Request) {
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
+      await normalizeResponseTime(startTime);
       return NextResponse.json(
         { error: 'Invalid email format' },
         { status: 400 }
@@ -31,47 +51,98 @@ export async function POST(request: Request) {
     // Validate password
     const passwordValidation = validatePassword(password);
     if (!passwordValidation.valid) {
+      await normalizeResponseTime(startTime);
       return NextResponse.json(
         { error: passwordValidation.error },
         { status: 400 }
       );
     }
 
-    // Check for existing user (case-insensitive)
-    const existing = await query<{ id: string }>(
-      'SELECT id FROM users WHERE LOWER(email) = LOWER($1)',
-      [email]
-    );
-
-    if (existing.length > 0) {
-      // SECURITY: Generic error to prevent email enumeration
-      // Don't reveal that the email already exists
+    // Rate limiting check (per IP)
+    const ip = getClientIP(request);
+    const rateLimitCheck = await checkSignupAllowed(ip);
+    if (!rateLimitCheck.allowed) {
+      await normalizeResponseTime(startTime);
       return NextResponse.json(
-        { error: 'Unable to create account. Please try again or use a different email.' },
-        { status: 400 }
+        { error: rateLimitCheck.reason || 'Too many signup attempts. Please try again later.' },
+        { 
+          status: 429,
+          headers: {
+            'Retry-After': rateLimitCheck.retryAfter?.toString() || '3600',
+          },
+        }
       );
     }
 
-    // Hash password with bcrypt
-    const passwordHash = await hashPassword(password);
-
-    // Create user
-    const result = await query<{ id: string; email: string }>(
-      `INSERT INTO users (email, name, password_hash, tier)
-       VALUES (LOWER($1), $2, $3, 'free')
-       RETURNING id, email`,
-      [email, name || null, passwordHash]
+    // Check existing user - but DON'T reveal this (anti-enumeration)
+    const existing = await query<{ id: string; email_verified: string | null }>(
+      'SELECT id, email_verified FROM users WHERE LOWER(email) = LOWER($1)',
+      [email]
     );
 
+    const userExists = existing.length > 0;
+    const isVerified = userExists && existing[0].email_verified !== null;
+
+    // If user exists and is verified, return generic success (don't reveal)
+    if (userExists && isVerified) {
+      await normalizeResponseTime(startTime);
+      return NextResponse.json({
+        success: true,
+        requiresVerification: true,
+        message: 'Check your email for verification code',
+      });
+    }
+
+    // Generate cryptographically secure 6-digit code
+    const code = generateVerificationCode();
+    const codeHash = await bcrypt.hash(code, 10);
+
+    // Delete any existing verification tokens for this email
+    await execute(
+      'DELETE FROM verification_tokens WHERE identifier = $1 AND type = $2',
+      [email.toLowerCase(), 'email_verification']
+    );
+
+    // Store new token with 10-minute expiry
+    await execute(
+      `INSERT INTO verification_tokens (identifier, token_hash, expires, type) 
+       VALUES ($1, $2, NOW() + INTERVAL '10 minutes', $3)`,
+      [email.toLowerCase(), codeHash, 'email_verification']
+    );
+
+    // If user doesn't exist, create new user
+    if (!userExists) {
+      const passwordHash = await hashPassword(password);
+      await execute(
+        `INSERT INTO users (email, name, password_hash, tier, signup_method)
+         VALUES (LOWER($1), $2, $3, 'free', 'credentials')`,
+        [email, name || null, passwordHash]
+      );
+    } else {
+      // User exists but unverified - update signup_method if needed
+      await execute(
+        `UPDATE users SET signup_method = 'credentials' WHERE LOWER(email) = LOWER($1) AND signup_method IS NULL`,
+        [email]
+      );
+    }
+
+    // Send verification email (fire-and-forget, don't block)
+    sendVerificationEmail(email, code).catch(err => {
+      console.error('Failed to send verification email:', err);
+    });
+
+    // Normalize response time to prevent timing attacks
+    await normalizeResponseTime(startTime, 500, 800);
+
+    // Always return same response shape (anti-enumeration)
     return NextResponse.json({
       success: true,
-      user: {
-        id: result[0].id,
-        email: result[0].email,
-      },
+      requiresVerification: true,
+      message: 'Check your email for verification code',
     });
   } catch (error) {
     console.error('Signup error:', error);
+    await normalizeResponseTime(startTime);
     return NextResponse.json(
       { error: 'An error occurred while creating your account' },
       { status: 500 }

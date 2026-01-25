@@ -10,9 +10,11 @@ import { createHash } from 'crypto';
 export function PostgresAdapter(): Adapter {
   return {
     async createUser(user) {
+      // OAuth users are created without password_hash, so set signup_method to 'google'
+      // (This will be updated if it's a different provider when account is linked)
       const result = await query<AdapterUser>(
-        `INSERT INTO users (email, email_verified, name, image)
-         VALUES (LOWER($1), $2, $3, $4)
+        `INSERT INTO users (email, email_verified, name, image, signup_method)
+         VALUES (LOWER($1), $2, $3, $4, 'google')
          RETURNING id, email, email_verified as "emailVerified", name, image`,
         [user.email, user.emailVerified, user.name, user.image]
       );
@@ -93,6 +95,15 @@ export function PostgresAdapter(): Adapter {
           encryptedIdToken,
           account.session_state,
         ]
+      );
+
+      // Update signup_method based on provider (if not already set)
+      const providerSignupMethod = account.provider === 'google' ? 'google' : account.provider;
+      await execute(
+        `UPDATE users 
+         SET signup_method = COALESCE(signup_method, $1)
+         WHERE id = $2 AND signup_method IS NULL`,
+        [providerSignupMethod, account.userId]
       );
 
       return account as AdapterAccount;

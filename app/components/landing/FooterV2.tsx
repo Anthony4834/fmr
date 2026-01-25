@@ -1,9 +1,12 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import ContactModal from '@/app/components/ContactModal';
 
 export default function FooterV2() {
+  const [showContactModal, setShowContactModal] = useState(false);
   const currentYear = new Date().getFullYear();
   
   const productLinks = [
@@ -13,11 +16,12 @@ export default function FooterV2() {
     { href: 'https://chromewebstore.google.com/detail/fmrfyi-%E2%80%93-fair-market-rent/gkemjakehildeolcagbibhmbcddkkflb', label: 'Chrome Extension', external: true },
   ];
   
-  const resourceLinks = [
+  const resourceLinks: Array<{ href: string; label: string; onClick?: () => void; isButton?: boolean }> = [
     { href: '/what-is-fmr', label: 'What is FMR?' },
     { href: '/what-is-safmr', label: 'What is SAFMR?' },
     { href: '/faq', label: 'FAQ' },
     { href: '/data-sources', label: 'Data Sources' },
+    { href: '#', label: 'Contact', onClick: () => setShowContactModal(true), isButton: true },
   ];
   
   const browseLinks = [
@@ -141,16 +145,29 @@ export default function FooterV2() {
             <ul className="space-y-2 sm:space-y-2.5">
               {resourceLinks.map((link) => (
                 <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    className="text-xs sm:text-sm transition-colors"
-                    style={{ 
-                      color: 'hsl(220 15% 45%)',
-                      fontFamily: 'var(--font-sans), system-ui, sans-serif',
-                    }}
-                  >
-                    {link.label}
-                  </Link>
+                  {link.isButton ? (
+                    <button
+                      onClick={link.onClick}
+                      className="text-xs sm:text-sm transition-colors text-left hover:opacity-80"
+                      style={{ 
+                        color: 'hsl(220 15% 45%)',
+                        fontFamily: 'var(--font-sans), system-ui, sans-serif',
+                      }}
+                    >
+                      {link.label}
+                    </button>
+                  ) : (
+                    <Link
+                      href={link.href}
+                      className="text-xs sm:text-sm transition-colors"
+                      style={{ 
+                        color: 'hsl(220 15% 45%)',
+                        fontFamily: 'var(--font-sans), system-ui, sans-serif',
+                      }}
+                    >
+                      {link.label}
+                    </Link>
+                  )}
                 </li>
               ))}
             </ul>
@@ -191,15 +208,27 @@ export default function FooterV2() {
           className="pt-6 sm:pt-8 border-t flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-4"
           style={{ borderColor: 'hsl(220 15% 90%)' }}
         >
-          <p 
-            className="text-xs sm:text-sm"
-            style={{ 
-              color: 'hsl(220 15% 55%)',
-              fontFamily: 'var(--font-sans), system-ui, sans-serif',
-            }}
-          >
-            © {currentYear} fmr.fyi. All rights reserved.
-          </p>
+          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
+            <p 
+              className="text-xs sm:text-sm"
+              style={{ 
+                color: 'hsl(220 15% 55%)',
+                fontFamily: 'var(--font-sans), system-ui, sans-serif',
+              }}
+            >
+              © {currentYear} fmr.fyi. All rights reserved.
+            </p>
+            <Link
+              href="/privacy"
+              className="text-xs sm:text-sm transition-colors hover:opacity-80"
+              style={{ 
+                color: 'hsl(220 15% 55%)',
+                fontFamily: 'var(--font-sans), system-ui, sans-serif',
+              }}
+            >
+              Privacy Policy
+            </Link>
+          </div>
           <p 
             className="text-xs"
             style={{ 
@@ -211,6 +240,7 @@ export default function FooterV2() {
           </p>
         </div>
       </div>
+      <ContactModal isOpen={showContactModal} onClose={() => setShowContactModal(false)} />
     </footer>
   );
 }
