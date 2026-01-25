@@ -2,9 +2,26 @@
 
 import { getPreferences, savePreferences, resetPreferences } from './settings';
 import { ExtensionPreferences, DEFAULT_PREFERENCES } from '../shared/types';
+import { login, logout, getCurrentUser, isLoggedIn } from '../shared/auth';
+import { getApiBaseUrl, setApiBaseUrl } from '../shared/config';
 
 // Initialize popup
 async function init() {
+  // Initialize account section
+  await initAccountSection();
+  // Initialize API config (only for admin users)
+  await initApiConfig();
+  
+  // Listen for storage changes to refresh account section when auth state changes
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName === 'sync' && changes.fmr_extension_auth) {
+      // Auth state changed, refresh account section and API config after a small delay
+      setTimeout(async () => {
+        await initAccountSection();
+        await loadApiBaseUrl();
+      }, 100);
+    }
+  });
   // Load current preferences
   const prefs = await getPreferences();
   
@@ -33,6 +50,9 @@ async function init() {
     prefs.enabledSites?.redfin !== false;
   (document.getElementById('enable-zillow') as HTMLInputElement).checked = 
     prefs.enabledSites?.zillow !== false;
+  
+  // Load API base URL (only show for admin users)
+  await loadApiBaseUrl();
   
   // Show/hide conditional fields
   updateConditionalFields();
@@ -144,6 +164,164 @@ async function saveFormData() {
   };
   
   await savePreferences(prefs);
+}
+
+async function loadApiBaseUrl() {
+  // Find the API Configuration section (it contains the api-base-url input)
+  const apiBaseUrlInput = document.getElementById('api-base-url') as HTMLInputElement;
+  if (!apiBaseUrlInput) return;
+  
+  const apiConfigSection = apiBaseUrlInput.closest('.section.card') as HTMLElement;
+  if (!apiConfigSection) return;
+  
+  const user = await getCurrentUser();
+  const isAdmin = user?.role === 'admin';
+  
+  if (!isAdmin) {
+    // Hide API config section for non-admin users
+    apiConfigSection.style.display = 'none';
+    return;
+  }
+  
+  // Show API config section for admin users
+  apiConfigSection.style.display = 'block';
+  const apiBaseUrl = await getApiBaseUrl();
+  apiBaseUrlInput.value = apiBaseUrl;
+}
+
+async function initApiConfig() {
+  const apiBaseUrlInput = document.getElementById('api-base-url') as HTMLInputElement;
+  if (!apiBaseUrlInput) return;
+
+  // Check if user is admin before allowing API config
+  const user = await getCurrentUser();
+  const isAdmin = user?.role === 'admin';
+  
+  if (!isAdmin) {
+    return;
+  }
+
+  // Save API base URL on blur
+  apiBaseUrlInput.addEventListener('blur', async () => {
+    const url = apiBaseUrlInput.value.trim();
+    if (url) {
+      try {
+        await setApiBaseUrl(url);
+        showMessage('API URL updated!');
+      } catch (error) {
+        console.error('Error saving API URL:', error);
+        showMessage('Failed to save API URL');
+      }
+    }
+  });
+}
+
+async function initAccountSection() {
+  const loggedOutDiv = document.getElementById('account-logged-out');
+  const loggedInDiv = document.getElementById('account-logged-in');
+  const loginBtn = document.getElementById('login-btn');
+  const logoutBtn = document.getElementById('logout-btn');
+  const userEmail = document.getElementById('user-email');
+  const userTier = document.getElementById('user-tier');
+  const accountAvatar = document.getElementById('account-avatar');
+
+  if (!loggedOutDiv || !loggedInDiv || !loginBtn || !logoutBtn || !userEmail || !userTier) {
+    console.error('[FMR Extension] Account section elements not found', {
+      loggedOutDiv: !!loggedOutDiv,
+      loggedInDiv: !!loggedInDiv,
+      loginBtn: !!loginBtn,
+      logoutBtn: !!logoutBtn,
+      userEmail: !!userEmail,
+      userTier: !!userTier,
+    });
+    // Show logged out state by default if elements missing
+    if (loggedOutDiv) loggedOutDiv.style.display = 'block';
+    return;
+  }
+
+  try {
+    // Check login status
+    const isLoggedInStatus = await isLoggedIn();
+    const user = await getCurrentUser();
+
+    if (isLoggedInStatus && user) {
+      // Show logged in state
+      loggedOutDiv.style.display = 'none';
+      loggedInDiv.style.display = 'block';
+      userEmail.textContent = user.email;
+      const tierCapitalized = user.tier.charAt(0).toUpperCase() + user.tier.slice(1);
+      userTier.textContent = `${tierCapitalized}${user.role === 'admin' ? ' • Admin' : ''}`;
+      
+      // Set avatar initials
+      if (accountAvatar) {
+        const initials = user.email.charAt(0).toUpperCase();
+        accountAvatar.textContent = initials;
+      }
+    } else {
+      // Show logged out state
+      loggedOutDiv.style.display = 'block';
+      loggedInDiv.style.display = 'none';
+      
+      // Clear avatar
+      if (accountAvatar) {
+        accountAvatar.textContent = '';
+      }
+    }
+  } catch (error) {
+    console.error('[FMR Extension] Error checking login status:', error);
+    // Show logged out state on error
+    loggedOutDiv.style.display = 'block';
+    loggedInDiv.style.display = 'none';
+    
+    // Clear avatar on error
+    if (accountAvatar) {
+      accountAvatar.textContent = '';
+    }
+  }
+
+  // Handle login button (check if already has listener)
+  if (!(loginBtn as any).__fmrLoginListenerAttached) {
+    (loginBtn as any).__fmrLoginListenerAttached = true;
+    loginBtn.addEventListener('click', async () => {
+      try {
+        loginBtn.textContent = 'Signing in...';
+        loginBtn.setAttribute('disabled', 'true');
+        await login();
+        // Small delay to ensure storage is written
+        await new Promise(resolve => setTimeout(resolve, 100));
+        // Reload account section
+        await initAccountSection();
+        showMessage('Successfully signed in!');
+      } catch (error) {
+        console.error('Login error:', error);
+        showMessage('Login failed. Please try again.');
+      } finally {
+        loginBtn.textContent = 'Sign In';
+        loginBtn.removeAttribute('disabled');
+      }
+    });
+  }
+
+  // Handle logout button (check if already has listener)
+  if (!(logoutBtn as any).__fmrLogoutListenerAttached) {
+    (logoutBtn as any).__fmrLogoutListenerAttached = true;
+    logoutBtn.addEventListener('click', async () => {
+      try {
+        logoutBtn.textContent = 'Logging out...';
+        logoutBtn.setAttribute('disabled', 'true');
+        await logout();
+        // Reload account section
+        await initAccountSection();
+        showMessage('Logged out successfully');
+      } catch (error) {
+        console.error('Logout error:', error);
+        showMessage('Logout failed. Please try again.');
+      } finally {
+        logoutBtn.textContent = 'Logout';
+        logoutBtn.removeAttribute('disabled');
+      }
+    });
+  }
 }
 
 function showMessage(message: string) {

@@ -15,6 +15,7 @@ import AppHeader from './AppHeader';
 import NewBadge from './NewBadge';
 import ChromeExtensionModal from './ChromeExtensionModal';
 import { formatCountyName } from '@/lib/county-utils';
+import { useRateLimit } from '@/app/contexts/RateLimitContext';
 
 function getTextColorForScore(score: number | null): string {
   if (score === null || score === undefined || score < 95) {
@@ -126,8 +127,11 @@ export default function HomeClient(props: {
   initialError?: string | null;
   initialState?: string | null;
   extensionConfig?: string;
+  rateLimitExceeded?: boolean;
+  rateLimitResetTime?: number | null;
 }) {
   const router = useRouter();
+  const { showRateLimitModal } = useRateLimit();
   const mainCardRef = useRef<HTMLDivElement | null>(null);
   const calculatorRef = useRef<HTMLDivElement | null>(null);
   const [zipCardHeight, setZipCardHeight] = useState<number | null>(null);
@@ -178,6 +182,18 @@ export default function HomeClient(props: {
       }
     }
   }, [props.extensionConfig]);
+
+  // Show rate limit modal if redirected from rate-limited page
+  useEffect(() => {
+    if (props.rateLimitExceeded && props.rateLimitResetTime) {
+      showRateLimitModal(props.rateLimitResetTime);
+      // Clean up URL params
+      const url = new URL(window.location.href);
+      url.searchParams.delete('rateLimitExceeded');
+      url.searchParams.delete('resetTime');
+      router.replace(url.pathname + url.search, { scroll: false });
+    }
+  }, [props.rateLimitExceeded, props.rateLimitResetTime, showRateLimitModal, router]);
 
   const computeInitial = () => {
     const q = props.initialQuery?.trim() || '';

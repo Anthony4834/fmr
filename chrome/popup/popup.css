@@ -1,10 +1,13 @@
 :root {
-  --bg: #f6f7f9;
+  --bg: #fafafa;
   --panel: #ffffff;
-  --text: #0b0f16;
-  --muted: #667085;
-  --border: #e6e8ee;
-  --ring: rgba(17, 24, 39, 0.12);
+  --text: #0a0a0a;
+  --muted: #525252;
+  --muted-light: #737373;
+  --border: #e5e5e5;
+  --ring: rgba(10, 10, 10, 0.12);
+  --accent: #f59e0b;
+  --success: #22c55e;
 
   /* lighter depth */
   --shadow: 0 1px 0 rgba(0, 0, 0, 0.03);
@@ -281,12 +284,12 @@ select {
 }
 
 .btn-primary {
-  background: #111827;
+  background: hsl(192 85% 42%);
   color: #fff;
-  border: 1px solid #111827;
+  border: 1px solid hsl(192 85% 42%);
 }
 .btn-primary:hover {
-  background: #0b1220;
+  background: hsl(192 85% 38%);
 }
 .btn-primary:active {
   transform: translateY(1px);
@@ -415,4 +418,78 @@ select {
 }
 .modal-close:hover {
   background: #f2f4f7;
+}
+
+/* ---- Account Section Styling ---- */
+.account-section {
+  background: linear-gradient(135deg, #ffffff 0%, #fafafa 100%);
+  border: 1px solid var(--border);
+}
+
+.account-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.account-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.account-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: hsl(192 85% 42%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.account-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.account-email {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text);
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.account-tier {
+  font-size: 12px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.account-tier::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--success);
+  display: inline-block;
+}
+
+.btn-compact {
+  padding: 6px 12px;
+  height: auto;
+  font-size: 12px;
+  white-space: nowrap;
 }

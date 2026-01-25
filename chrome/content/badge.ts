@@ -9,6 +9,7 @@ export interface BadgeProps {
   hoaUnavailable?: boolean;
   mode?: 'cashFlow' | 'fmr';
   fmrMonthly?: number | null;
+  rateLimited?: boolean;
 }
 
 export function createBadgeElement(props: BadgeProps): HTMLElement {
@@ -64,7 +65,8 @@ export function createBadgeElement(props: BadgeProps): HTMLElement {
   });
 
   // Click behavior
-  if (props.nonInteractive) {
+  // Allow clicks when rateLimited (login required) even if nonInteractive
+  if (props.nonInteractive && !props.rateLimited) {
     badge.style.cursor = 'default';
     if (props.hoaUnavailable) {
       badge.style.pointerEvents = 'auto';
@@ -422,11 +424,38 @@ export function createBadgeElement(props: BadgeProps): HTMLElement {
     valueWrap.appendChild(per);
   };
 
+  const updateRateLimitedContent = () => {
+    setModeDataset('cashFlow');
+    badge.style.zIndex = '1000';
+    // Allow clicks when rateLimited (login required) - make it interactive
+    badge.style.pointerEvents = 'auto';
+    badge.style.cursor = 'pointer';
+
+    valueWrap.textContent = '';
+    const existingTip = content.querySelector('.fmr-tip-icon');
+    if (existingTip) existingTip.remove();
+
+    // Orange/amber indicator for login required
+    dot.style.background = 'rgba(251, 146, 60, 1)'; // orange-400
+
+    const t = document.createElement('span');
+    t.textContent = 'Login required';
+    t.style.cssText = `
+      color: rgba(251, 146, 60, 1);
+      font-weight: 600;
+      font-size: 12px !important;
+    `;
+    valueWrap.appendChild(t);
+  };
+
   (badge as any).updateContent = updateContent;
   (badge as any).updateFmrContent = updateFmrContent;
+  (badge as any).updateRateLimitedContent = updateRateLimitedContent;
 
-  // Initialize based on desired mode (default: cash flow)
-  if (props.mode === 'fmr') {
+  // Initialize based on desired mode and state
+  if (props.rateLimited) {
+    updateRateLimitedContent();
+  } else if (props.mode === 'fmr') {
     updateFmrContent(props.fmrMonthly ?? null, props.isLoading, props.insufficientInfo, props.hoaUnavailable);
   } else {
     updateContent(props.cashFlow, props.isLoading, props.insufficientInfo, props.hoaUnavailable);

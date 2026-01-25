@@ -1,4 +1,6 @@
 import { Metadata } from 'next';
+import { redirect } from 'next/navigation';
+import { auth } from '@/lib/auth';
 import MarketRentsAdminClient from './MarketRentsAdminClient';
 import { sql } from '@vercel/postgres';
 
@@ -16,6 +18,12 @@ export default async function MarketRentsAdminPage({
 }: {
   searchParams: { page?: string; sort?: string; order?: string; search?: string; bedroom?: string };
 }) {
+  // Require admin access
+  const session = await auth();
+  if (!session || !session.user || session.user.role !== 'admin') {
+    redirect('/');
+  }
+
   // Fetch initial data
   const page = parseInt(searchParams.page || '1', 10);
   const sort = searchParams.sort || 'estimated_monthly_rent';

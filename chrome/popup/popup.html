@@ -18,6 +18,54 @@
 
       <main class="popup-content">
         <div id="settings-form-fields" class="stack">
+          <!-- Account Section -->
+          <section class="section card account-section" id="account-section">
+            <div id="account-logged-out">
+              <div class="section-head">
+                <h2>Account</h2>
+                <p class="section-description">
+                  Sign in for unlimited lookups
+                </p>
+              </div>
+              <button type="button" id="login-btn" class="btn-primary btn-full">
+                Sign In
+              </button>
+            </div>
+            <div id="account-logged-in" style="display: none;">
+              <div class="account-header">
+                <div class="account-info">
+                  <div class="account-avatar" id="account-avatar"></div>
+                  <div class="account-details">
+                    <div id="user-email" class="account-email"></div>
+                    <div id="user-tier" class="account-tier"></div>
+                  </div>
+                </div>
+                <button type="button" id="logout-btn" class="btn-secondary btn-compact">
+                  Logout
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <!-- API Configuration -->
+          <section class="section card">
+            <div class="section-head">
+              <h2>API Configuration</h2>
+              <p class="section-description">
+                Configure API endpoint (for development)
+              </p>
+            </div>
+
+            <div class="form-group">
+              <label for="api-base-url">API Base URL</label>
+              <input
+                type="text"
+                id="api-base-url"
+                placeholder="https://fmr.fyi"
+              />
+            </div>
+          </section>
+
           <!-- Display Mode -->
           <section class="section card">
             <div class="section-head">

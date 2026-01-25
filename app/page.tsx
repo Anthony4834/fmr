@@ -131,28 +131,34 @@ export default async function Home({
 }) {
   const q = normalizeQuery(searchParams.q);
   const type = normalizeType(searchParams.type);
+  const rateLimitExceeded = searchParams.rateLimitExceeded === 'true';
+  const resetTime = searchParams.resetTime ? parseInt(Array.isArray(searchParams.resetTime) ? searchParams.resetTime[0] : searchParams.resetTime, 10) : null;
 
   // Clean SERP URLs: redirect location query-param pages to slugs.
-  if (q && type === 'zip') {
-    const zip = q.trim().match(/\b(\d{5})\b/)?.[1];
-    if (zip) redirect(`/zip/${zip}`);
-  }
-  if (q && type === 'city') {
-    const [city, state] = q.split(',').map((s) => s.trim());
-    if (city && state && state.length === 2) redirect(`/city/${buildCitySlug(city, state)}`);
-  }
-  if (q && type === 'county') {
-    const [county, state] = q.split(',').map((s) => s.trim());
-    if (county && state && state.length === 2) redirect(`/county/${buildCountySlug(county, state)}`);
+  // Skip redirects if rate limited (to avoid redirect loop)
+  if (!rateLimitExceeded) {
+    if (q && type === 'zip') {
+      const zip = q.trim().match(/\b(\d{5})\b/)?.[1];
+      if (zip) redirect(`/zip/${zip}`);
+    }
+    if (q && type === 'city') {
+      const [city, state] = q.split(',').map((s) => s.trim());
+      if (city && state && state.length === 2) redirect(`/city/${buildCitySlug(city, state)}`);
+    }
+    if (q && type === 'county') {
+      const [county, state] = q.split(',').map((s) => s.trim());
+      if (county && state && state.length === 2) redirect(`/county/${buildCountySlug(county, state)}`);
+    }
   }
 
   let initialData: any | null = null;
   let initialError: string | null = null;
 
+  // Skip data fetching if rate limited
   const year = searchParams.year ? parseInt(Array.isArray(searchParams.year) ? searchParams.year[0] : searchParams.year, 10) : undefined;
 
   try {
-    if (q && type) {
+    if (!rateLimitExceeded && q && type) {
       if (type === 'zip') {
         const result = await getFMRByZip(q, year);
         if (!result) throw new Error('No FMR data found for the given location');
@@ -184,7 +190,14 @@ export default async function Home({
 
   return (
     <main className="min-h-screen">
-      <HomeClient initialQuery={q} initialType={type} initialData={initialData} initialError={initialError} />
+      <HomeClient 
+        initialQuery={q} 
+        initialType={type} 
+        initialData={initialData} 
+        initialError={initialError}
+        rateLimitExceeded={rateLimitExceeded}
+        rateLimitResetTime={resetTime}
+      />
     </main>
   );
 }

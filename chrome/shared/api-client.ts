@@ -1,9 +1,18 @@
 // API client for making requests to the main app API
-// In production, this would point to https://fmr.fyi
-// In development, could point to localhost
 
-// Use a constant for Chrome extension context (process.env not available in browser)
-const API_BASE_URL = 'https://fmr.fyi';
+import { getApiBaseUrl } from './config';
+
+// Import auth functions (dynamic import to avoid circular dependencies)
+let getAuthHeaders: (() => Promise<Record<string, string>>) | null = null;
+
+// Lazy load auth module
+async function loadAuthHeaders(): Promise<Record<string, string>> {
+  if (!getAuthHeaders) {
+    const authModule = await import('./auth');
+    getAuthHeaders = authModule.getAuthHeaders;
+  }
+  return getAuthHeaders();
+}
 
 export interface FMRDataResponse {
   data: {
@@ -24,6 +33,7 @@ export interface FMRDataResponse {
     queriedType?: 'zip' | 'city' | 'county' | 'address';
   };
   error?: string;
+  rateLimited?: boolean;
 }
 
 export interface MarketParamsResponse {
@@ -32,6 +42,7 @@ export interface MarketParamsResponse {
     mortgageRateAnnualPct: number | null;
   };
   error?: string;
+  rateLimited?: boolean;
 }
 
 export interface InvestmentScoreResponse {
@@ -46,9 +57,19 @@ export interface InvestmentScoreResponse {
  */
 export async function fetchFMRData(zipCode: string): Promise<FMRDataResponse> {
   try {
+    const API_BASE_URL = await getApiBaseUrl();
     const url = `${API_BASE_URL}/api/search/fmr?zip=${encodeURIComponent(zipCode)}`;
-    const response = await fetch(url);
+    const authHeaders = await loadAuthHeaders();
+    const response = await fetch(url, {
+      headers: {
+        ...authHeaders,
+      },
+    });
     const data = await response.json();
+
+    if (response.status === 429) {
+      return { data: data as any, error: data.error || 'Rate limit exceeded', rateLimited: true };
+    }
 
     if (!response.ok) {
       return { data: data as any, error: data.error || 'Failed to fetch FMR data' };
@@ -68,9 +89,23 @@ export async function fetchFMRData(zipCode: string): Promise<FMRDataResponse> {
  */
 export async function fetchMarketParams(zip: string): Promise<MarketParamsResponse> {
   try {
+    const API_BASE_URL = await getApiBaseUrl();
     const url = `${API_BASE_URL}/api/investment/market-params?zip=${encodeURIComponent(zip)}`;
-    const response = await fetch(url);
+    const authHeaders = await loadAuthHeaders();
+    const response = await fetch(url, {
+      headers: {
+        ...authHeaders,
+      },
+    });
     const data = await response.json();
+    
+    if (response.status === 429) {
+      return {
+        data: { propertyTaxRateAnnualPct: null, mortgageRateAnnualPct: null },
+        error: data.error || 'Rate limit exceeded',
+        rateLimited: true,
+      };
+    }
     
     if (!response.ok) {
       return {
@@ -98,8 +133,14 @@ export async function fetchMarketParams(zip: string): Promise<MarketParamsRespon
  */
 export async function fetchInvestmentScore(zip: string): Promise<InvestmentScoreResponse> {
   try {
+    const API_BASE_URL = await getApiBaseUrl();
     const url = `${API_BASE_URL}/api/investment/score?zip=${encodeURIComponent(zip)}`;
-    const response = await fetch(url);
+    const authHeaders = await loadAuthHeaders();
+    const response = await fetch(url, {
+      headers: {
+        ...authHeaders,
+      },
+    });
     const data = await response.json();
 
     if (!response.ok) {
@@ -142,9 +183,10 @@ export interface TrackMissingDataParams {
  * Fire-and-forget logging of missing data events.
  * Never throws or blocks - used for debugging data gaps.
  */
-export function trackMissingData(params: TrackMissingDataParams): void {
+export async function trackMissingData(params: TrackMissingDataParams): Promise<void> {
   if (params.missingFields.length === 0) return;
 
+  const API_BASE_URL = await getApiBaseUrl();
   const url = `${API_BASE_URL}/api/track/missing-data`;
   const body = JSON.stringify({
     zipCode: params.zipCode,
@@ -156,9 +198,13 @@ export function trackMissingData(params: TrackMissingDataParams): void {
   });
 
   // Fire-and-forget: don't await, don't care about response
+  const authHeaders = await loadAuthHeaders();
   fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders,
+    },
     body,
   }).catch(() => {
     // Silently ignore errors - this is best-effort tracking

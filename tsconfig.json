@@ -36,6 +36,7 @@
     "node_modules",
     "chrome",
     "scripts",
-    "app/landing/v2-mockup"
+    "app/landing/v2-mockup",
+    "Limit-Exceeded"
   ]
 }

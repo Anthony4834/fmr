@@ -695,5 +695,94 @@ export async function createSchema() {
     "CREATE INDEX IF NOT EXISTS idx_investment_score_value ON investment_score(score DESC, geo_type, fmr_year DESC);"
   );
 
+  // ============================================
+  // Authentication Tables
+  // ============================================
+  console.log("Creating authentication tables...");
+
+  // Users table (core user identity)
+  await execute(`
+    CREATE TABLE IF NOT EXISTS users (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      email VARCHAR(255) UNIQUE NOT NULL,
+      email_verified TIMESTAMPTZ,
+      name TEXT,
+      image TEXT,
+      password_hash TEXT,  -- bcrypt hash, null for OAuth-only users
+      tier VARCHAR(20) NOT NULL DEFAULT 'free' CHECK (tier IN ('free', 'paid')),
+      locked_until TIMESTAMPTZ,  -- account lockout timestamp
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
+  // OAuth accounts with ENCRYPTED tokens
+  await execute(`
+    CREATE TABLE IF NOT EXISTS accounts (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      type VARCHAR(50) NOT NULL,
+      provider VARCHAR(50) NOT NULL,
+      provider_account_id TEXT NOT NULL,
+      -- Tokens are AES-256-GCM encrypted, NOT plaintext
+      refresh_token_encrypted TEXT,
+      access_token_encrypted TEXT,
+      expires_at INTEGER,
+      token_type VARCHAR(50),
+      scope TEXT,
+      id_token_encrypted TEXT,
+      session_state TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(provider, provider_account_id)
+    );
+  `);
+
+  // Login attempts for brute-force protection
+  await execute(`
+    CREATE TABLE IF NOT EXISTS login_attempts (
+      id SERIAL PRIMARY KEY,
+      identifier VARCHAR(255) NOT NULL,
+      identifier_type VARCHAR(10) NOT NULL CHECK (identifier_type IN ('email', 'ip')),
+      success BOOLEAN NOT NULL,
+      attempted_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
+  // Verification tokens (email verification, password reset)
+  await execute(`
+    CREATE TABLE IF NOT EXISTS verification_tokens (
+      identifier VARCHAR(255) NOT NULL,
+      token_hash VARCHAR(255) NOT NULL,
+      expires TIMESTAMPTZ NOT NULL,
+      PRIMARY KEY (identifier, token_hash)
+    );
+  `);
+
+  // Auth table indexes
+  await execute(
+    "CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);"
+  );
+  await execute(
+    "CREATE INDEX IF NOT EXISTS idx_users_tier ON users(tier);"
+  );
+  await execute(
+    "CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);"
+  );
+  await execute(
+    "CREATE INDEX IF NOT EXISTS idx_accounts_user_id ON accounts(user_id);"
+  );
+  await execute(
+    "CREATE INDEX IF NOT EXISTS idx_accounts_provider ON accounts(provider, provider_account_id);"
+  );
+  await execute(
+    "CREATE INDEX IF NOT EXISTS idx_login_attempts_identifier ON login_attempts(identifier, attempted_at DESC);"
+  );
+  await execute(
+    "CREATE INDEX IF NOT EXISTS idx_login_attempts_cleanup ON login_attempts(attempted_at);"
+  );
+  await execute(
+    "CREATE INDEX IF NOT EXISTS idx_verification_tokens_identifier ON verification_tokens(identifier);"
+  );
+
   console.log("Schema created successfully!");
 }

@@ -5,6 +5,8 @@ import { Space_Grotesk, IBM_Plex_Sans } from "next/font/google";
 import Analytics from "./components/Analytics";
 import StructuredData from "./components/StructuredData";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { RateLimitProvider } from "./contexts/RateLimitContext";
+import { AuthProvider } from "./contexts/AuthContext";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -80,33 +82,82 @@ export default function RootLayout({
             `,
           }}
         />
+        {/* Inline script for fetch interceptor - must run before React hydrates */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                if (typeof window === 'undefined') return;
+                var originalFetch = window.fetch;
+                window.fetch = async function(input, init) {
+                  var url = null;
+                  if (typeof input === 'string') {
+                    url = input;
+                  } else if (input instanceof URL) {
+                    url = input.href;
+                  } else if (input instanceof Request) {
+                    url = input.url;
+                  }
+                  
+                  var response = await originalFetch(input, init);
+                  
+                  var isApiRoute = url && (url.startsWith('/api/') || url.includes('/api/'));
+                  
+                  if (response.status === 429 && isApiRoute) {
+                    try {
+                      var resetTimeHeader = response.headers.get('X-RateLimit-Reset');
+                      if (resetTimeHeader) {
+                        var resetTime = parseInt(resetTimeHeader, 10);
+                        if (!isNaN(resetTime) && resetTime > 0) {
+                          window.dispatchEvent(
+                            new CustomEvent('rate-limit-exceeded', {
+                              detail: { resetTime: resetTime }
+                            })
+                          );
+                        }
+                      }
+                    } catch (e) {
+                      console.error('Error handling rate limit:', e);
+                    }
+                  }
+                  
+                  return response;
+                };
+              })();
+            `,
+          }}
+        />
       </head>
       <body className="antialiased">
-        <ThemeProvider>
-          <Script
-            src="https://www.googletagmanager.com/gtag/js?id=AW-11417164379"
-            strategy="afterInteractive"
-          />
-          <Script id="google-ads" strategy="afterInteractive">
-            {`
-              window.dataLayer = window.dataLayer || [];
-              function gtag(){dataLayer.push(arguments);}
-              gtag('js', new Date());
-              gtag('config', 'AW-11417164379');
-            `}
-          </Script>
-          <Script id="google-ads-conversion" strategy="afterInteractive">
-            {`
-              if (typeof gtag !== 'undefined') {
-                gtag('event', 'conversion', {'send_to': 'AW-11417164379/dz0wCKb8jvgYENu0kMQq'});
-              }
-            `}
-          </Script>
-          <Analytics />
-          <StructuredData />
-          <VercelAnalytics />
-          {children}
-        </ThemeProvider>
+        <AuthProvider>
+          <ThemeProvider>
+            <RateLimitProvider>
+              <Script
+                src="https://www.googletagmanager.com/gtag/js?id=AW-11417164379"
+                strategy="afterInteractive"
+              />
+              <Script id="google-ads" strategy="afterInteractive">
+                {`
+                  window.dataLayer = window.dataLayer || [];
+                  function gtag(){dataLayer.push(arguments);}
+                  gtag('js', new Date());
+                  gtag('config', 'AW-11417164379');
+                `}
+              </Script>
+              <Script id="google-ads-conversion" strategy="afterInteractive">
+                {`
+                  if (typeof gtag !== 'undefined') {
+                    gtag('event', 'conversion', {'send_to': 'AW-11417164379/dz0wCKb8jvgYENu0kMQq'});
+                  }
+                `}
+              </Script>
+              <Analytics />
+              <StructuredData />
+              <VercelAnalytics />
+              {children}
+            </RateLimitProvider>
+          </ThemeProvider>
+        </AuthProvider>
       </body>
     </html>
   );

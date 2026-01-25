@@ -1,9 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import InvestorScoreInfoButton from './InvestorScoreInfoButton';
-import ThemeSwitcher from './ThemeSwitcher';
+import UserMenu from './UserMenu';
+import AuthModal from './AuthModal';
 import SearchInput from './SearchInput';
 
 export function AppHeaderSkeleton({ 
@@ -66,6 +67,8 @@ export default function AppHeader({
   children,
   className = '',
 }: AppHeaderProps) {
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  
   const titleContent = (
     <>
       <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[var(--text-primary)] tracking-tight">
@@ -78,37 +81,45 @@ export default function AppHeader({
   );
 
   return (
-    <div className={`mb-4 sm:mb-5 flex-shrink-0 ${className}`}>
-      <div className="flex items-start justify-between gap-2 sm:gap-3 mb-3 sm:mb-4">
-        {onTitleClick ? (
-          <button
-            onClick={onTitleClick}
-            className="text-left hover:opacity-70 transition-opacity min-w-0"
-          >
-            {titleContent}
-          </button>
-        ) : (
-          <Link
-            href={titleHref}
-            className="block hover:opacity-70 transition-opacity min-w-0"
-          >
-            {titleContent}
-          </Link>
+    <>
+      <div className={`mb-4 sm:mb-5 flex-shrink-0 ${className}`}>
+        <div className="flex items-center justify-between gap-2 sm:gap-3 mb-3 sm:mb-4">
+          {onTitleClick ? (
+            <button
+              onClick={onTitleClick}
+              className="text-left hover:opacity-70 transition-opacity min-w-0"
+            >
+              {titleContent}
+            </button>
+          ) : (
+            <Link
+              href={titleHref}
+              className="block hover:opacity-70 transition-opacity min-w-0"
+            >
+              {titleContent}
+            </Link>
+          )}
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+            <InvestorScoreInfoButton />
+            <UserMenu onSignInClick={() => setShowAuthModal(true)} />
+          </div>
+        </div>
+
+        {showSearch && (
+          <div className="mb-3 sm:mb-4">
+            <SearchInput onSelect={onSearchSelect} />
+          </div>
         )}
-        <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
-          <InvestorScoreInfoButton />
-          <ThemeSwitcher />
-        </div>
+
+        {children}
       </div>
-
-      {showSearch && (
-        <div className="mb-3 sm:mb-4">
-          <SearchInput onSelect={onSearchSelect} />
-        </div>
-      )}
-
-      {children}
-    </div>
+      
+      <AuthModal 
+        isOpen={showAuthModal} 
+        onClose={() => setShowAuthModal(false)}
+        initialMode="login"
+      />
+    </>
   );
 }
 

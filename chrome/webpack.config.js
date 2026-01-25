@@ -4,7 +4,9 @@ const CopyWebpackPlugin = require('copy-webpack-plugin');
 module.exports = {
   entry: {
     'content/content-script': './content/content-script.ts',
+    'content/auth-bridge': './content/auth-bridge.ts',
     'background/service-worker': './background/service-worker.ts',
+    'popup/popup': './popup/popup.ts',
   },
   output: {
     path: path.resolve(__dirname, 'dist'),
@@ -42,7 +44,7 @@ module.exports = {
         { from: 'manifest.json', to: 'manifest.json' },
         { from: 'popup/popup.html', to: 'popup/popup.html' },
         { from: 'popup/popup.css', to: 'popup/popup.css' },
-        { from: 'popup/popup.js', to: 'popup/popup.js' }, // Use JS file directly (no TS compilation for popup)
+        // popup.js is now compiled from popup.ts via webpack entry
         { from: 'assets', to: 'assets', noErrorOnMissing: true },
       ],
     }),

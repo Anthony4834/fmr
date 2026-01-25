@@ -7,6 +7,11 @@ import { computeCashFlow, getRentForBedrooms } from '../shared/cashflow';
 import { DEFAULT_PREFERENCES, ExtensionPreferences } from '../shared/types';
 import { createBadgeElement } from './badge';
 import { createMiniViewElement } from './mini-view';
+import { isLoggedIn } from '../shared/auth';
+
+// Rate limit marker - returned when API returns 429
+const RATE_LIMITED = 'RATE_LIMITED' as const;
+type RateLimitMarker = typeof RATE_LIMITED;
 
 // Cache to avoid re-processing the same page
 let processedAddresses = new Set<string>();
@@ -124,7 +129,7 @@ function setCachedFmrOnlyZipData(zipCode: string, fmrData: any): void {
 
 // Cache for cash flow results by property (prioritizes results with HOA)
 interface CashFlowCacheEntry {
-  cashFlow: number | null;
+  cashFlow: number | null | RateLimitMarker;
   hoaMonthly: number | null; // null means HOA was not available, number means HOA was available (could be 0)
   hasHOA: boolean; // true if HOA was available in the view (even if 0), false if not available
   timestamp: number;
@@ -179,7 +184,7 @@ function setCachedCashFlow(
   address: string,
   price: number | null,
   bedrooms: number | null,
-  cashFlow: number | null,
+  cashFlow: number | null | RateLimitMarker,
   hoaMonthly: number | null,
   hasHOA: boolean
 ): void {
@@ -317,14 +322,27 @@ function setupModeChangeListener(): void {
   try {
     chrome.storage.onChanged.addListener((changes, areaName) => {
       if (areaName !== 'sync') return;
-      if (!changes.mode) return;
+      
+      // Handle mode changes
+      if (changes.mode) {
+        const next = normalizeBadgeMode(changes.mode.newValue);
+        const prev = currentBadgeMode;
+        currentBadgeMode = next;
 
-      const next = normalizeBadgeMode(changes.mode.newValue);
-      const prev = currentBadgeMode;
-      currentBadgeMode = next;
-
-      if (next !== prev) {
-        // Refresh in the background; badge updates are "live" and shouldn't require page refresh.
+        if (next !== prev) {
+          // Refresh in the background; badge updates are "live" and shouldn't require page refresh.
+          refreshBadgesForModeChange().catch(() => {});
+        }
+      }
+      
+      // Handle auth state changes (user logged in/out)
+      if (changes.fmr_extension_auth) {
+        console.log('[FMR Content] Auth state changed, clearing cache and refreshing badges');
+        // Clear all caches so we re-fetch data with new auth state
+        zipCodeCache.clear();
+        cashFlowCache.clear();
+        processedAddresses.clear();
+        // Refresh all badges
         refreshBadgesForModeChange().catch(() => {});
       }
     });
@@ -351,7 +369,7 @@ async function calculateCashFlow(
   hoaMonthly: number | null = null,
   checkCache: boolean = true,
   isExpandedView: boolean = false
-): Promise<number | null> {
+): Promise<number | null | RateLimitMarker> {
   try {
     // Check cash flow cache first if enabled
     if (checkCache && detectedPrice !== null && detectedBedrooms !== null) {
@@ -387,6 +405,10 @@ async function calculateCashFlow(
     } else {
       // Fetch FMR data using ZIP code
       const fmrResponse = await fetchFMRData(zipCode);
+      if (fmrResponse.rateLimited) {
+        // Rate limited - return special marker
+        return 'RATE_LIMITED' as any;
+      }
       if (fmrResponse.error || !fmrResponse.data) {
         trackMissingData({
           zipCode,
@@ -402,6 +424,10 @@ async function calculateCashFlow(
       
       // Fetch market params (tax rate and mortgage rate)
       const marketResponse = await fetchMarketParams(zipCode);
+      if (marketResponse.rateLimited) {
+        // Rate limited - return special marker
+        return 'RATE_LIMITED' as any;
+      }
       if (marketResponse.error) {
         return null;
       }
@@ -514,7 +540,7 @@ async function calculateCashFlow(
 async function calculateFmrMonthly(
   address: string,
   detectedBedrooms: number | null
-): Promise<number | null> {
+): Promise<number | null | RateLimitMarker> {
   try {
     const zipCode = extractZipFromAddress(address);
     if (!zipCode) {
@@ -543,6 +569,10 @@ async function calculateFmrMonthly(
 
     if (!fmrData) {
       const fmrResponse = await fetchFMRData(zipCode);
+      if (fmrResponse.rateLimited) {
+        // Rate limited - return special marker
+        return 'RATE_LIMITED' as any;
+      }
       if (fmrResponse.error || !fmrResponse.data) {
         trackMissingData({
           zipCode,
@@ -586,7 +616,8 @@ async function injectBadge(
   propertyData?: { price: number | null; bedrooms: number | null; hoaMonthly: number | null },
   insufficientInfo: boolean = false,
   nonInteractive: boolean = false,
-  hoaUnavailable: boolean = false
+  hoaUnavailable: boolean = false,
+  rateLimited: boolean = false
 ) {
   // Remove existing badge for this card if any
   if (cardElement) {
@@ -612,7 +643,7 @@ async function injectBadge(
   }
   
   // Get FMR data if in FMR mode
-  let fmrMonthly: number | null = null;
+  let fmrMonthly: number | null | RateLimitMarker = null;
   if (currentBadgeMode === 'fmr' && !isLoading && !insufficientInfo && propertyData && propertyData.bedrooms !== null) {
     // Try to get FMR synchronously from cache if available
     const zipCode = extractZipFromAddress(address);
@@ -635,13 +666,29 @@ async function injectBadge(
     insufficientInfo,
     nonInteractive,
     hoaUnavailable,
-    onClick: () => {
-      // Open mini view
-      const zipCode = extractZipFromAddress(address);
-      if (zipCode) {
-        // Use provided property data or extract it
-        const data = propertyData || extractPropertyData();
-        openMiniView(address, zipCode, data.price, data.bedrooms, data.hoaMonthly);
+    rateLimited,
+    onClick: async () => {
+      // Check if user is logged in
+      const loggedIn = await isLoggedIn();
+      
+      if (rateLimited || !loggedIn) {
+        // Trigger login flow
+        try {
+          const authModule = await import('../shared/auth');
+          await authModule.login();
+          // After login, refresh the page or reprocess
+          location.reload();
+        } catch (error) {
+          console.error('[FMR Extension] Login error:', error);
+        }
+      } else {
+        // Open mini view
+        const zipCode = extractZipFromAddress(address);
+        if (zipCode) {
+          // Use provided property data or extract it
+          const data = propertyData || extractPropertyData();
+          openMiniView(address, zipCode, data.price, data.bedrooms, data.hoaMonthly);
+        }
       }
     },
   });
@@ -853,6 +900,20 @@ async function processCard(cardElement: HTMLElement, viewType: 'list' | 'map', s
     (cardElement as any).dataset[CARD_KEY_DATASET_FIELD] = currentKey;
   } catch {}
   
+  // Check if user is logged in - require login for extension to work
+  const loggedIn = await isLoggedIn();
+  
+  if (!loggedIn) {
+    // Show login required badge immediately
+    const isZillowCard = site === 'zillow' && !isExpandedView;
+    await injectBadge(addressElement, null, cardData.address, false, cardElement, {
+      price: cardData.price,
+      bedrooms: cardData.bedrooms,
+      hoaMonthly: cardData.hoaMonthly,
+    }, false, isZillowCard, !isExpandedView, true); // rateLimited = true
+    return;
+  }
+  
   // Check if we have sufficient data
   const hasCashFlowData = hasSufficientData(cardData.address, cardData.bedrooms, cardData.price);
   const hasFmrData = hasSufficientDataForFmr(cardData.address, cardData.bedrooms);
@@ -885,11 +946,15 @@ async function processCard(cardElement: HTMLElement, viewType: 'list' | 'map', s
   currentBadgeMode = normalizeBadgeMode((preferences as any).mode);
 
   if (currentBadgeMode === 'fmr') {
-    const fmrMonthly = await calculateFmrMonthly(cardData.address, cardData.bedrooms);
+    const fmrMonthly: number | null | RateLimitMarker = await calculateFmrMonthly(cardData.address, cardData.bedrooms);
 
     // Update badge with actual data (FMR-only mode)
     const badge = cardBadges.get(cardElement);
-    if (badge && (badge as any).updateFmrContent) {
+    if (fmrMonthly === RATE_LIMITED) {
+      if (badge && (badge as any).updateRateLimitedContent) {
+        (badge as any).updateRateLimitedContent();
+      }
+    } else if (badge && (badge as any).updateFmrContent) {
       (badge as any).updateFmrContent(fmrMonthly, false, false, !isExpandedView);
     } else if (badge && (badge as any).updateContent) {
       // Fallback: show N/A using existing rendering
@@ -899,7 +964,7 @@ async function processCard(cardElement: HTMLElement, viewType: 'list' | 'map', s
   }
 
   // Check cache first for card views
-  let cashFlow: number | null = null;
+  let cashFlow: number | null | RateLimitMarker = null;
   let hoaUnavailable = !isExpandedView;
   
   if (!isExpandedView && cardData.price !== null && cardData.bedrooms !== null) {
@@ -927,7 +992,11 @@ async function processCard(cardElement: HTMLElement, viewType: 'list' | 'map', s
 
   // Update badge with actual data
   const badge = cardBadges.get(cardElement);
-  if (badge && (badge as any).updateContent) {
+  if (cashFlow === RATE_LIMITED) {
+    if (badge && (badge as any).updateRateLimitedContent) {
+      (badge as any).updateRateLimitedContent();
+    }
+  } else if (badge && (badge as any).updateContent) {
     (badge as any).updateContent(cashFlow, false, false, hoaUnavailable);
   }
 }
@@ -1233,7 +1302,7 @@ async function processPage(options?: { skipWait?: boolean }) {
 
           // In expanded view, never show the non-HOA cached value even briefly.
           // If we already have an HOA-aware cached result, we can show it immediately.
-          let cachedHoaCashFlow: number | null = null;
+          let cachedHoaCashFlow: number | null | RateLimitMarker = null;
           if (expandedData.price !== null && expandedData.bedrooms !== null) {
             const cachedHoa = getCachedCashFlow(expandedData.address, expandedData.price, expandedData.bedrooms, true);
             if (cachedHoa && cachedHoa.hasHOA) {
@@ -1277,7 +1346,11 @@ async function processPage(options?: { skipWait?: boolean }) {
           
           // Update badge
           const badge = cardBadges.get(expandedView as HTMLElement);
-          if (badge && (badge as any).updateContent) {
+          if (cashFlow === RATE_LIMITED) {
+            if (badge && (badge as any).updateRateLimitedContent) {
+              (badge as any).updateRateLimitedContent();
+            }
+          } else if (badge && (badge as any).updateContent) {
             // HOA is available in expanded view
             (badge as any).updateContent(cashFlow, false, false, false);
           }
@@ -1412,7 +1485,7 @@ async function processPage(options?: { skipWait?: boolean }) {
                     }, true, false, false).catch(() => {});
                   } else {
                     // Always show loading unless we already have HOA-aware cached result
-                    let cachedHoaCashFlow: number | null = null;
+                    let cachedHoaCashFlow: number | null | RateLimitMarker = null;
                     if (expandedData.price !== null && expandedData.bedrooms !== null) {
                       const cachedHoa = getCachedCashFlow(expandedData.address, expandedData.price, expandedData.bedrooms, true);
                       if (cachedHoa && cachedHoa.hasHOA) cachedHoaCashFlow = cachedHoa.cashFlow;
@@ -1447,9 +1520,13 @@ async function processPage(options?: { skipWait?: boolean }) {
                           true
                         )
                       )
-                      .then((cashFlow) => {
+                      .then((cashFlow: number | null | RateLimitMarker) => {
                         const badge = cardBadges.get(expandedView as HTMLElement);
-                        if (badge && (badge as any).updateContent) {
+                        if (cashFlow === RATE_LIMITED) {
+                          if (badge && (badge as any).updateRateLimitedContent) {
+                            (badge as any).updateRateLimitedContent();
+                          }
+                        } else if (badge && (badge as any).updateContent) {
                           (badge as any).updateContent(cashFlow, false, false, false);
                         }
                         try { (expandedView as any).dataset[HOA_PENDING_DATASET_FIELD] = '0'; } catch {}
@@ -1558,6 +1635,15 @@ async function processPage(options?: { skipWait?: boolean }) {
     // Extract property data after page has had time to load
     const propertyData = extractPropertyData();
     
+    // Check if user is logged in - require login for extension to work
+    const loggedIn = await isLoggedIn();
+    
+    if (!loggedIn) {
+      // Show login required badge immediately
+      await injectBadge(addressElement, null, address, false, undefined, propertyData, false, false, false, true); // rateLimited = true
+      return;
+    }
+    
     // Get user preferences to check mode
     const preferences = await getPreferences();
     currentBadgeMode = normalizeBadgeMode((preferences as any).mode);
@@ -1601,12 +1687,16 @@ async function processPage(options?: { skipWait?: boolean }) {
 
       // Calculate and display FMR (if not already cached)
       if (cachedFmrMonthly === null) {
-        const fmrMonthly = await calculateFmrMonthly(address, propertyData.bedrooms);
+        const fmrMonthly: number | null | RateLimitMarker = await calculateFmrMonthly(address, propertyData.bedrooms);
         
         // Update badge with FMR data
         if (badgeElement && (badgeElement as any).updateFmrContent) {
-          // If fmrMonthly is null (missing data), show insufficient data instead of N/A to prevent reprocessing
-          if (fmrMonthly === null) {
+          if (fmrMonthly === RATE_LIMITED) {
+            if ((badgeElement as any).updateRateLimitedContent) {
+              (badgeElement as any).updateRateLimitedContent();
+            }
+          } else if (fmrMonthly === null) {
+            // If fmrMonthly is null (missing data), show insufficient data instead of N/A to prevent reprocessing
             (badgeElement as any).updateFmrContent(null, false, true, false); // insufficientInfo = true
           } else {
             (badgeElement as any).updateFmrContent(fmrMonthly, false, false, false);
@@ -1617,7 +1707,7 @@ async function processPage(options?: { skipWait?: boolean }) {
       // Cash flow mode: existing logic
       // On detail pages, never show non-HOA cached value even briefly.
       // Check if we already have HOA-aware cached result first.
-      let cachedHoaCashFlow: number | null = null;
+      let cachedHoaCashFlow: number | null | RateLimitMarker = null;
       if (propertyData.price !== null && propertyData.bedrooms !== null) {
         const cachedHoa = getCachedCashFlow(address, propertyData.price, propertyData.bedrooms, true);
         if (cachedHoa && cachedHoa.hasHOA) {
@@ -1625,9 +1715,18 @@ async function processPage(options?: { skipWait?: boolean }) {
         }
       }
 
+      // Inject badge first (show loading or cached value)
+      if (cachedHoaCashFlow !== null && cachedHoaCashFlow !== RATE_LIMITED) {
+        await injectBadge(addressElement, cachedHoaCashFlow, address, false, undefined, propertyData, false, false);
+        // Badge already shows cached value, no need to update
+      } else {
+        // Inject badge with loading state
+        await injectBadge(addressElement, null, address, true, undefined, propertyData, false, false);
+      }
+
       // Calculate cash flow (HOA is available on detail pages)
       // Always recalculate to ensure we have the latest result (cache might be stale)
-      const cashFlow = await calculateCashFlow(
+      const cashFlow: number | null | RateLimitMarker = await calculateCashFlow(
         address,
         propertyData.bedrooms,
         propertyData.price,
@@ -1638,9 +1737,19 @@ async function processPage(options?: { skipWait?: boolean }) {
       );
 
       // Update badge with actual data (HOA is available on detail pages)
+      // Ensure badgeElement exists (it should have been created above)
+      if (!badgeElement) {
+        // Badge wasn't created, create it now
+        await injectBadge(addressElement, null, address, false, undefined, propertyData, false, false);
+      }
+      
       if (badgeElement && (badgeElement as any).updateContent) {
-        // If cashFlow is null (missing market data), show insufficient data instead of N/A to prevent reprocessing
-        if (cashFlow === null) {
+        if (cashFlow === RATE_LIMITED) {
+          if ((badgeElement as any).updateRateLimitedContent) {
+            (badgeElement as any).updateRateLimitedContent();
+          }
+        } else if (cashFlow === null) {
+          // If cashFlow is null (missing market data), show insufficient data instead of N/A to prevent reprocessing
           (badgeElement as any).updateContent(null, false, true, false); // insufficientInfo = true
         } else {
           (badgeElement as any).updateContent(cashFlow, false, false, false);
