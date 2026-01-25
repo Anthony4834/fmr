@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import BaseModal from './BaseModal';
 import AuthModal from './AuthModal';
 
 interface RateLimitModalProps {
@@ -97,14 +97,12 @@ export default function RateLimitModal({ isOpen, onClose, resetTime }: RateLimit
     }
   }, [isOpen, percentage]);
 
-  // Theme-aware colors matching landing page
-  const bgOverlay = isDark ? 'rgba(0, 0, 0, 0.8)' : 'rgba(0, 0, 0, 0.5)';
-  const cardBg = isDark ? 'hsl(220 15% 12%)' : '#ffffff';
+  // Theme-aware colors
   const borderColor = isDark ? 'hsl(0 0% 20%)' : 'hsl(220 15% 88%)';
+  const cardBg = isDark ? 'hsl(220 15% 12%)' : '#ffffff';
   const textForeground = isDark ? 'hsl(0 0% 98%)' : 'hsl(220 30% 12%)';
   const textMuted = isDark ? 'hsl(0 0% 60%)' : 'hsl(220 15% 45%)';
   const primaryColor = 'hsl(192 85% 42%)';
-  const primaryHover = 'hsl(192 85% 38%)';
   const accentBg = isDark ? 'hsl(192 85% 42% / 0.15)' : 'hsl(192 85% 42% / 0.08)';
   const accentBorder = isDark ? 'hsl(192 85% 42% / 0.3)' : 'hsl(192 85% 42% / 0.2)';
   const secondaryBg = isDark ? 'hsl(0 0% 20%)' : 'hsl(220 15% 95%)';
@@ -122,29 +120,7 @@ export default function RateLimitModal({ isOpen, onClose, resetTime }: RateLimit
 
   return (
     <>
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-            className="fixed inset-0 z-50"
-            style={{ backgroundColor: bgOverlay }}
-            onClick={onClose}
-          >
-            <motion.div
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-              className="fixed left-1/2 top-1/2 z-50 w-full max-w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-lg border shadow-lg overflow-hidden"
-              style={{ 
-                backgroundColor: cardBg,
-                borderColor: borderColor,
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
+      <BaseModal isOpen={isOpen} onClose={onClose} maxWidth="420px">
               {/* Header Section */}
               <div 
                 className="border-b p-6"
@@ -256,10 +232,7 @@ export default function RateLimitModal({ isOpen, onClose, resetTime }: RateLimit
                   </div>
                 </div>
               </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      </BaseModal>
 
       {/* Auth Modal */}
       <AuthModal 
