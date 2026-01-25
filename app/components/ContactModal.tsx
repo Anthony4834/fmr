@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useSession } from 'next-auth/react';
 
 interface ContactModalProps {
@@ -130,22 +131,30 @@ export default function ContactModal({ isOpen, onClose }: ContactModalProps) {
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div 
-      className="fixed inset-0 z-50"
-      style={{ backgroundColor: bgOverlay }}
-      onClick={onClose}
-    >
-      <div 
-        className="fixed left-1/2 top-1/2 z-50 w-full max-w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-lg border shadow-lg overflow-hidden max-h-[90vh] overflow-y-auto"
-        style={{ 
-          backgroundColor: cardBg,
-          borderColor: borderColor,
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+          className="fixed inset-0 z-50"
+          style={{ backgroundColor: bgOverlay }}
+          onClick={onClose}
+        >
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            className="fixed left-1/2 top-1/2 z-50 w-full max-w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-lg border shadow-lg overflow-hidden max-h-[90vh] overflow-y-auto"
+            style={{ 
+              backgroundColor: cardBg,
+              borderColor: borderColor,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
         {/* Header */}
         <div 
           className="border-b p-6 relative"
@@ -335,7 +344,9 @@ export default function ContactModal({ isOpen, onClose }: ContactModalProps) {
             </form>
           )}
         </div>
-      </div>
-    </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { signIn } from 'next-auth/react';
 
 interface AuthModalProps {
@@ -68,6 +69,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
   const [isLoading, setIsLoading] = useState(false);
   const [isDark, setIsDark] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [isAnimating, setIsAnimating] = useState(false);
 
   // Check theme
   useEffect(() => {
@@ -321,22 +323,30 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div 
-      className="fixed inset-0 z-50"
-      style={{ backgroundColor: bgOverlay }}
-      onClick={onClose}
-    >
-      <div 
-        className="fixed left-1/2 top-1/2 z-50 w-full max-w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-lg border shadow-lg overflow-hidden"
-        style={{ 
-          backgroundColor: cardBg,
-          borderColor: borderColor,
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+          className="fixed inset-0 z-50"
+          style={{ backgroundColor: bgOverlay }}
+          onClick={onClose}
+        >
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            className="fixed left-1/2 top-1/2 z-50 w-full max-w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-lg border shadow-lg overflow-hidden"
+            style={{ 
+              backgroundColor: cardBg,
+              borderColor: borderColor,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
         {/* Header */}
         <div 
           className="border-b p-6 relative"
@@ -746,7 +756,9 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
             </>
           )}
         </div>
-      </div>
-    </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

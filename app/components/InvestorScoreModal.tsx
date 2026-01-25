@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useId, useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface InvestorScoreModalProps {
   isOpen: boolean;
@@ -22,6 +23,7 @@ function getFocusable(el: HTMLElement) {
 
 export default function InvestorScoreModal({ isOpen, onClose }: InvestorScoreModalProps) {
   const [showMath, setShowMath] = useState(false);
+  const [isDark, setIsDark] = useState(false);
 
   const titleId = useId();
   const descId = useId();
@@ -30,6 +32,20 @@ export default function InvestorScoreModal({ isOpen, onClose }: InvestorScoreMod
   const modalRef = useRef<HTMLDivElement | null>(null);
   const closeBtnRef = useRef<HTMLButtonElement | null>(null);
   const lastActiveElRef = useRef<HTMLElement | null>(null);
+
+  // Check theme
+  useEffect(() => {
+    const checkTheme = () => {
+      const theme = document.documentElement.getAttribute('data-theme');
+      setIsDark(theme === 'dark');
+    };
+    
+    checkTheme();
+    const observer = new MutationObserver(checkTheme);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    
+    return () => observer.disconnect();
+  }, []);
 
   // Lock body scroll + store/restore last focused element
   useEffect(() => {
@@ -90,38 +106,77 @@ export default function InvestorScoreModal({ isOpen, onClose }: InvestorScoreMod
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
+  // Standardized dark mode colors
+  const bgOverlay = isDark ? 'rgba(0, 0, 0, 0.8)' : 'rgba(0, 0, 0, 0.5)';
+  const cardBg = isDark ? 'hsl(220 15% 12%)' : '#ffffff';
+  const borderColor = isDark ? 'hsl(0 0% 20%)' : 'hsl(220 15% 88%)';
+  const textForeground = isDark ? 'hsl(0 0% 98%)' : 'hsl(220 30% 12%)';
+  const textMuted = isDark ? 'hsl(0 0% 60%)' : 'hsl(220 15% 45%)';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-2 sm:p-4 overflow-y-auto" aria-hidden={false}>
-      {/* Backdrop */}
-      <button
-        type="button"
-        className="fixed inset-0 bg-black/50 cursor-default"
-        aria-label="Close modal"
-        onClick={onClose}
-      />
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+          className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-2 sm:p-4 overflow-y-auto"
+          aria-hidden={false}
+          style={{ backgroundColor: bgOverlay }}
+        >
+          {/* Backdrop */}
+          <motion.button
+            type="button"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 cursor-default"
+            style={{ backgroundColor: bgOverlay }}
+            aria-label="Close modal"
+            onClick={onClose}
+          />
 
-      {/* Modal */}
-      <div
-        ref={modalRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        aria-describedby={descId}
-        className="relative bg-[var(--bg-secondary)] rounded-lg shadow-xl max-w-xl w-full max-h-[85vh] sm:max-h-[80vh] my-4 sm:my-0 overflow-hidden flex flex-col"
-        onClick={(e) => e.stopPropagation()}
-      >
+          {/* Modal */}
+          <motion.div
+            ref={modalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
+            aria-describedby={descId}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            className="relative rounded-lg shadow-xl max-w-xl w-full max-h-[85vh] sm:max-h-[80vh] my-4 sm:my-0 overflow-hidden flex flex-col"
+            style={{
+              backgroundColor: cardBg,
+              borderColor: borderColor,
+              borderWidth: '1px',
+              borderStyle: 'solid',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
         {/* Header */}
-        <div className="px-4 sm:px-6 py-3 border-b border-[var(--border-color)] bg-[var(--bg-tertiary)] flex-shrink-0 flex items-center justify-between gap-3">
-          <h2 id={titleId} className="text-lg font-semibold text-[var(--text-primary)]">
+        <div 
+          className="px-4 sm:px-6 py-3 border-b flex-shrink-0 flex items-center justify-between gap-3"
+          style={{
+            borderColor: borderColor,
+            backgroundColor: cardBg,
+          }}
+        >
+          <h2 id={titleId} className="text-lg font-semibold" style={{ color: textForeground }}>
             How Investment Score Works
           </h2>
           <button
             ref={closeBtnRef}
             type="button"
             onClick={onClose}
-            className="shrink-0 rounded-md p-1.5 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--text-primary)] focus:ring-opacity-20"
+            className="shrink-0 rounded-md p-1.5 transition-colors hover:opacity-70 focus:outline-none focus:ring-2 focus:ring-opacity-20"
+            style={{
+              color: textMuted,
+            }}
             aria-label="Close"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -131,50 +186,50 @@ export default function InvestorScoreModal({ isOpen, onClose }: InvestorScoreMod
         </div>
 
         {/* Content */}
-        <div className="px-4 sm:px-6 py-3 overflow-y-auto flex-1 space-y-3">
+        <div className="px-4 sm:px-6 py-3 overflow-y-auto flex-1 space-y-3" style={{ backgroundColor: cardBg }}>
           {/* TL;DR */}
-          <p id={descId} className="text-sm text-[var(--text-secondary)]">
-            A standardized way to compare rental investment potential across U.S. locations, combining <strong className="text-[var(--text-primary)]">cash-flow yield</strong> with <strong className="text-[var(--text-primary)]">market demand</strong>.
+          <p id={descId} className="text-sm" style={{ color: textMuted }}>
+            A standardized way to compare rental investment potential across U.S. locations, combining <strong style={{ color: textForeground }}>cash-flow yield</strong> with <strong style={{ color: textForeground }}>market demand</strong>.
           </p>
 
           {/* Score Scale */}
-          <div className="rounded-lg border border-[var(--border-color)] p-3 sm:p-4 bg-[var(--bg-secondary)]">
-            <div className="text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wide mb-2">Score Scale</div>
+          <div className="rounded-lg border p-3 sm:p-4" style={{ borderColor: borderColor, backgroundColor: isDark ? 'hsl(220 15% 15%)' : 'hsl(220 15% 98%)' }}>
+            <div className="text-xs font-medium uppercase tracking-wide mb-2" style={{ color: textMuted }}>Score Scale</div>
             <div className="space-y-1.5 text-sm">
               <div className="flex items-center gap-2">
                 <span className="w-3 h-3 rounded-sm bg-[#ef4444]" />
-                <span className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">&lt;95</strong> Below average</span>
+                <span style={{ color: textMuted }}><strong style={{ color: textForeground }}>&lt;95</strong> Below average</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="w-3 h-3 rounded-sm bg-[#f59e0b]" />
-                <span className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">95-99</strong> Near median</span>
+                <span style={{ color: textMuted }}><strong style={{ color: textForeground }}>95-99</strong> Near median</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="w-3 h-3 rounded-sm bg-[#22c55e]" />
-                <span className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">100-129</strong> Above average</span>
+                <span style={{ color: textMuted }}><strong style={{ color: textForeground }}>100-129</strong> Above average</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="w-3 h-3 rounded-sm bg-[#16a34a]" />
-                <span className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">130+</strong> High yield potential</span>
+                <span style={{ color: textMuted }}><strong style={{ color: textForeground }}>130+</strong> High yield potential</span>
               </div>
             </div>
-            <p className="text-xs text-[var(--text-tertiary)] mt-2">100 = median market. Capped at 300.</p>
+            <p className="text-xs mt-2" style={{ color: textMuted }}>100 = median market. Capped at 300.</p>
           </div>
 
           {/* Two-Part Formula */}
           <div>
-            <div className="text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wide mb-2">The Formula</div>
-            <div className="text-sm text-[var(--text-secondary)] space-y-2">
-              <div className="rounded-lg border border-[var(--border-color)] p-2.5 bg-[var(--bg-tertiary)]">
-                <div className="font-medium text-[var(--text-primary)] mb-1">1. Base Score (Net Yield)</div>
-                <p className="text-xs leading-relaxed">
-                  Calculates how much rent you keep after property taxes, relative to home price. Uses <strong className="text-[var(--text-primary)]">HUD Fair Market Rent</strong>, <strong className="text-[var(--text-primary)]">Zillow ZHVI</strong>, and <strong className="text-[var(--text-primary)]">ACS tax rates</strong>.
+            <div className="text-xs font-medium uppercase tracking-wide mb-2" style={{ color: textMuted }}>The Formula</div>
+            <div className="text-sm space-y-2" style={{ color: textMuted }}>
+              <div className="rounded-lg border p-2.5" style={{ borderColor: borderColor, backgroundColor: isDark ? 'hsl(220 15% 15%)' : 'hsl(220 15% 98%)' }}>
+                <div className="font-medium mb-1" style={{ color: textForeground }}>1. Base Score (Net Yield)</div>
+                <p className="text-xs leading-relaxed" style={{ color: textMuted }}>
+                  Calculates how much rent you keep after property taxes, relative to home price. Uses <strong style={{ color: textForeground }}>HUD Fair Market Rent</strong>, <strong style={{ color: textForeground }}>Zillow ZHVI</strong>, and <strong style={{ color: textForeground }}>ACS tax rates</strong>.
                 </p>
               </div>
-              <div className="rounded-lg border border-[var(--border-color)] p-2.5 bg-[var(--bg-tertiary)]">
-                <div className="font-medium text-[var(--text-primary)] mb-1">2. Demand Adjustment</div>
-                <p className="text-xs leading-relaxed">
-                  Adjusts score based on rental market conditions using <strong className="text-[var(--text-primary)]">Zillow ZORDI</strong> (metro demand index) and <strong className="text-[var(--text-primary)]">ZORI</strong> (rent growth). Strong demand can boost scores up to +5%; weak demand can reduce by up to -30%.
+              <div className="rounded-lg border p-2.5" style={{ borderColor: borderColor, backgroundColor: isDark ? 'hsl(220 15% 15%)' : 'hsl(220 15% 98%)' }}>
+                <div className="font-medium mb-1" style={{ color: textForeground }}>2. Demand Adjustment</div>
+                <p className="text-xs leading-relaxed" style={{ color: textMuted }}>
+                  Adjusts score based on rental market conditions using <strong style={{ color: textForeground }}>Zillow ZORDI</strong> (metro demand index) and <strong style={{ color: textForeground }}>ZORI</strong> (rent growth). Strong demand can boost scores up to +5%; weak demand can reduce by up to -30%.
                 </p>
               </div>
             </div>
@@ -182,33 +237,36 @@ export default function InvestorScoreModal({ isOpen, onClose }: InvestorScoreMod
 
           {/* Data Sources */}
           <div>
-            <div className="text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wide mb-2">Data Sources</div>
+            <div className="text-xs font-medium uppercase tracking-wide mb-2" style={{ color: textMuted }}>Data Sources</div>
             <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="rounded border border-[var(--border-color)] p-2 bg-[var(--bg-secondary)]">
-                <div className="font-medium text-[var(--text-primary)]">Rent</div>
-                <div className="text-[var(--text-tertiary)]">HUD FMR/SAFMR</div>
+              <div className="rounded border p-2" style={{ borderColor: borderColor, backgroundColor: isDark ? 'hsl(220 15% 15%)' : 'hsl(220 15% 98%)' }}>
+                <div className="font-medium" style={{ color: textForeground }}>Rent</div>
+                <div style={{ color: textMuted }}>HUD FMR/SAFMR</div>
               </div>
-              <div className="rounded border border-[var(--border-color)] p-2 bg-[var(--bg-secondary)]">
-                <div className="font-medium text-[var(--text-primary)]">Home Value</div>
-                <div className="text-[var(--text-tertiary)]">Zillow ZHVI</div>
+              <div className="rounded border p-2" style={{ borderColor: borderColor, backgroundColor: isDark ? 'hsl(220 15% 15%)' : 'hsl(220 15% 98%)' }}>
+                <div className="font-medium" style={{ color: textForeground }}>Home Value</div>
+                <div style={{ color: textMuted }}>Zillow ZHVI</div>
               </div>
-              <div className="rounded border border-[var(--border-color)] p-2 bg-[var(--bg-secondary)]">
-                <div className="font-medium text-[var(--text-primary)]">Property Tax</div>
-                <div className="text-[var(--text-tertiary)]">ACS 5-Year</div>
+              <div className="rounded border p-2" style={{ borderColor: borderColor, backgroundColor: isDark ? 'hsl(220 15% 15%)' : 'hsl(220 15% 98%)' }}>
+                <div className="font-medium" style={{ color: textForeground }}>Property Tax</div>
+                <div style={{ color: textMuted }}>ACS 5-Year</div>
               </div>
-              <div className="rounded border border-[var(--border-color)] p-2 bg-[var(--bg-secondary)]">
-                <div className="font-medium text-[var(--text-primary)]">Demand</div>
-                <div className="text-[var(--text-tertiary)]">Zillow ZORDI/ZORI</div>
+              <div className="rounded border p-2" style={{ borderColor: borderColor, backgroundColor: isDark ? 'hsl(220 15% 15%)' : 'hsl(220 15% 98%)' }}>
+                <div className="font-medium" style={{ color: textForeground }}>Demand</div>
+                <div style={{ color: textMuted }}>Zillow ZORDI/ZORI</div>
               </div>
             </div>
           </div>
 
           {/* Accordion: Full Math */}
-          <div className="border-t border-[var(--border-color)] pt-3">
+          <div className="border-t pt-3" style={{ borderColor: borderColor }}>
             <button
               type="button"
               onClick={() => setShowMath((v) => !v)}
-              className="w-full flex items-center justify-between text-sm font-medium text-[var(--text-primary)] py-1 hover:text-[var(--text-secondary)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--text-primary)] focus:ring-opacity-20 rounded"
+              className="w-full flex items-center justify-between text-sm font-medium py-1 transition-colors focus:outline-none focus:ring-2 focus:ring-opacity-20 rounded"
+              style={{ 
+                color: textForeground,
+              }}
               aria-expanded={showMath}
               aria-controls={mathId}
             >
@@ -227,44 +285,45 @@ export default function InvestorScoreModal({ isOpen, onClose }: InvestorScoreMod
             <div
               id={mathId}
               hidden={!showMath}
-              className="mt-2 space-y-3 text-xs text-[var(--text-secondary)]"
+              className="mt-2 space-y-3 text-xs"
+              style={{ color: textMuted }}
             >
               {/* Net Yield Calculation */}
-              <div className="rounded border border-[var(--border-color)] p-3 bg-[var(--bg-tertiary)]">
-                <div className="font-semibold text-[var(--text-primary)] mb-2">Net Yield Calculation</div>
-                <div className="space-y-1 font-mono text-[11px] bg-[var(--bg-secondary)] p-2 rounded border border-[var(--border-color)]">
+              <div className="rounded border p-3" style={{ borderColor: borderColor, backgroundColor: isDark ? 'hsl(220 15% 15%)' : 'hsl(220 15% 98%)' }}>
+                <div className="font-semibold mb-2" style={{ color: textForeground }}>Net Yield Calculation</div>
+                <div className="space-y-1 font-mono text-[11px] p-2 rounded border" style={{ backgroundColor: cardBg, borderColor: borderColor, color: textMuted }}>
                   <div>Annual Rent = FMR × 12</div>
                   <div>Annual Taxes = Property Value × Tax Rate</div>
                   <div>Net Yield = (Rent - Taxes) / Value</div>
-                  <div className="pt-1 border-t border-[var(--border-color)] mt-1">Base Score = (Net Yield / Median) × 100</div>
+                  <div className="pt-1 border-t mt-1" style={{ borderColor: borderColor }}>Base Score = (Net Yield / Median) × 100</div>
                 </div>
               </div>
 
               {/* Demand Score */}
-              <div className="rounded border border-[var(--border-color)] p-3 bg-[var(--bg-tertiary)]">
-                <div className="font-semibold text-[var(--text-primary)] mb-2">Demand Score (0-100)</div>
+              <div className="rounded border p-3" style={{ borderColor: borderColor, backgroundColor: isDark ? 'hsl(220 15% 15%)' : 'hsl(220 15% 98%)' }}>
+                <div className="font-semibold mb-2" style={{ color: textForeground }}>Demand Score (0-100)</div>
                 <div className="space-y-1">
-                  <div><strong className="text-[var(--text-primary)]">50%</strong> Demand Level — ZORDI percentile rank</div>
-                  <div><strong className="text-[var(--text-primary)]">30%</strong> Demand Momentum — ZORDI 3-month change</div>
-                  <div><strong className="text-[var(--text-primary)]">20%</strong> Rent Pressure — ZORI year-over-year growth</div>
+                  <div><strong style={{ color: textForeground }}>50%</strong> Demand Level — ZORDI percentile rank</div>
+                  <div><strong style={{ color: textForeground }}>30%</strong> Demand Momentum — ZORDI 3-month change</div>
+                  <div><strong style={{ color: textForeground }}>20%</strong> Rent Pressure — ZORI year-over-year growth</div>
                 </div>
               </div>
 
               {/* Demand Multiplier */}
-              <div className="rounded border border-[var(--border-color)] p-3 bg-[var(--bg-tertiary)]">
-                <div className="font-semibold text-[var(--text-primary)] mb-2">Demand Multiplier</div>
+              <div className="rounded border p-3" style={{ borderColor: borderColor, backgroundColor: isDark ? 'hsl(220 15% 15%)' : 'hsl(220 15% 98%)' }}>
+                <div className="font-semibold mb-2" style={{ color: textForeground }}>Demand Multiplier</div>
                 <div className="space-y-1">
-                  <div><strong className="text-[var(--text-primary)]">High yield + strong demand:</strong> up to +5% boost</div>
-                  <div><strong className="text-[var(--text-primary)]">High yield + weak demand:</strong> up to -30% penalty</div>
-                  <div><strong className="text-[var(--text-primary)]">Low yield + strong demand:</strong> no change</div>
-                  <div><strong className="text-[var(--text-primary)]">Low yield + weak demand:</strong> up to -30% penalty</div>
+                  <div><strong style={{ color: textForeground }}>High yield + strong demand:</strong> up to +5% boost</div>
+                  <div><strong style={{ color: textForeground }}>High yield + weak demand:</strong> up to -30% penalty</div>
+                  <div><strong style={{ color: textForeground }}>Low yield + strong demand:</strong> no change</div>
+                  <div><strong style={{ color: textForeground }}>Low yield + weak demand:</strong> up to -30% penalty</div>
                 </div>
               </div>
 
               {/* Quality Controls */}
-              <div className="rounded border border-[var(--border-color)] p-3 bg-[var(--bg-tertiary)]">
-                <div className="font-semibold text-[var(--text-primary)] mb-2">Quality Controls</div>
-                <ul className="space-y-1 ml-3 list-disc">
+              <div className="rounded border p-3" style={{ borderColor: borderColor, backgroundColor: isDark ? 'hsl(220 15% 15%)' : 'hsl(220 15% 98%)' }}>
+                <div className="font-semibold mb-2" style={{ color: textForeground }}>Quality Controls</div>
+                <ul className="space-y-1 ml-3 list-disc" style={{ color: textMuted }}>
                   <li>Price floor: minimum $100k property value</li>
                   <li>Rent cap: max 18% rent-to-price ratio</li>
                   <li>County blending: blend with county median if ZIP value &lt;$150k</li>
@@ -276,23 +335,29 @@ export default function InvestorScoreModal({ isOpen, onClose }: InvestorScoreMod
           </div>
 
           {/* Not Included */}
-          <div className="text-xs text-[var(--text-tertiary)] border-t border-[var(--border-color)] pt-3">
-            <strong className="text-[var(--text-primary)]">Not included:</strong> mortgage costs, insurance, repairs, vacancy, HOA, appreciation. Use as a screening tool, not a complete pro forma.
+          <div className="text-xs border-t pt-3" style={{ color: textMuted, borderColor: borderColor }}>
+            <strong style={{ color: textForeground }}>Not included:</strong> mortgage costs, insurance, repairs, vacancy, HOA, appreciation. Use as a screening tool, not a complete pro forma.
           </div>
         </div>
 
         {/* Footer */}
-        <div className="px-4 sm:px-6 py-2.5 border-t border-[var(--border-color)] bg-[var(--bg-tertiary)] flex items-center justify-end flex-shrink-0">
+        <div className="px-4 sm:px-6 py-2.5 border-t flex items-center justify-end flex-shrink-0" style={{ borderColor: borderColor, backgroundColor: cardBg }}>
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-1.5 bg-[var(--text-primary)] text-[var(--bg-primary)] text-sm font-medium rounded-md hover:bg-[var(--text-secondary)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--text-primary)] focus:ring-opacity-20"
+            className="px-4 py-1.5 text-sm font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-opacity-20"
+            style={{
+              backgroundColor: 'hsl(192 85% 42%)',
+              color: '#ffffff',
+            }}
           >
             Got it
           </button>
         </div>
-      </div>
-    </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 

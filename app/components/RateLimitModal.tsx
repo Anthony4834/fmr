@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import AuthModal from './AuthModal';
 
 interface RateLimitModalProps {
@@ -119,152 +120,146 @@ export default function RateLimitModal({ isOpen, onClose, resetTime }: RateLimit
     subtext: "Includes 200 daily requests and basic reporting.",
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div 
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
-      style={{ backgroundColor: bgOverlay }}
-      onClick={onClose}
-    >
-      <div 
-        className="w-full max-w-[480px] rounded-t-2xl sm:rounded-2xl border-t sm:border shadow-2xl max-h-[90vh] overflow-y-auto"
-        style={{ 
-          backgroundColor: cardBg,
-          borderColor: borderColor,
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header Section */}
-        <div 
-          className="border-b px-5 pt-6 pb-5 sm:p-6 flex flex-col gap-4"
-          style={{ 
-            backgroundColor: cardBg,
-            borderColor: borderColor,
-          }}
-        >
-          <div className="flex items-start gap-4">
-            <div 
-              className="shrink-0 w-11 h-11 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center border"
-              style={{
-                backgroundColor: accentBg,
-                borderColor: accentBorder,
+    <>
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            className="fixed inset-0 z-50"
+            style={{ backgroundColor: bgOverlay }}
+            onClick={onClose}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              className="fixed left-1/2 top-1/2 z-50 w-full max-w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-lg border shadow-lg overflow-hidden"
+              style={{ 
+                backgroundColor: cardBg,
+                borderColor: borderColor,
               }}
+              onClick={(e) => e.stopPropagation()}
             >
-              <LockIcon className="w-5 h-5 sm:w-6 sm:h-6" style={{ color: primaryColor }} />
-            </div>
-
-            <div className="space-y-1.5 flex-1 min-w-0">
-              <h2 
-                className="text-lg sm:text-xl font-display font-bold leading-tight"
-                style={{ color: textForeground }}
-              >
-                {content.title}
-              </h2>
-              <p 
-                className="text-sm sm:text-base leading-relaxed"
-                style={{ color: textMuted }}
-              >
-                {content.description}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Body Section */}
-        <div className="px-5 py-5 sm:p-6 space-y-5 sm:space-y-6" style={{ backgroundColor: cardBg }}>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <span 
-                className="text-xs font-semibold uppercase tracking-wide"
-                style={{ color: textMuted }}
-              >
-                Daily Usage
-              </span>
-              <div className="text-right flex items-baseline gap-1">
-                <span 
-                  className="text-base sm:text-lg font-semibold tabular-nums"
-                  style={{ color: isLimitReached ? destructiveColor : textForeground }}
-                >
-                  {currentUsage}
-                </span>
-                <span className="text-sm" style={{ color: textMuted }}>/</span>
-                <span className="text-sm tabular-nums" style={{ color: textMuted }}>{limit}</span>
-              </div>
-            </div>
-            
-            {/* Progress bar */}
-            <div 
-              className="h-2.5 sm:h-3 rounded-full overflow-hidden"
-              style={{ backgroundColor: secondaryBg }}
-            >
+              {/* Header Section */}
               <div 
-                className="h-full rounded-full transition-all duration-500 ease-out"
+                className="border-b p-6"
                 style={{ 
-                  width: `${progress}%`,
-                  backgroundColor: isLimitReached ? destructiveColor : primaryColor,
-                }}
-              />
-            </div>
-            
-            {isLimitReached && resetTime && (
-              <div 
-                className="flex items-start gap-2.5 text-xs sm:text-sm p-3 sm:p-3.5 rounded-lg border"
-                style={{
-                  color: destructiveColor,
-                  backgroundColor: destructiveBg,
-                  borderColor: destructiveBorder,
+                  backgroundColor: cardBg,
+                  borderColor: borderColor,
                 }}
               >
-                <AlertCircleIcon className="w-4 h-4 sm:w-5 sm:h-5 shrink-0 mt-0.5" />
-                <span className="font-medium leading-relaxed">Queries paused. {formatResetTime(resetTime)}.</span>
+                <h2 
+                  className="text-xl font-display font-bold"
+                  style={{ color: textForeground }}
+                >
+                  {content.title}
+                </h2>
+                <p 
+                  className="text-sm mt-1"
+                  style={{ color: textMuted }}
+                >
+                  {content.description}
+                </p>
               </div>
-            )}
-          </div>
 
-          <div className="space-y-3 pt-1">
-            {/* Create account button - primary */}
-            <button
-              type="button"
-              onClick={() => {
-                setAuthMode('signup');
-                setShowAuthModal(true);
-              }}
-              className="w-full px-5 py-3.5 sm:py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg active:scale-[0.98] text-base"
-              style={{
-                backgroundColor: primaryColor,
-                color: '#ffffff',
-                fontFamily: "var(--font-sans), system-ui, sans-serif",
-                boxShadow: `0 4px 14px ${primaryColor}40`,
-                minHeight: '48px', // Better touch target
-              }}
-            >
-              {content.action}
-            </button>
-            
-            {/* Login option */}
-            <div className="text-center pt-1">
-              <span className="text-sm" style={{ color: textMuted }}>
-                {content.loginText}{' '}
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  setAuthMode('login');
-                  setShowAuthModal(true);
-                }}
-                className="text-sm font-semibold transition-colors active:opacity-70 py-2 -my-2"
-                style={{
-                  color: primaryColor,
-                  minHeight: '44px', // Better touch target
-                }}
-              >
-                Log in
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+              {/* Body Section */}
+              <div className="p-6 space-y-6" style={{ backgroundColor: cardBg }}>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span 
+                      className="text-xs font-semibold uppercase tracking-wide"
+                      style={{ color: textMuted }}
+                    >
+                      Daily Usage
+                    </span>
+                    <div className="text-right flex items-baseline gap-1">
+                      <span 
+                        className="text-lg font-semibold tabular-nums"
+                        style={{ color: isLimitReached ? destructiveColor : textForeground }}
+                      >
+                        {currentUsage}
+                      </span>
+                      <span className="text-sm" style={{ color: textMuted }}>/</span>
+                      <span className="text-sm tabular-nums" style={{ color: textMuted }}>{limit}</span>
+                    </div>
+                  </div>
+                  
+                  {/* Progress bar */}
+                  <div 
+                    className="h-3 rounded-full overflow-hidden"
+                    style={{ backgroundColor: secondaryBg }}
+                  >
+                    <div 
+                      className="h-full rounded-full transition-all duration-500 ease-out"
+                      style={{ 
+                        width: `${progress}%`,
+                        backgroundColor: isLimitReached ? destructiveColor : primaryColor,
+                      }}
+                    />
+                  </div>
+                  
+                  {isLimitReached && resetTime && (
+                    <div 
+                      className="flex items-start gap-2.5 text-sm p-3.5 rounded-lg border"
+                      style={{
+                        color: destructiveColor,
+                        backgroundColor: destructiveBg,
+                        borderColor: destructiveBorder,
+                      }}
+                    >
+                      <AlertCircleIcon className="w-5 h-5 shrink-0 mt-0.5" />
+                      <span className="font-medium leading-relaxed">Queries paused. {formatResetTime(resetTime)}.</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-3">
+                  {/* Create account button - primary */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthMode('signup');
+                      setShowAuthModal(true);
+                    }}
+                    className="w-full px-4 py-2.5 rounded-lg font-semibold transition-all duration-200 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{
+                      backgroundColor: primaryColor,
+                      color: '#ffffff',
+                    }}
+                  >
+                    {content.action}
+                  </button>
+                  
+                  {/* Login option */}
+                  <div className="text-center">
+                    <span className="text-sm" style={{ color: textMuted }}>
+                      {content.loginText}{' '}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAuthMode('login');
+                        setShowAuthModal(true);
+                      }}
+                      className="text-sm font-medium transition-colors hover:underline"
+                      style={{
+                        color: primaryColor,
+                      }}
+                    >
+                      Log in
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Auth Modal */}
       <AuthModal 
@@ -272,6 +267,6 @@ export default function RateLimitModal({ isOpen, onClose, resetTime }: RateLimit
         onClose={() => setShowAuthModal(false)}
         initialMode={authMode}
       />
-    </div>
+    </>
   );
 }

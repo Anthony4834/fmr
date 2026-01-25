@@ -1,13 +1,35 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import ContactModal from '@/app/components/ContactModal';
 
 export default function FooterV2() {
   const [showContactModal, setShowContactModal] = useState(false);
+  const [isDark, setIsDark] = useState(false);
   const currentYear = new Date().getFullYear();
+
+  // Check theme
+  useEffect(() => {
+    const checkTheme = () => {
+      const theme = document.documentElement.getAttribute('data-theme');
+      setIsDark(theme === 'dark');
+    };
+    
+    checkTheme();
+    const observer = new MutationObserver(checkTheme);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    
+    return () => observer.disconnect();
+  }, []);
+
+  // Theme colors
+  const bgColor = isDark ? 'hsl(220 15% 10%)' : 'hsl(210 20% 98%)';
+  const borderColor = isDark ? 'hsl(220 15% 20%)' : 'hsl(220 15% 90%)';
+  const headingColor = isDark ? 'hsl(0 0% 98%)' : 'hsl(220 30% 12%)';
+  const textColor = isDark ? 'hsl(0 0% 70%)' : 'hsl(220 15% 45%)';
+  const mutedColor = isDark ? 'hsl(0 0% 55%)' : 'hsl(220 15% 55%)';
   
   const productLinks = [
     { href: '/', label: 'Search' },
@@ -35,8 +57,8 @@ export default function FooterV2() {
     <footer 
       className="py-10 sm:py-12 md:py-16 border-t"
       style={{ 
-        backgroundColor: 'hsl(210 20% 98%)',
-        borderColor: 'hsl(220 15% 90%)',
+        backgroundColor: bgColor,
+        borderColor: borderColor,
       }}
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
@@ -59,7 +81,7 @@ export default function FooterV2() {
               </div>
               <span 
                 className="font-display font-semibold text-lg sm:text-xl tracking-tight"
-                style={{ color: 'hsl(220 30% 12%)' }}
+                style={{ color: headingColor }}
               >
                 fmr.fyi
               </span>
@@ -67,7 +89,7 @@ export default function FooterV2() {
             <p 
               className="text-xs sm:text-sm leading-relaxed max-w-xs mb-3 sm:mb-4"
               style={{ 
-                color: 'hsl(220 15% 45%)',
+                color: textColor,
                 fontFamily: 'var(--font-sans), system-ui, sans-serif',
               }}
             >
@@ -76,7 +98,7 @@ export default function FooterV2() {
             <p 
               className="text-xs hidden sm:block"
               style={{ 
-                color: 'hsl(220 15% 55%)',
+                color: mutedColor,
                 fontFamily: 'var(--font-sans), system-ui, sans-serif',
               }}
             >
@@ -89,7 +111,7 @@ export default function FooterV2() {
             <h3 
               className="font-semibold text-xs sm:text-sm mb-3 sm:mb-4"
               style={{ 
-                color: 'hsl(220 30% 12%)',
+                color: headingColor,
                 fontFamily: 'var(--font-sans), system-ui, sans-serif',
               }}
             >
@@ -105,7 +127,7 @@ export default function FooterV2() {
                       rel="noopener noreferrer"
                       className="text-xs sm:text-sm transition-colors inline-flex items-center gap-1"
                       style={{ 
-                        color: 'hsl(220 15% 45%)',
+                        color: textColor,
                         fontFamily: 'var(--font-sans), system-ui, sans-serif',
                       }}
                     >
@@ -119,7 +141,7 @@ export default function FooterV2() {
                       href={link.href}
                       className="text-xs sm:text-sm transition-colors"
                       style={{ 
-                        color: 'hsl(220 15% 45%)',
+                        color: textColor,
                         fontFamily: 'var(--font-sans), system-ui, sans-serif',
                       }}
                     >
@@ -136,7 +158,7 @@ export default function FooterV2() {
             <h3 
               className="font-semibold text-xs sm:text-sm mb-3 sm:mb-4"
               style={{ 
-                color: 'hsl(220 30% 12%)',
+                color: headingColor,
                 fontFamily: 'var(--font-sans), system-ui, sans-serif',
               }}
             >
@@ -150,7 +172,7 @@ export default function FooterV2() {
                       onClick={link.onClick}
                       className="text-xs sm:text-sm transition-colors text-left hover:opacity-80"
                       style={{ 
-                        color: 'hsl(220 15% 45%)',
+                        color: textColor,
                         fontFamily: 'var(--font-sans), system-ui, sans-serif',
                       }}
                     >
@@ -161,7 +183,7 @@ export default function FooterV2() {
                       href={link.href}
                       className="text-xs sm:text-sm transition-colors"
                       style={{ 
-                        color: 'hsl(220 15% 45%)',
+                        color: textColor,
                         fontFamily: 'var(--font-sans), system-ui, sans-serif',
                       }}
                     >
@@ -178,7 +200,7 @@ export default function FooterV2() {
             <h3 
               className="font-semibold text-xs sm:text-sm mb-3 sm:mb-4"
               style={{ 
-                color: 'hsl(220 30% 12%)',
+                color: headingColor,
                 fontFamily: 'var(--font-sans), system-ui, sans-serif',
               }}
             >
@@ -191,7 +213,7 @@ export default function FooterV2() {
                     href={link.href}
                     className="text-xs sm:text-sm transition-colors"
                     style={{ 
-                      color: 'hsl(220 15% 45%)',
+                      color: textColor,
                       fontFamily: 'var(--font-sans), system-ui, sans-serif',
                     }}
                   >
@@ -206,13 +228,13 @@ export default function FooterV2() {
         {/* Bottom bar */}
         <div 
           className="pt-6 sm:pt-8 border-t flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-4"
-          style={{ borderColor: 'hsl(220 15% 90%)' }}
+          style={{ borderColor: borderColor }}
         >
           <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
             <p 
               className="text-xs sm:text-sm"
               style={{ 
-                color: 'hsl(220 15% 55%)',
+                color: mutedColor,
                 fontFamily: 'var(--font-sans), system-ui, sans-serif',
               }}
             >
@@ -222,7 +244,7 @@ export default function FooterV2() {
               href="/privacy"
               className="text-xs sm:text-sm transition-colors hover:opacity-80"
               style={{ 
-                color: 'hsl(220 15% 55%)',
+                color: mutedColor,
                 fontFamily: 'var(--font-sans), system-ui, sans-serif',
               }}
             >
@@ -232,7 +254,7 @@ export default function FooterV2() {
           <p 
             className="text-xs"
             style={{ 
-              color: 'hsl(220 15% 60%)',
+              color: mutedColor,
               fontFamily: 'var(--font-sans), system-ui, sans-serif',
             }}
           >
