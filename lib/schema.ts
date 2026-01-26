@@ -814,6 +814,24 @@ export async function createSchema() {
     );
   `);
 
+  // Guests table for tracking guest users and conversions
+  await execute(`
+    CREATE TABLE IF NOT EXISTS guests (
+      id SERIAL PRIMARY KEY,
+      guest_id UUID UNIQUE NOT NULL,
+      ip_hash VARCHAR(64) NOT NULL,
+      ua_hash VARCHAR(64) NOT NULL,
+      first_seen TIMESTAMPTZ DEFAULT NOW(),
+      last_seen TIMESTAMPTZ DEFAULT NOW(),
+      request_count INTEGER DEFAULT 0,
+      limit_hit_at TIMESTAMPTZ,
+      converted_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+      conversion_reason VARCHAR(50) CHECK (conversion_reason IN ('organic', 'after_limit_hit', 'extension')),
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
   // Auth table indexes
   await execute(
     "CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);"
@@ -844,6 +862,18 @@ export async function createSchema() {
   );
   await execute(
     "CREATE INDEX IF NOT EXISTS idx_verification_attempts_ip ON verification_attempts(ip_address, attempted_at DESC);"
+  );
+  await execute(
+    "CREATE INDEX IF NOT EXISTS idx_guests_guest_id ON guests(guest_id);"
+  );
+  await execute(
+    "CREATE INDEX IF NOT EXISTS idx_guests_converted_user_id ON guests(converted_user_id) WHERE converted_user_id IS NOT NULL;"
+  );
+  await execute(
+    "CREATE INDEX IF NOT EXISTS idx_guests_limit_hit_at ON guests(limit_hit_at) WHERE limit_hit_at IS NOT NULL;"
+  );
+  await execute(
+    "CREATE INDEX IF NOT EXISTS idx_guests_last_seen ON guests(last_seen DESC);"
   );
 
   console.log("Schema created successfully!");

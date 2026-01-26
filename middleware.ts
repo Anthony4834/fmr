@@ -1,8 +1,66 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
-import { checkRateLimit, getUserTierFromToken, getUserIdFromToken, type AuthToken } from '@/lib/rate-limit';
+import { checkRateLimit, getUserTierFromToken, getUserIdFromToken, type AuthToken, getClientIP } from '@/lib/rate-limit';
+import { trackGuestActivity } from '@/lib/guest-tracking';
 import * as jose from 'jose';
+
+/**
+ * Generate a UUID v4 using Web Crypto API (Edge Runtime compatible)
+ */
+function generateUUID(): string {
+  // Use Web Crypto API for Edge Runtime compatibility
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  
+  // Set version (4) and variant bits
+  bytes[6] = (bytes[6] & 0x0f) | 0x40; // Version 4
+  bytes[8] = (bytes[8] & 0x3f) | 0x80; // Variant 10
+  
+  // Convert to UUID string format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
+  const hex = Array.from(bytes)
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+  
+  return [
+    hex.substring(0, 8),
+    hex.substring(8, 12),
+    hex.substring(12, 16),
+    hex.substring(16, 20),
+    hex.substring(20, 32),
+  ].join('-');
+}
+
+/**
+ * Get or create guest_id cookie
+ * Returns the guest_id and whether it was newly created
+ */
+function getOrCreateGuestId(request: NextRequest, response: NextResponse): { guestId: string; isNew: boolean } {
+  const guestIdCookie = request.cookies.get('guest_id');
+  
+  if (guestIdCookie?.value) {
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (uuidRegex.test(guestIdCookie.value)) {
+      return { guestId: guestIdCookie.value, isNew: false };
+    }
+  }
+  
+  // Generate new guest_id
+  const newGuestId = generateUUID();
+  const isSecure = request.url.startsWith('https://');
+  
+  // Set cookie: HttpOnly, 1 year expiry, SameSite=Lax
+  response.cookies.set('guest_id', newGuestId, {
+    httpOnly: true,
+    secure: isSecure,
+    sameSite: 'lax',
+    maxAge: 60 * 60 * 24 * 365, // 1 year
+    path: '/',
+  });
+  
+  return { guestId: newGuestId, isNew: true };
+}
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -151,6 +209,9 @@ async function validateExtensionToken(authHeader: string | null): Promise<AuthTo
  */
 async function handleRateLimit(request: NextRequest): Promise<NextResponse> {
   try {
+    // Create response early so we can set cookies
+    let response: NextResponse;
+    
     // First check for extension Bearer token
     const authHeader = request.headers.get('authorization');
     console.log('[Middleware] Auth header present:', !!authHeader);
@@ -194,12 +255,36 @@ async function handleRateLimit(request: NextRequest): Promise<NextResponse> {
     const userId = getUserIdFromToken(token);
     console.log('[Middleware] Final tier:', tier, 'userId:', userId);
     
-    const rateLimitResult = await checkRateLimit(tier, request, userId);
+    // Get or create guest_id cookie (for logged-out users)
+    // Create a temporary response to set cookies
+    const tempResponse = NextResponse.next();
+    let guestId: string | undefined;
+    
+    if (tier === 'logged-out') {
+      const { guestId: id, isNew } = getOrCreateGuestId(request, tempResponse);
+      guestId = id;
+      if (isNew) {
+        console.log('[Middleware] Created new guest_id:', guestId);
+      }
+    }
+    
+    const rateLimitResult = await checkRateLimit(tier, request, userId, guestId);
+
+    // Track guest activity asynchronously (for logged-out users)
+    if (tier === 'logged-out' && guestId) {
+      const ip = getClientIP(request);
+      const userAgent = request.headers.get('user-agent') || 'unknown';
+      const limitHit = !rateLimitResult.success;
+      // Fire and forget - don't await
+      trackGuestActivity(guestId, ip, userAgent, limitHit).catch(err => {
+        console.error('Failed to track guest activity:', err);
+      });
+    }
 
     const isApiRoute = request.nextUrl.pathname.startsWith('/api/');
 
-    // Create response (will be used whether rate limited or not)
-    const response = rateLimitResult.success
+    // Create final response (will be used whether rate limited or not)
+    response = rateLimitResult.success
       ? NextResponse.next()
       : isApiRoute
         ? new NextResponse(
@@ -218,6 +303,18 @@ async function handleRateLimit(request: NextRequest): Promise<NextResponse> {
           NextResponse.redirect(
             new URL(`/?rateLimitExceeded=true&resetTime=${rateLimitResult.reset}`, request.url)
           );
+
+    // Copy guest_id cookie to final response if it was set
+    if (tier === 'logged-out' && guestId) {
+      const isSecure = request.url.startsWith('https://');
+      response.cookies.set('guest_id', guestId, {
+        httpOnly: true,
+        secure: isSecure,
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 365, // 1 year
+        path: '/',
+      });
+    }
 
     // Add CORS headers for API routes
     if (isApiRoute) {

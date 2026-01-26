@@ -34,31 +34,53 @@ function formatResetTime(resetTime: number): string {
   const resetDate = new Date(resetTime);
   const now = new Date();
   
-  // Check if reset is today or tomorrow
-  const resetDateStr = resetDate.toDateString();
-  const todayStr = now.toDateString();
-  const tomorrow = new Date(now);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const tomorrowStr = tomorrow.toDateString();
+  // Calculate time difference
+  const diffMs = resetTime - now.getTime();
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
   
-  const timeStr = resetDate.toLocaleTimeString('en-US', {
+  // If reset is within 24 hours, show relative time for clarity
+  if (diffMs < 24 * 60 * 60 * 1000 && diffMs > 0) {
+    if (diffHours > 0) {
+      return `Resets in ${diffHours} hour${diffHours !== 1 ? 's' : ''}${diffMinutes > 0 ? ` and ${diffMinutes} minute${diffMinutes !== 1 ? 's' : ''}` : ''}`;
+    } else if (diffMinutes > 0) {
+      return `Resets in ${diffMinutes} minute${diffMinutes !== 1 ? 's' : ''}`;
+    } else {
+      return `Resets soon`;
+    }
+  }
+  
+  // For longer durations, show absolute time in UTC
+  const resetUTC = new Date(resetDate.getTime());
+  const nowUTC = new Date(now.getTime());
+  
+  const resetDateStr = resetUTC.toISOString().split('T')[0];
+  const todayStr = nowUTC.toISOString().split('T')[0];
+  const tomorrowUTC = new Date(nowUTC);
+  tomorrowUTC.setUTCDate(tomorrowUTC.getUTCDate() + 1);
+  const tomorrowStr = tomorrowUTC.toISOString().split('T')[0];
+  
+  // Format time in UTC to avoid confusion
+  const timeStrUTC = resetUTC.toLocaleTimeString('en-US', {
     hour: 'numeric',
     minute: '2-digit',
     hour12: true,
+    timeZone: 'UTC',
   });
   
   if (resetDateStr === todayStr) {
-    return `Resets today at ${timeStr}`;
+    return `Resets today at ${timeStrUTC} UTC`;
   } else if (resetDateStr === tomorrowStr) {
-    return `Resets tomorrow at ${timeStr}`;
+    return `Resets tomorrow at ${timeStrUTC} UTC`;
   } else {
-    // Format as "Resets on [Day], [Month] [Date] at [Time]"
-    const dateStr = resetDate.toLocaleDateString('en-US', {
+    // Format as "Resets on [Day], [Month] [Date] at [Time] UTC"
+    const dateStr = resetUTC.toLocaleDateString('en-US', {
       weekday: 'short',
       month: 'short',
       day: 'numeric',
+      timeZone: 'UTC',
     });
-    return `Resets on ${dateStr} at ${timeStr}`;
+    return `Resets on ${dateStr} at ${timeStrUTC} UTC`;
   }
 }
 

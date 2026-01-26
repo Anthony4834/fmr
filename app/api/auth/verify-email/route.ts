@@ -7,6 +7,7 @@ import {
   updateLastAttemptSuccess,
   normalizeResponseTime,
 } from '@/lib/auth-rate-limit';
+import { hasGuestHitLimit, recordGuestConversion } from '@/lib/guest-tracking';
 import bcrypt from 'bcryptjs';
 
 /**
@@ -111,11 +112,23 @@ export async function POST(request: Request) {
       [email.toLowerCase(), 'email_verification']
     );
 
-    // Set email_verified timestamp
-    await execute(
-      'UPDATE users SET email_verified = NOW() WHERE LOWER(email) = LOWER($1)',
+    // Set email_verified timestamp and get user ID
+    const updatedUsers = await query<{ id: string }>(
+      'UPDATE users SET email_verified = NOW() WHERE LOWER(email) = LOWER($1) RETURNING id',
       [email]
     );
+
+    // Track guest conversion if guest_id exists
+    const { getGuestIdFromRequest } = await import('@/lib/guest-tracking');
+    const guestId = getGuestIdFromRequest(request);
+    if (guestId && updatedUsers[0]?.id) {
+      const hitLimit = await hasGuestHitLimit(guestId);
+      const conversionReason = hitLimit ? 'after_limit_hit' : 'organic';
+      // Fire and forget - don't block verification
+      recordGuestConversion(guestId, updatedUsers[0].id, conversionReason).catch(err => {
+        console.error('Failed to record guest conversion:', err);
+      });
+    }
 
     await normalizeResponseTime(startTime);
 

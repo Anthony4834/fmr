@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { query, execute } from '@/lib/db';
+import { hasGuestHitLimit, recordGuestConversion } from '@/lib/guest-tracking';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 
@@ -110,6 +111,18 @@ export async function POST(request: NextRequest) {
        VALUES ($1, $2, $3)`,
       [user.id, refreshTokenHash, expiresAt]
     );
+
+    // Track guest conversion if guest_id exists (extension usage)
+    const { getGuestIdFromRequest } = await import('@/lib/guest-tracking');
+    const guestIdCookie = getGuestIdFromRequest(request);
+    if (guestIdCookie) {
+      const hitLimit = await hasGuestHitLimit(guestIdCookie);
+      const conversionReason = 'extension';
+      // Fire and forget - don't block token generation
+      recordGuestConversion(guestIdCookie, user.id, conversionReason).catch(err => {
+        console.error('Failed to record guest conversion:', err);
+      });
+    }
 
     // Create access token
     const accessToken = createAccessToken(user);

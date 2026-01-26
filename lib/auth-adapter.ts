@@ -18,6 +18,11 @@ export function PostgresAdapter(): Adapter {
          RETURNING id, email, email_verified as "emailVerified", name, image`,
         [user.email, user.emailVerified, user.name, user.image]
       );
+      
+      // Track guest conversion for OAuth signups (fire-and-forget)
+      // Note: We can't access cookies here, so conversion tracking happens in events.signIn
+      // which has access to headers via next/headers
+      
       return result[0];
     },
 

@@ -3,6 +3,7 @@ import { query, execute } from '@/lib/db';
 import { hashPassword, validatePassword } from '@/lib/auth';
 import { checkSignupAllowed, normalizeResponseTime } from '@/lib/auth-rate-limit';
 import { generateVerificationCode, sendVerificationEmail } from '@/lib/email';
+import { hasGuestHitLimit, recordGuestConversion } from '@/lib/guest-tracking';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 
@@ -110,20 +111,39 @@ export async function POST(request: Request) {
       [email.toLowerCase(), codeHash, 'email_verification']
     );
 
+    // Get guest_id from cookie to track conversion
+    const { getGuestIdFromRequest } = await import('@/lib/guest-tracking');
+    const guestId = getGuestIdFromRequest(request);
+
     // If user doesn't exist, create new user
+    let userId: string | null = null;
     if (!userExists) {
       const passwordHash = await hashPassword(password);
-      await execute(
+      const result = await query<{ id: string }>(
         `INSERT INTO users (email, name, password_hash, tier, signup_method)
-         VALUES (LOWER($1), $2, $3, 'free', 'credentials')`,
+         VALUES (LOWER($1), $2, $3, 'free', 'credentials')
+         RETURNING id`,
         [email, name || null, passwordHash]
       );
+      userId = result[0]?.id || null;
     } else {
       // User exists but unverified - update signup_method if needed
-      await execute(
-        `UPDATE users SET signup_method = 'credentials' WHERE LOWER(email) = LOWER($1) AND signup_method IS NULL`,
+      const result = await query<{ id: string }>(
+        `UPDATE users SET signup_method = 'credentials' WHERE LOWER(email) = LOWER($1) AND signup_method IS NULL
+         RETURNING id`,
         [email]
       );
+      userId = result[0]?.id || existing[0]?.id || null;
+    }
+
+    // Track guest conversion if guest_id exists
+    if (guestId && userId) {
+      const hitLimit = await hasGuestHitLimit(guestId);
+      const conversionReason = hitLimit ? 'after_limit_hit' : 'organic';
+      // Fire and forget - don't block signup
+      recordGuestConversion(guestId, userId, conversionReason).catch(err => {
+        console.error('Failed to record guest conversion:', err);
+      });
     }
 
     // Send verification email (fire-and-forget, don't block)

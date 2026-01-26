@@ -36,7 +36,8 @@
     "normalize:county-names": "bun scripts/normalize-county-names-from-fips.ts",
     "index:investment-scores": "bun scripts/index-investment-scores.ts",
     "scrape:rentcast": "bun scripts/rentcast-local-scraper.ts",
-    "scrape:rentcast:reset": "bun scripts/rentcast-local-scraper.ts --reset"
+    "scrape:rentcast:reset": "bun scripts/rentcast-local-scraper.ts --reset",
+    "migrate:guests": "bun scripts/migrate-guests-table.ts"
   },
   "dependencies": {
     "@upstash/ratelimit": "^2.0.8",

@@ -210,6 +210,21 @@ export default async function AdminDashboardPage() {
                 </p>
               </div>
             </Link>
+
+            <Link
+              href="/admin/guests"
+              className="relative rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-6 py-5 shadow-sm flex items-center space-x-3 hover:border-gray-400 dark:hover:border-gray-500 focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2"
+            >
+              <div className="flex-1 min-w-0">
+                <span className="absolute inset-0" aria-hidden="true" />
+                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                  Guest Management
+                </p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                  View guest users and conversions
+                </p>
+              </div>
+            </Link>
           </div>
         </div>
       </div>

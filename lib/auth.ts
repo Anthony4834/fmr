@@ -176,10 +176,47 @@ const config: NextAuthConfig = {
   },
 
   events: {
-    async signIn({ user, account }) {
+    async signIn({ user, account, isNewUser }) {
       // Log successful sign-ins (optional, for monitoring)
       if (process.env.NODE_ENV === 'development') {
-        console.log(`User signed in: ${user.email} via ${account?.provider}`);
+        console.log(`User signed in: ${user.email} via ${account?.provider}${isNewUser ? ' (new user)' : ''}`);
+      }
+
+      // Track guest conversion for OAuth signups
+      // Only track conversions for new OAuth users (signups, not logins)
+      // Note: Conversion tracking also happens in signIn callback, but we use isNewUser here
+      // to ensure we only track actual signups, not existing user logins
+      if (isNewUser && account?.provider !== 'credentials') {
+        try {
+          // Import dynamically to avoid circular dependencies
+          const { hasGuestHitLimit, recordGuestConversion } = await import('./guest-tracking');
+          
+          // Access headers to get cookies (NextAuth v5 App Router)
+          const { headers } = await import('next/headers');
+          const headersList = headers();
+          
+          // Extract guest_id from cookie header
+          const cookieHeader = headersList.get('cookie') || '';
+          const guestIdMatch = cookieHeader.match(/guest_id=([^;]+)/);
+          const guestId = guestIdMatch ? guestIdMatch[1].trim() : undefined;
+          
+          if (guestId && user.id) {
+            const hitLimit = await hasGuestHitLimit(guestId);
+            const conversionReason = hitLimit ? 'after_limit_hit' : 'organic';
+            // Fire and forget - don't block sign-in
+            recordGuestConversion(guestId, user.id, conversionReason).catch(err => {
+              if (process.env.NODE_ENV === 'development') {
+                console.error('Failed to record guest conversion:', err);
+              }
+            });
+          }
+        } catch (error) {
+          // Silently fail - don't break OAuth sign-in if tracking fails
+          // This can happen if headers() is not available in the current context
+          if (process.env.NODE_ENV === 'development') {
+            console.error('Failed to track OAuth conversion:', error);
+          }
+        }
       }
     },
   },
