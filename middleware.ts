@@ -32,10 +32,45 @@ function generateUUID(): string {
 }
 
 /**
+ * Fixed guest_id for scripts to avoid inflating the guest list
+ */
+const SCRIPT_GUEST_ID = '00000000-0000-4000-8000-000000000000';
+
+/**
+ * Check if a request is from a script (by User-Agent or header)
+ */
+function isScriptRequest(request: NextRequest): boolean {
+  const userAgent = request.headers.get('user-agent') || '';
+  const scriptHeader = request.headers.get('x-script-request');
+  
+  return (
+    userAgent.includes('fmr-search-script') ||
+    scriptHeader === 'true' ||
+    userAgent.includes('puppeteer') ||
+    userAgent.includes('headless')
+  );
+}
+
+/**
  * Get or create guest_id cookie
  * Returns the guest_id and whether it was newly created
+ * Scripts use a fixed guest_id to avoid inflating the guest list
  */
 function getOrCreateGuestId(request: NextRequest, response: NextResponse): { guestId: string; isNew: boolean } {
+  // Check if this is a script request
+  if (isScriptRequest(request)) {
+    // Use fixed guest_id for scripts
+    const isSecure = request.url.startsWith('https://');
+    response.cookies.set('guest_id', SCRIPT_GUEST_ID, {
+      httpOnly: true,
+      secure: isSecure,
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 365, // 1 year
+      path: '/',
+    });
+    return { guestId: SCRIPT_GUEST_ID, isNew: false };
+  }
+  
   const guestIdCookie = request.cookies.get('guest_id');
   
   if (guestIdCookie?.value) {

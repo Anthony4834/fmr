@@ -493,8 +493,14 @@ async function main() {
   const browser = await launchBrowser();
   const page = await browser.newPage();
   
-  // Set user agent to look like a real browser
-  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+  // Set user agent that identifies this as a script to avoid inflating guest list
+  // The middleware will recognize 'fmr-search-script' and use a fixed guest_id
+  await page.setUserAgent('fmr-search-script/1.0 (Puppeteer)');
+  
+  // Set extra headers to identify as script request
+  await page.setExtraHTTPHeaders({
+    'X-Script-Request': 'true',
+  });
   
   state.isRunning = true;
   saveState(state);
