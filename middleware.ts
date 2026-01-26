@@ -296,6 +296,20 @@ async function validateExtensionToken(authHeader: string | null): Promise<AuthTo
  */
 async function handleRateLimit(request: NextRequest): Promise<NextResponse> {
   try {
+    // Skip rate limiting entirely for bots/crawlers (Google, Bing, etc.)
+    // We want search engines to index our pages without hitting rate limits
+    if (isBotRequest(request)) {
+      const response = NextResponse.next();
+      const isApiRoute = request.nextUrl.pathname.startsWith('/api/');
+      if (isApiRoute) {
+        response.headers.set('Access-Control-Allow-Origin', '*');
+        response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+        response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      }
+      // No rate limit headers, no guest tracking for bots
+      return response;
+    }
+    
     // Create response early so we can set cookies
     let response: NextResponse;
     
