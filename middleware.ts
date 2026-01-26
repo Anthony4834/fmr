@@ -32,9 +32,10 @@ function generateUUID(): string {
 }
 
 /**
- * Fixed guest_id for scripts to avoid inflating the guest list
+ * Fixed guest_id for scripts/bots to avoid inflating the guest list
  */
 const SCRIPT_GUEST_ID = '00000000-0000-4000-8000-000000000000';
+const BOT_GUEST_ID = '00000000-0000-4000-8000-000000000001';
 
 /**
  * Check if a request is from a script (by User-Agent or header)
@@ -52,9 +53,46 @@ function isScriptRequest(request: NextRequest): boolean {
 }
 
 /**
+ * Check if a request is from a bot/crawler
+ * These requests typically don't accept cookies and create new guest_ids on every request
+ */
+function isBotRequest(request: NextRequest): boolean {
+  const userAgent = (request.headers.get('user-agent') || '').toLowerCase();
+  
+  // Common bot patterns
+  const botPatterns = [
+    'bot', 'crawler', 'spider', 'scraper', 'curl', 'wget', 'python', 'java',
+    'googlebot', 'bingbot', 'slurp', 'duckduckbot', 'baiduspider', 'yandex',
+    'facebookexternalhit', 'twitterbot', 'linkedinbot', 'whatsapp', 'telegram',
+    'applebot', 'msnbot', 'semrush', 'ahrefs', 'mj12bot', 'dotbot', 'petalbot',
+    'bytespider', 'gptbot', 'claudebot', 'anthropic', 'ccbot', 'dataforseo',
+    'go-http-client', 'axios', 'node-fetch', 'undici', 'got',
+    'headlesschrome', 'phantomjs', 'selenium', 'playwright', 'cypress',
+  ];
+  
+  // Check if User-Agent matches any bot pattern
+  if (botPatterns.some(pattern => userAgent.includes(pattern))) {
+    return true;
+  }
+  
+  // Check for missing or very short User-Agent (likely a script/bot)
+  if (!userAgent || userAgent.length < 20) {
+    return true;
+  }
+  
+  // Check for requests without Accept-Language header (browsers always send this)
+  const acceptLanguage = request.headers.get('accept-language');
+  if (!acceptLanguage) {
+    return true;
+  }
+  
+  return false;
+}
+
+/**
  * Get or create guest_id cookie
  * Returns the guest_id and whether it was newly created
- * Scripts use a fixed guest_id to avoid inflating the guest list
+ * Scripts/bots use a fixed guest_id to avoid inflating the guest list
  */
 function getOrCreateGuestId(request: NextRequest, response: NextResponse): { guestId: string; isNew: boolean } {
   // Check if this is a script request
@@ -69,6 +107,20 @@ function getOrCreateGuestId(request: NextRequest, response: NextResponse): { gue
       path: '/',
     });
     return { guestId: SCRIPT_GUEST_ID, isNew: false };
+  }
+  
+  // Check if this is a bot/crawler request
+  if (isBotRequest(request)) {
+    // Use fixed guest_id for bots to avoid inflating guest list
+    const isSecure = request.url.startsWith('https://');
+    response.cookies.set('guest_id', BOT_GUEST_ID, {
+      httpOnly: true,
+      secure: isSecure,
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 365, // 1 year
+      path: '/',
+    });
+    return { guestId: BOT_GUEST_ID, isNew: false };
   }
   
   const guestIdCookie = request.cookies.get('guest_id');
