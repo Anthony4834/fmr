@@ -751,7 +751,7 @@ function createExcelFile(
   addCategoryRows(overviewData.highestScore, 'Highest Score');
   addCategoryRows(overviewData.highestYield, 'Highest Yield');
   addCategoryRows(overviewData.highestCashFlow, 'Highest Cash Flow');
-  addCategoryRows(overviewData.bestStarters, 'Best Starters');
+  addCategoryRows(overviewData.bestStarters, 'Low Barrier to Entry');
   addCategoryRows(overviewData.bestValue, 'Best Value');
 
   const overviewSheet = XLSX.utils.json_to_sheet(overviewRows);

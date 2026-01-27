@@ -750,7 +750,7 @@ export async function GET(req: NextRequest) {
           SELECT
             bs.city_name as name,
             bs.state_code,
-            (SELECT county_name FROM base_scores WHERE city_name = bs.city_name AND state_code = bs.state_code LIMIT 1) as county_name,
+            MAX(bs.county_name) as county_name,
             PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY bs.score) as median_score,
             PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY bs.net_yield) as median_yield,
             PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY bs.property_value) as median_value,

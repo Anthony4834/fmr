@@ -23,6 +23,8 @@ interface MarketOverviewData {
   highestYield: MarketOverviewItem[];
   highestCashFlow: MarketOverviewItem[];
   bestStarters: MarketOverviewItem[];
+  bestStartersCashFlow?: MarketOverviewItem[];
+  bestStartersScore?: MarketOverviewItem[];
   bestValue: MarketOverviewItem[];
 }
 
@@ -68,6 +70,7 @@ export default function MarketOverview({ year }: MarketOverviewProps) {
   const [data, setData] = useState<MarketOverviewData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [bestEntryLevelMode, setBestEntryLevelMode] = useState<'cashFlow' | 'score'>('cashFlow');
 
   useEffect(() => {
     let abortController = new AbortController();
@@ -105,29 +108,33 @@ export default function MarketOverview({ year }: MarketOverviewProps) {
     headerColor: string,
     tooltipContent?: string,
     useScoreColor: boolean = false,
-    useCashFlowColor: boolean = false
+    useCashFlowColor: boolean = false,
+    headerActions?: React.ReactNode
   ) => {
     return (
       <div className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] overflow-hidden">
         <div className={`px-3 py-2 border-b border-[var(--border-color)] ${headerColor}`}>
-          <div className="flex items-center gap-1.5">
-            <h4 className="text-xs font-semibold text-[var(--text-primary)]">{title}</h4>
-            {tooltipContent && (
-              <Tooltip content={tooltipContent} side="bottom" align="start">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                  className="w-3 h-3 text-[var(--text-tertiary)] cursor-help"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </Tooltip>
-            )}
+          <div className="flex items-center justify-between gap-1.5">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <h4 className="text-xs font-semibold text-[var(--text-primary)]">{title}</h4>
+              {tooltipContent && (
+                <Tooltip content={tooltipContent} side="bottom" align="start">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    className="w-3 h-3 text-[var(--text-tertiary)] cursor-help shrink-0"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </Tooltip>
+              )}
+            </div>
+            {headerActions}
           </div>
         </div>
         <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
@@ -241,17 +248,52 @@ export default function MarketOverview({ year }: MarketOverviewProps) {
         )}
 
         {renderContainer(
-          'Best Starters',
-          data?.bestStarters || [],
-          (item) => item.cashFlowEstimate,
+          'Most Efficient',
+          (bestEntryLevelMode === 'cashFlow' 
+            ? (data?.bestStartersCashFlow || data?.bestStarters || [])
+            : (data?.bestStartersScore || [])
+          ),
+          (item) => bestEntryLevelMode === 'cashFlow' ? item.cashFlowEstimate : item.score,
           (item) => {
-            const value = Math.round(item.cashFlowEstimate);
-            return value >= 0 ? `+$${value}` : `-$${Math.abs(value)}`;
+            if (bestEntryLevelMode === 'cashFlow') {
+              const value = Math.round(item.cashFlowEstimate);
+              return value >= 0 ? `+$${value}` : `-$${Math.abs(value)}`;
+            } else {
+              return Math.round(item.score).toString();
+            }
           },
           'bg-[var(--bg-tertiary)]',
-          'Entry-level properties ($90K-$110K) with highest projected cash flow',
-          false,
-          true
+          bestEntryLevelMode === 'cashFlow' 
+            ? 'Low Barrier to Entry properties ($90K-$110K) with highest projected cash flow'
+            : 'Low Barrier to Entry properties ($90K-$110K) with highest investment score',
+          bestEntryLevelMode === 'score',
+          bestEntryLevelMode === 'cashFlow',
+          (
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                onClick={() => setBestEntryLevelMode('cashFlow')}
+                className={`px-1.5 py-0.5 text-[10px] font-medium rounded transition-colors ${
+                  bestEntryLevelMode === 'cashFlow'
+                    ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
+                    : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
+                }`}
+                title="Best Cash Flow"
+              >
+                Cash Flow
+              </button>
+              <button
+                onClick={() => setBestEntryLevelMode('score')}
+                className={`px-1.5 py-0.5 text-[10px] font-medium rounded transition-colors ${
+                  bestEntryLevelMode === 'score'
+                    ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
+                    : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
+                }`}
+                title="Highest Score"
+              >
+                Score
+              </button>
+            </div>
+          )
         )}
       </div>
     </div>

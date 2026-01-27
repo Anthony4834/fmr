@@ -148,8 +148,8 @@ export async function GET(req: NextRequest) {
       LIMIT 20
     `;
 
-    // 4. Best Starters (highest cash flow with property value between 90k-110k)
-    const bestStartersQuery = baseCTE + `
+    // 4. Best Entry Level - Cash Flow (highest cash flow with property value between 90k-110k)
+    const bestStartersCashFlowQuery = baseCTE + `
       SELECT
         ROW_NUMBER() OVER (ORDER BY cash_flow_estimate DESC) as rank,
         zip_code,
@@ -167,7 +167,26 @@ export async function GET(req: NextRequest) {
       LIMIT 20
     `;
 
-    // 5. Best Value (highest score per dollar)
+    // 5. Best Entry Level - Score (highest score with property value between 90k-110k)
+    const bestStartersScoreQuery = baseCTE + `
+      SELECT
+        ROW_NUMBER() OVER (ORDER BY score DESC) as rank,
+        zip_code,
+        city_name,
+        county_name,
+        state_code,
+        bedroom_count,
+        score,
+        net_yield,
+        property_value,
+        cash_flow_estimate
+      FROM base_scores
+      WHERE property_value BETWEEN 90000 AND 110000
+      ORDER BY score DESC
+      LIMIT 20
+    `;
+
+    // 6. Best Value (highest score per dollar)
     const bestValueQuery = baseCTE + `
       SELECT
         ROW_NUMBER() OVER (ORDER BY value_ratio DESC) as rank,
@@ -188,11 +207,12 @@ export async function GET(req: NextRequest) {
     `;
 
     // Execute all queries in parallel
-    const [highestScoreResult, highestYieldResult, highestCashFlowResult, bestStartersResult, bestValueResult] = await Promise.all([
+    const [highestScoreResult, highestYieldResult, highestCashFlowResult, bestStartersCashFlowResult, bestStartersScoreResult, bestValueResult] = await Promise.all([
       sql.query(highestScoreQuery, [year]),
       sql.query(highestYieldQuery, [year]),
       sql.query(highestCashFlowQuery, [year]),
-      sql.query(bestStartersQuery, [year]),
+      sql.query(bestStartersCashFlowQuery, [year]),
+      sql.query(bestStartersScoreQuery, [year]),
       sql.query(bestValueQuery, [year]),
     ]);
 
@@ -217,7 +237,9 @@ export async function GET(req: NextRequest) {
       highestScore: mapResults(highestScoreResult.rows),
       highestYield: mapResults(highestYieldResult.rows),
       highestCashFlow: mapResults(highestCashFlowResult.rows),
-      bestStarters: mapResults(bestStartersResult.rows),
+      bestStarters: mapResults(bestStartersCashFlowResult.rows), // Default to cash flow for backward compatibility
+      bestStartersCashFlow: mapResults(bestStartersCashFlowResult.rows),
+      bestStartersScore: mapResults(bestStartersScoreResult.rows),
       bestValue: mapResults(bestValueResult.rows),
     });
   } catch (error: any) {
