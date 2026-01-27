@@ -46,6 +46,9 @@ export async function GET() {
   // Static sitemap
   parts.push(`<sitemap><loc>${xmlEscape(`${base}/sitemaps/static.xml`)}</loc><lastmod>${now}</lastmod></sitemap>`);
 
+  // Explorer sitemap
+  parts.push(`<sitemap><loc>${xmlEscape(`${base}/sitemaps/explorer.xml`)}</loc><lastmod>${now}</lastmod></sitemap>`);
+
   // States sitemap
   parts.push(`<sitemap><loc>${xmlEscape(`${base}/sitemaps/states.xml`)}</loc><lastmod>${now}</lastmod></sitemap>`);
 

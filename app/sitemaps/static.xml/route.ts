@@ -15,6 +15,8 @@ export async function GET() {
 
   const urls = [
     `${base}/`,
+    `${base}/landing`,
+    `${base}/explorer`,
     `${base}/cities`,
     `${base}/counties`,
     `${base}/zips`,
@@ -25,6 +27,17 @@ export async function GET() {
     `${base}/highest-fmr-states`,
     `${base}/fmr-vs-property-value`,
     `${base}/zip-property-data`,
+    // Key explorer filter combinations
+    `${base}/explorer?geoTab=state`,
+    `${base}/explorer?geoTab=county`,
+    `${base}/explorer?geoTab=city`,
+    `${base}/explorer?geoTab=zip`,
+    `${base}/explorer?geoTab=zip&affordabilityTier=affordable`,
+    `${base}/explorer?geoTab=zip&yieldRange=high`,
+    `${base}/explorer?geoTab=zip&affordabilityTier=affordable&yieldRange=high`,
+    `${base}/explorer?geoTab=zip&bedroom=2`,
+    `${base}/explorer?geoTab=zip&bedroom=3`,
+    `${base}/explorer?geoTab=zip&bedroom=4`,
   ];
 
   const parts: string[] = [];

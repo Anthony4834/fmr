@@ -308,73 +308,94 @@ export default function VirtualizedRankingList({
             <a
               key={`${type}-${item.rank}`}
               href={getHref(item)}
-              className="block px-3 sm:px-4 py-3 sm:py-4 md:py-5 hover:bg-[var(--bg-hover)] transition-colors border-b border-[var(--border-color)]"
+              className="block px-3 sm:px-4 py-2.5 sm:py-4 md:py-5 hover:bg-[var(--bg-hover)] transition-all border-b border-[var(--border-color)] group relative"
             >
-              {/* Mobile: Stacked card layout */}
-              <div className="sm:hidden space-y-2">
-                {/* Header row with rank and location */}
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-start gap-2 min-w-0 flex-1">
-                    <span className="text-[11px] text-[var(--text-muted)] font-medium tabular-nums shrink-0 pt-0.5">
-                      #{item.rank}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="font-medium text-[var(--text-primary)] text-sm">
+              {/* Left accent bar on hover */}
+              <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-[var(--text-primary)]/0 group-hover:bg-[var(--text-primary)]/20 transition-colors" />
+              
+              {/* Mobile: Refined card layout */}
+              <div className="sm:hidden">
+                {/* Identity Block + Score Block */}
+                <div className="flex items-start justify-between gap-3 mb-2.5">
+                  {/* Identity Block */}
+                  <div className="min-w-0 flex-1">
+                    {/* ZIP/Location with rank badge */}
+                    <div className="flex items-baseline gap-2 mb-0.5">
+                      <div className="font-normal text-[13px] text-[var(--text-primary)] leading-tight">
                         {getLabel(item)}
                       </div>
-                      {getSubLabel(item) && (
-                        <div className="text-[11px] text-[var(--text-tertiary)] mt-0.5">
-                          {getSubLabel(item)}
-                        </div>
-                      )}
+                      {/* Rank as subtle badge */}
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium tabular-nums text-[var(--text-muted)] bg-[var(--bg-tertiary)] border border-[var(--border-color)]">
+                        #{item.rank}
+                      </span>
+                      {/* Tags inline with location */}
                       {badgesToShow.length > 0 && (
-                        <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+                        <div className="flex items-center gap-1 flex-wrap">
                           {badgesToShow.map(badge => (
-                            <span key={badge.key} className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${badge.colors}`}>
+                            <span key={badge.key} className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium ${badge.colors}`}>
                               {badge.label}
                             </span>
                           ))}
                         </div>
                       )}
                     </div>
+                    {/* County/State */}
+                    {getSubLabel(item) && (
+                      <div className="text-[10px] text-[var(--text-tertiary)] leading-tight">
+                        {getSubLabel(item)}
+                      </div>
+                    )}
                   </div>
-                  {/* Score - prominent on mobile */}
-                  <div className="text-right shrink-0">
+
+                  {/* Score Block - with label */}
+                  <div className="flex flex-col items-end shrink-0">
+                    <span className="text-[9px] text-[var(--text-muted)] mb-0.5 leading-none">Score</span>
                     {item.medianScore !== null ? (
                       <span
-                        className="font-semibold text-base tabular-nums"
+                        className="font-semibold text-[15px] tabular-nums leading-none"
                         style={{ color: scoreColor }}
                       >
                         {Math.round(item.medianScore)}
                       </span>
                     ) : (
-                      <span className="text-[var(--text-tertiary)] text-sm">—</span>
+                      <span className="text-[var(--text-tertiary)] text-sm leading-none">—</span>
                     )}
                   </div>
                 </div>
 
-                {/* Metrics row - horizontal scrollable on mobile */}
-                <div className="flex items-center gap-4 text-xs">
-                  <div className="flex flex-col">
-                    <span className="text-[10px] text-[var(--text-muted)] mb-0.5">Yield</span>
-                    <span className="tabular-nums text-[var(--text-secondary)] font-medium">
+                {/* Performance Block - grouped with visual separation */}
+                <div className="flex items-end gap-3 pl-0.5 border-l-2 border-[var(--border-color)]/30">
+                  {/* Yield */}
+                  <div className="flex flex-col pb-0.5">
+                    <span className="text-[9px] text-[var(--text-muted)] mb-1 leading-none tracking-tight" style={{ opacity: 0.75 }}>
+                      Yield
+                    </span>
+                    <span className="tabular-nums text-[13px] text-[var(--text-primary)] font-semibold leading-tight">
                       {item.netYield !== null && item.netYield !== undefined 
                         ? formatPercent(item.netYield)
                         : '—'}
                     </span>
                   </div>
-                  <div className="flex flex-col">
-                    <span className="text-[10px] text-[var(--text-muted)] mb-0.5">FMR</span>
-                    <span className="tabular-nums text-[var(--text-secondary)] font-medium">
+
+                  {/* FMR */}
+                  <div className="flex flex-col pb-0.5">
+                    <span className="text-[9px] text-[var(--text-muted)] mb-1 leading-none tracking-tight" style={{ opacity: 0.75 }}>
+                      FMR
+                    </span>
+                    <span className="tabular-nums text-[13px] text-[var(--text-primary)] font-semibold leading-tight">
                       {item.medianFMR !== null && item.medianFMR !== undefined
                         ? formatCurrency(item.medianFMR)
                         : '—'}
                     </span>
                   </div>
-                  <div className="flex flex-col">
-                    <span className="text-[10px] text-[var(--text-muted)] mb-0.5">Cash Flow</span>
+
+                  {/* Cash Flow - emphasized but balanced */}
+                  <div className="flex flex-col pb-0.5">
+                    <span className="text-[9px] text-[var(--text-muted)] mb-1 leading-none tracking-tight" style={{ opacity: 0.75 }}>
+                      Cash Flow
+                    </span>
                     <span 
-                      className="text-sm font-semibold tabular-nums"
+                      className="text-[13px] font-bold tabular-nums leading-tight"
                       style={{ color: cashFlowColor }}
                     >
                       {formatCashFlow(item.cashFlowEstimate)}
@@ -384,7 +405,7 @@ export default function VirtualizedRankingList({
 
                 {/* Aggregation context label */}
                 {getAggregationLabel(item) && (
-                  <div className="text-[10px] text-[var(--text-muted)] italic">
+                  <div className="text-[9px] text-[var(--text-muted)] italic mt-1.5">
                     {getAggregationLabel(item)}
                   </div>
                 )}

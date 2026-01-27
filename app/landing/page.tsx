@@ -28,6 +28,17 @@ export const metadata: Metadata = {
     'real estate investing',
     'HUD voucher',
     'housing choice voucher',
+    'Section 8 rental properties',
+    'best Section 8 markets',
+    'Section 8 investment analysis',
+    'rental yield calculator',
+    'property investment tools',
+    'affordable housing investment',
+    'Section 8 cash flow',
+    'rental property ROI',
+    'HUD Fair Market Rent lookup',
+    'Section 8 market research',
+    'rental property finder',
   ],
   alternates: {
     canonical,
@@ -64,6 +75,11 @@ export const metadata: Metadata = {
     title,
     description,
     images: ['https://fmr.fyi/og-image.png'],
+  },
+  applicationName: 'fmr.fyi',
+  appleWebApp: {
+    title: 'fmr.fyi',
+    capable: true,
   },
 };
 
@@ -371,6 +387,83 @@ function LandingStructuredData() {
           text: 'FMR data helps investors identify markets where Section 8 rents can cover mortgage payments and expenses, generating positive cash flow. Our investment score tool analyzes FMR relative to property prices, tax rates, and rental demand.',
         },
       },
+      {
+        '@type': 'Question',
+        name: 'How does the investment score work?',
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: 'Investment score evaluates markets based on net yield (annual rent minus taxes divided by property value), rental demand indicators, and market conditions. Higher scores indicate better cash flow potential and investment opportunities.',
+        },
+      },
+      {
+        '@type': 'Question',
+        name: 'What data sources does fmr.fyi use?',
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: 'We use official HUD FMR and SAFMR data, Zillow Home Value Index (ZHVI) for property values, U.S. Census Bureau ACS data for property tax rates, and Zillow rental demand metrics. All data is updated regularly to ensure accuracy.',
+        },
+      },
+      {
+        '@type': 'Question',
+        name: 'How accurate is the cash flow calculator?',
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: 'Our cash flow calculator uses real-time mortgage rates, actual property tax rates from Census data, and FMR rent data. Estimates include standard assumptions for vacancy (8%), maintenance, and property management. Actual results may vary based on specific property conditions and local factors.',
+        },
+      },
+      {
+        '@type': 'Question',
+        name: 'Can I export data for analysis?',
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: 'Yes, registered users can export explorer data to Excel format, including investment scores, yields, FMR values, property values, and cash flow estimates for further analysis.',
+        },
+      },
+    ],
+  };
+
+  const howTo = {
+    '@context': 'https://schema.org',
+    '@type': 'HowTo',
+    name: 'How to Use FMR Data for Real Estate Investing',
+    description: 'Step-by-step guide to using Fair Market Rent data to find profitable Section 8 rental investment opportunities.',
+    step: [
+      {
+        '@type': 'HowToStep',
+        position: 1,
+        name: 'Search for a Location',
+        text: 'Enter an address, city, ZIP code, or county to view Fair Market Rent data for that area. You can see FMR values for 0-4 bedroom units.',
+      },
+      {
+        '@type': 'HowToStep',
+        position: 2,
+        name: 'Review Investment Metrics',
+        text: 'Check the investment score, which combines net yield, rental demand, and market conditions. Higher scores indicate better cash flow potential.',
+      },
+      {
+        '@type': 'HowToStep',
+        position: 3,
+        name: 'Use the Cash Flow Calculator',
+        text: 'Enter property details (purchase price, down payment, mortgage rate) to calculate estimated monthly cash flow based on FMR rent data.',
+      },
+      {
+        '@type': 'HowToStep',
+        position: 4,
+        name: 'Explore Markets',
+        text: 'Use the Market Explorer to browse and filter markets by investment score, yield, affordability, and other metrics to find the best opportunities.',
+      },
+      {
+        '@type': 'HowToStep',
+        position: 5,
+        name: 'Analyze Historical Trends',
+        text: 'Review historical FMR data to understand rent trends and market stability over time.',
+      },
+      {
+        '@type': 'HowToStep',
+        position: 6,
+        name: 'Export and Compare',
+        text: 'Export data for multiple markets to compare investment opportunities and make informed decisions.',
+      },
     ],
   };
 
@@ -391,6 +484,10 @@ function LandingStructuredData() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqPage) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(howTo) }}
       />
     </>
   );

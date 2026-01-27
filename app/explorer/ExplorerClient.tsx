@@ -1,13 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import GeographicRankings from '@/app/components/GeographicRankings';
 import AppHeader from '@/app/components/AppHeader';
+import ExplorerStructuredData from '@/app/components/ExplorerStructuredData';
 import { buildCitySlug, buildCountySlug } from '@/lib/location-slugs';
 
 export default function ExplorerClient() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [year, setYear] = useState(2026);
 
   const handleSearch = (value: string, type: 'zip' | 'city' | 'county' | 'address' | 'state') => {
@@ -72,21 +74,13 @@ export default function ExplorerClient() {
     router.push(`/?${params.toString()}`);
   };
 
-  const breadcrumbJsonLd = {
-    '@context': 'https://schema.org',
-    '@type': 'BreadcrumbList',
-    itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://fmr.fyi/' },
-      { '@type': 'ListItem', position: 2, name: 'Explorer', item: 'https://fmr.fyi/explorer' },
-    ],
-  };
+  // Get current tab from URL params
+  const geoTab = searchParams.get('geoTab') || 'state';
+  const type = (geoTab === 'county' || geoTab === 'city' || geoTab === 'zip' ? geoTab : 'state') as 'state' | 'county' | 'city' | 'zip';
 
   return (
     <main className="min-h-screen bg-[var(--bg-primary)]">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
-      />
+      <ExplorerStructuredData type={type} />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 md:pt-10 lg:pt-10">
         {/* Header (match homepage) */}
         <AppHeader 
