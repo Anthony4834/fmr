@@ -59,7 +59,6 @@ function getVisitCount(): number {
 }
 
 function shouldShowModal(): boolean {
-  return true;
   if (typeof window === 'undefined') return false;
 
   // Check if user dismissed it permanently
