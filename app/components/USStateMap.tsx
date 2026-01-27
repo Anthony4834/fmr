@@ -42,9 +42,9 @@ function getColorForScore(score: number | null): string {
     return getCSSVariable('--map-color-low', '#fca5a5'); // Light red: <95 or no data
   }
   if (score >= 130) {
-    return getCSSVariable('--map-color-high', '#16a34a'); // Dark green: >= 130
+    return getCSSVariable('--map-color-high', '#60a5fa'); // Light vibrant blue: >= 130
   }
-  return getCSSVariable('--map-color-medium', '#44e37e'); // Light green: >= 95 and < 130
+  return getCSSVariable('--map-color-medium', '#44e37e'); // Light green: 100-129
 }
 
 const countyGeoUrl = 'https://cdn.jsdelivr.net/npm/us-atlas@3/counties-10m.json';

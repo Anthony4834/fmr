@@ -43,9 +43,9 @@ function getColorForScore(score: number | null): string {
     return getCSSVariable('--map-color-low', '#fca5a5'); // Light red: <95 or no data
   }
   if (score >= 130) {
-    return getCSSVariable('--map-color-high', '#16a34a'); // Dark green: >= 130
+    return getCSSVariable('--map-color-high', '#60a5fa'); // Light vibrant blue: >= 130
   }
-  return getCSSVariable('--map-color-medium', '#44e37e'); // Light green: >= 95 and < 130
+  return getCSSVariable('--map-color-medium', '#44e37e'); // Light green: 100-129
 }
 
 function getTextColorForScore(score: number | null, themeKey?: string): string {
@@ -55,8 +55,8 @@ function getTextColorForScore(score: number | null, themeKey?: string): string {
     return themeKey === 'dark' ? '#ef4444' : '#b91c1c';
   }
   if (score >= 130) {
-    // Darker green for better contrast
-    return themeKey === 'dark' ? '#22c55e' : '#14532d';
+    // Lighter blue for better contrast
+    return themeKey === 'dark' ? '#93c5fd' : '#2563eb';
   }
   // Medium green for better contrast
   return themeKey === 'dark' ? '#4ade80' : '#16a34a';

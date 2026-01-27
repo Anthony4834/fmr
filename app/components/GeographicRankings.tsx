@@ -99,10 +99,35 @@ export default function GeographicRankings({ year }: GeographicRankingsProps) {
       });
     };
 
-    updateTabBar();
+    // Use requestAnimationFrame to ensure DOM is ready
+    requestAnimationFrame(() => {
+      updateTabBar();
+    });
+    
     window.addEventListener('resize', updateTabBar);
     return () => window.removeEventListener('resize', updateTabBar);
   }, [activeTab]);
+
+  // Initialize tab bar position on mount
+  useEffect(() => {
+    // Small delay to ensure refs are populated
+    const timer = setTimeout(() => {
+      if (tabBarRef.current && tabRefs.current.length > 0) {
+        const activeIndex = (['state', 'county', 'city', 'zip'] as GeoType[]).indexOf(activeTab);
+        const activeTabEl = tabRefs.current[activeIndex];
+        const container = tabBarRef.current;
+        if (activeTabEl && container) {
+          const containerRect = container.getBoundingClientRect();
+          const tabRect = activeTabEl.getBoundingClientRect();
+          setTabBarStyle({
+            left: tabRect.left - containerRect.left,
+            width: tabRect.width,
+          });
+        }
+      }
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []); // Run once on mount
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -118,7 +143,10 @@ export default function GeographicRankings({ year }: GeographicRankingsProps) {
   const [minScore, setMinScore] = useState<number | null>(null);
   const [bedroom, setBedroom] = useState<BedroomCount>(3);
   const [showFilters, setShowFilters] = useState(false);
-  const [mobileView, setMobileView] = useState<'overview' | 'explorer'>('overview');
+  const [mobileView, setMobileView] = useState<'overview' | 'explorer'>(() => {
+    const view = searchParams.get('mobileView');
+    return view === 'explorer' ? 'explorer' : 'overview';
+  });
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
@@ -168,6 +196,18 @@ export default function GeographicRankings({ year }: GeographicRankingsProps) {
     setSearchQuery(''); // Clear search when switching tabs
     const params = new URLSearchParams(searchParams.toString());
     params.set('geoTab', tab);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
+  // Mobile view change handler
+  const handleMobileViewChange = (view: 'overview' | 'explorer') => {
+    setMobileView(view);
+    const params = new URLSearchParams(searchParams.toString());
+    if (view === 'explorer') {
+      params.set('mobileView', 'explorer');
+    } else {
+      params.delete('mobileView'); // Default to overview
+    }
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   };
 
@@ -385,7 +425,7 @@ export default function GeographicRankings({ year }: GeographicRankingsProps) {
       <div className="lg:hidden mb-4">
         <div className="flex gap-2 border-b border-[var(--border-color)]">
           <button
-            onClick={() => setMobileView('overview')}
+            onClick={() => handleMobileViewChange('overview')}
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
               mobileView === 'overview'
                 ? 'border-[var(--text-primary)] text-[var(--text-primary)]'
@@ -395,7 +435,7 @@ export default function GeographicRankings({ year }: GeographicRankingsProps) {
             Overview
           </button>
           <button
-            onClick={() => setMobileView('explorer')}
+            onClick={() => handleMobileViewChange('explorer')}
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
               mobileView === 'explorer'
                 ? 'border-[var(--text-primary)] text-[var(--text-primary)]'

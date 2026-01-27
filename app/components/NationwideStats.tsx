@@ -562,7 +562,7 @@ export default function NationwideStats() {
                     ? state.medianScore < 95
                       ? '#b91c1c'
                       : state.medianScore >= 130
-                        ? '#14532d'
+                        ? '#2563eb'
                         : '#16a34a'
                     : '#737373';
                   return (

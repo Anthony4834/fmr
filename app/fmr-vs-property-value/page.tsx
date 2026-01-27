@@ -115,7 +115,7 @@ export default function FMRVsPropertyValuePage() {
                 comparison across different markets:
               </p>
               <ul className="list-disc list-inside space-y-1 ml-4">
-                <li><strong>≥ 130:</strong> Excellent investment potential (top 25%)</li>
+                <li><strong>≥ 130:</strong> Excellent investment potential (top tier)</li>
                 <li><strong>100-129:</strong> Above average investment potential</li>
                 <li><strong>95-99:</strong> Average investment potential</li>
                 <li><strong>&lt; 95:</strong> Below average investment potential</li>

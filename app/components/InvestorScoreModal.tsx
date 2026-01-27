@@ -209,7 +209,7 @@ export default function InvestorScoreModal({ isOpen, onClose }: InvestorScoreMod
                 <span style={{ color: textMuted }}><strong style={{ color: textForeground }}>100-129</strong> Above average</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-sm bg-[#16a34a]" />
+                <span className="w-3 h-3 rounded-sm bg-[#60a5fa]" />
                 <span style={{ color: textMuted }}><strong style={{ color: textForeground }}>130+</strong> High yield potential</span>
               </div>
             </div>

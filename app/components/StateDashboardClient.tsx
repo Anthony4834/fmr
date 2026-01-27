@@ -274,20 +274,20 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
       return getCSSVariable('--map-color-low', '#fca5a5'); // Light red: <95 or no data
     }
     if (score >= 130) {
-      return getCSSVariable('--map-color-high', '#16a34a'); // Dark green: >= 130
+      return getCSSVariable('--map-color-high', '#60a5fa'); // Light vibrant blue: >= 130
     }
-    return getCSSVariable('--map-color-medium', '#44e37e'); // Light green: >= 95 and < 130
+    return getCSSVariable('--map-color-medium', '#44e37e'); // Light green: 100-129
   }
 
   function getTextColorForScore(score: number | null): string {
-    // Use the same colors as map fills for consistency
+    // Use darker colors for better text contrast
     if (score === null || score === undefined || score < 95) {
-      return getCSSVariable('--map-color-low', '#fca5a5');
+      return '#b91c1c'; // Dark red for text
     }
     if (score >= 130) {
-      return getCSSVariable('--map-color-high', '#16a34a');
+      return '#2563eb'; // Lighter blue for text
     }
-    return getCSSVariable('--map-color-medium', '#44e37e');
+    return '#16a34a'; // Darker green for text
   }
 
   const handleSearch = (value: string, type: 'zip' | 'city' | 'county' | 'address' | 'state') => {

@@ -25,7 +25,7 @@ function getColorForScore(score: number | null): string {
     return 'var(--map-color-low, #fca5a5)';
   }
   if (score >= 130) {
-    return 'var(--map-color-high, #16a34a)';
+    return 'var(--map-color-high, #60a5fa)';
   }
   return 'var(--map-color-medium, #44e37e)';
 }

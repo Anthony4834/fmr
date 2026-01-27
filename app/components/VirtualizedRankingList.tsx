@@ -80,7 +80,7 @@ function formatPercent(value: number | null | undefined, decimals = 1): string {
 function formatCashFlow(value: number | null | undefined): string {
   if (value === null || value === undefined) return '—';
   const sign = value >= 0 ? '+' : '-';
-  return `${sign}$${Math.abs(value).toLocaleString()}/mo`;
+  return `${sign}$${Math.abs(value).toLocaleString()}`;
 }
 
 export default function VirtualizedRankingList({
@@ -156,7 +156,7 @@ export default function VirtualizedRankingList({
   const getScoreColor = (score: number | null) => {
     if (score === null || score < 0) return 'var(--text-muted)';
     if (score < 95) return '#b91c1c';
-    if (score >= 130) return '#14532d';
+    if (score >= 130) return '#2563eb'; // Lighter blue for text contrast
     return '#16a34a';
   };
 
@@ -165,6 +165,20 @@ export default function VirtualizedRankingList({
     if (cashFlow < 0) return '#b91c1c'; // red for negative
     if (cashFlow < 200) return '#ca8a04'; // yellow
     return '#16a34a'; // green
+  };
+
+  // Visual score encoding for mobile compact view
+  const getScoreVisual = (score: number | null) => {
+    if (score === null || score < 0) {
+      return { dots: '○○○○○', color: 'var(--text-muted)', tier: 'N/A' };
+    }
+    if (score < 95) {
+      return { dots: '●○○○○', color: '#b91c1c', tier: 'Low' };
+    }
+    if (score < 130) {
+      return { dots: '●●●○○', color: '#16a34a', tier: 'Med' };
+    }
+    return { dots: '●●●●●', color: '#2563eb', tier: 'High' };
   };
 
   // Memoize header to prevent rerender during loading
@@ -249,8 +263,36 @@ export default function VirtualizedRankingList({
       <div className="divide-y divide-[var(--border-color)]">
         {headerElement}
         {[...Array(10)].map((_, i) => (
-          <div key={i} className="px-3 sm:px-4 py-4 sm:py-5">
-            <div className="grid grid-cols-[40px_1fr_70px_60px_70px_90px] sm:grid-cols-[50px_1fr_80px_70px_80px_110px] gap-2 sm:gap-3 items-center">
+          <div key={i} className="px-3 sm:px-4 py-2 sm:py-4 md:py-5">
+            {/* Mobile: Two-rail skeleton */}
+            <div className="sm:hidden flex items-center gap-3">
+              {/* Left Rail - Identity */}
+              <div className="flex-shrink-0 w-[40%] min-w-0">
+                <div className="h-3 bg-[var(--border-color)] rounded w-20 mb-1 animate-pulse"></div>
+                <div className="h-2.5 bg-[var(--border-color)] rounded w-16 animate-pulse"></div>
+              </div>
+              {/* Right Rail - Metrics */}
+              <div className="flex-1 flex items-end justify-between gap-1.5">
+                <div className="flex flex-col items-center flex-1">
+                  <div className="h-3 bg-[var(--border-color)] rounded w-10 animate-pulse"></div>
+                  <div className="h-2 bg-[var(--border-color)] rounded w-8 mt-0.5 animate-pulse"></div>
+                </div>
+                <div className="flex flex-col items-center flex-1">
+                  <div className="h-3 bg-[var(--border-color)] rounded w-12 animate-pulse"></div>
+                  <div className="h-2 bg-[var(--border-color)] rounded w-6 mt-0.5 animate-pulse"></div>
+                </div>
+                <div className="flex flex-col items-center flex-1">
+                  <div className="h-3 bg-[var(--border-color)] rounded w-14 animate-pulse"></div>
+                  <div className="h-2 bg-[var(--border-color)] rounded w-12 mt-0.5 animate-pulse"></div>
+                </div>
+                <div className="flex flex-col items-center shrink-0">
+                  <div className="h-3 bg-[var(--border-color)] rounded w-8 animate-pulse"></div>
+                  <div className="h-2 bg-[var(--border-color)] rounded w-10 mt-0.5 animate-pulse"></div>
+                </div>
+              </div>
+            </div>
+            {/* Desktop: Grid skeleton */}
+            <div className="hidden sm:grid grid-cols-[50px_1fr_80px_70px_80px_110px] gap-3 items-center">
               <div className="h-4 bg-[var(--border-color)] rounded w-8 animate-pulse"></div>
               <div className="min-w-0">
                 <div className="h-4 bg-[var(--border-color)] rounded w-32 mb-1.5 animate-pulse"></div>
@@ -308,104 +350,111 @@ export default function VirtualizedRankingList({
             <a
               key={`${type}-${item.rank}`}
               href={getHref(item)}
-              className="block px-3 sm:px-4 py-2.5 sm:py-4 md:py-5 hover:bg-[var(--bg-hover)] transition-all border-b border-[var(--border-color)] group relative"
+              className="block px-3 sm:px-4 py-2 sm:py-4 md:py-5 hover:bg-[var(--bg-hover)] transition-all border-b border-[var(--border-color)] group relative"
             >
               {/* Left accent bar on hover */}
               <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-[var(--text-primary)]/0 group-hover:bg-[var(--text-primary)]/20 transition-colors" />
               
-              {/* Mobile: Refined card layout */}
+              {/* Mobile: Compact two-rail layout */}
               <div className="sm:hidden">
-                {/* Identity Block + Score Block */}
-                <div className="flex items-start justify-between gap-3 mb-2.5">
-                  {/* Identity Block */}
-                  <div className="min-w-0 flex-1">
-                    {/* ZIP/Location with rank badge */}
-                    <div className="flex items-baseline gap-2 mb-0.5">
-                      <div className="font-normal text-[13px] text-[var(--text-primary)] leading-tight">
+                <div className="flex items-center gap-3">
+                  {/* Left Rail - Identity (~40% width) */}
+                  <div className="flex-shrink-0 w-[40%] min-w-0">
+                    {/* ZIP + Rank inline */}
+                    <div className="flex items-baseline gap-1.5 mb-0.5">
+                      <div className="font-normal text-[12px] text-[var(--text-primary)] leading-tight truncate">
                         {getLabel(item)}
                       </div>
-                      {/* Rank as subtle badge */}
-                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium tabular-nums text-[var(--text-muted)] bg-[var(--bg-tertiary)] border border-[var(--border-color)]">
-                        #{item.rank}
+                      <span className="text-[10px] text-[var(--text-muted)] font-mono tabular-nums shrink-0">
+                        · #{item.rank}
                       </span>
-                      {/* Tags inline with location */}
-                      {badgesToShow.length > 0 && (
-                        <div className="flex items-center gap-1 flex-wrap">
-                          {badgesToShow.map(badge => (
-                            <span key={badge.key} className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium ${badge.colors}`}>
-                              {badge.label}
-                            </span>
-                          ))}
-                        </div>
-                      )}
                     </div>
                     {/* County/State */}
                     {getSubLabel(item) && (
-                      <div className="text-[10px] text-[var(--text-tertiary)] leading-tight">
+                      <div className="text-[10px] text-[var(--text-tertiary)] leading-tight truncate">
                         {getSubLabel(item)}
+                      </div>
+                    )}
+                    {/* Tags */}
+                    {badgesToShow.length > 0 && (
+                      <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                        {badgesToShow.map(badge => (
+                          <span key={badge.key} className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${badge.colors}`}>
+                            {badge.label}
+                          </span>
+                        ))}
                       </div>
                     )}
                   </div>
 
-                  {/* Score Block - with label */}
-                  <div className="flex flex-col items-end shrink-0">
-                    <span className="text-[9px] text-[var(--text-muted)] mb-0.5 leading-none">Score</span>
-                    {item.medianScore !== null ? (
-                      <span
-                        className="font-semibold text-[15px] tabular-nums leading-none"
-                        style={{ color: scoreColor }}
-                      >
-                        {Math.round(item.medianScore)}
+                  {/* Right Rail - Performance Metrics (~60% width, inline) */}
+                  <div className="flex-1 flex items-end justify-between gap-1.5 min-w-0">
+                    {/* Yield */}
+                    <div className="flex flex-col items-center min-w-0 flex-1">
+                      <span className="tabular-nums text-[12px] text-[var(--text-primary)] font-medium leading-none truncate w-full text-center">
+                        {item.netYield !== null && item.netYield !== undefined 
+                          ? formatPercent(item.netYield)
+                          : '—'}
                       </span>
-                    ) : (
-                      <span className="text-[var(--text-tertiary)] text-sm leading-none">—</span>
-                    )}
-                  </div>
-                </div>
+                      <span className="text-[8px] text-[var(--text-muted)] leading-tight mt-0.5 whitespace-nowrap" style={{ opacity: 0.75 }}>
+                        Yield
+                      </span>
+                    </div>
 
-                {/* Performance Block - grouped with visual separation */}
-                <div className="flex items-end gap-3 pl-0.5 border-l-2 border-[var(--border-color)]/30">
-                  {/* Yield */}
-                  <div className="flex flex-col pb-0.5">
-                    <span className="text-[9px] text-[var(--text-muted)] mb-1 leading-none tracking-tight" style={{ opacity: 0.75 }}>
-                      Yield
-                    </span>
-                    <span className="tabular-nums text-[13px] text-[var(--text-primary)] font-semibold leading-tight">
-                      {item.netYield !== null && item.netYield !== undefined 
-                        ? formatPercent(item.netYield)
-                        : '—'}
-                    </span>
-                  </div>
+                    {/* FMR */}
+                    <div className="flex flex-col items-center min-w-0 flex-1">
+                      <span className="tabular-nums text-[12px] text-[var(--text-primary)] font-normal leading-none truncate w-full text-center">
+                        {item.medianFMR !== null && item.medianFMR !== undefined
+                          ? formatCurrency(item.medianFMR)
+                          : '—'}
+                      </span>
+                      <span className="text-[8px] text-[var(--text-muted)] leading-tight mt-0.5 whitespace-nowrap" style={{ opacity: 0.75 }}>
+                        FMR
+                      </span>
+                    </div>
 
-                  {/* FMR */}
-                  <div className="flex flex-col pb-0.5">
-                    <span className="text-[9px] text-[var(--text-muted)] mb-1 leading-none tracking-tight" style={{ opacity: 0.75 }}>
-                      FMR
-                    </span>
-                    <span className="tabular-nums text-[13px] text-[var(--text-primary)] font-semibold leading-tight">
-                      {item.medianFMR !== null && item.medianFMR !== undefined
-                        ? formatCurrency(item.medianFMR)
-                        : '—'}
-                    </span>
-                  </div>
+                    {/* Cash Flow - emphasized */}
+                    <div className="flex flex-col items-center min-w-0 flex-1">
+                      <span 
+                        className="text-[12px] font-bold tabular-nums leading-none truncate w-full text-center"
+                        style={{ color: cashFlowColor }}
+                      >
+                        {formatCashFlow(item.cashFlowEstimate)}
+                      </span>
+                      <span className="text-[8px] text-[var(--text-muted)] leading-tight mt-0.5 whitespace-nowrap" style={{ opacity: 0.75 }}>
+                        Cash Flow
+                      </span>
+                    </div>
 
-                  {/* Cash Flow - emphasized but balanced */}
-                  <div className="flex flex-col pb-0.5">
-                    <span className="text-[9px] text-[var(--text-muted)] mb-1 leading-none tracking-tight" style={{ opacity: 0.75 }}>
-                      Cash Flow
-                    </span>
-                    <span 
-                      className="text-[13px] font-bold tabular-nums leading-tight"
-                      style={{ color: cashFlowColor }}
-                    >
-                      {formatCashFlow(item.cashFlowEstimate)}
-                    </span>
+                    {/* Score - Numeric */}
+                    <div className="flex flex-col items-center shrink-0">
+                      {item.medianScore !== null ? (
+                        <>
+                          <span 
+                            className="text-[12px] font-semibold tabular-nums leading-none"
+                            style={{ color: scoreColor }}
+                          >
+                            {Math.round(item.medianScore)}
+                          </span>
+                          <span className="text-[8px] text-[var(--text-muted)] leading-tight mt-0.5 whitespace-nowrap" style={{ opacity: 0.75 }}>
+                            Score
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-[12px] text-[var(--text-tertiary)] leading-none">—</span>
+                          <span className="text-[8px] text-[var(--text-muted)] leading-tight mt-0.5 whitespace-nowrap" style={{ opacity: 0.75 }}>
+                            Score
+                          </span>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
 
                 {/* Aggregation context label */}
                 {getAggregationLabel(item) && (
-                  <div className="text-[9px] text-[var(--text-muted)] italic mt-1.5">
+                  <div className="text-[9px] text-[var(--text-muted)] italic mt-1">
                     {getAggregationLabel(item)}
                   </div>
                 )}

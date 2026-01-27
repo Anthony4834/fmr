@@ -47,8 +47,8 @@ html:not([data-theme]) {
   /* Map colors */
   --map-bg: #fafafa;
   --map-color-low: #fca5a5;
-  --map-color-medium: #44e37e;
-  --map-color-high: #16a34a;
+  --map-color-medium: #44e37e; /* Light green: 100-129 */
+  --map-color-high: #60a5fa; /* Light vibrant blue: 130+ */
   --map-stroke-low: #ffffff;
   --map-stroke-high: #525252;
   --map-stroke-hover: #0a0a0a;
@@ -122,8 +122,8 @@ html:not([data-theme]) {
   /* Map colors */
   --map-bg: #fafafa; /* Map background - light gray for light mode */
   --map-color-low: #fca5a5; /* Light red: <95 or no data */
-  --map-color-medium: #44e37e; /* Light green: >= 95 and < 130 */
-  --map-color-high: #16a34a; /* Dark green: >= 130 */
+  --map-color-medium: #44e37e; /* Light green: 100-129 */
+  --map-color-high: #60a5fa; /* Light vibrant blue: 130+ */
   --map-stroke-low: #ffffff; /* Stroke color for low score regions */
   --map-stroke-high: #525252; /* Stroke color for high score regions */
   --map-stroke-hover: #0a0a0a; /* Stroke color on hover */
@@ -191,12 +191,12 @@ html:not([data-theme]) {
 
   /* Fills (shifted darker / less "neon") */
   --map-color-low: #cf5b5b;
-  --map-color-medium: #2fb67f;
-  --map-color-high: #136b33;
+  --map-color-medium: #2fb67f; /* Darker green: 100-129 */
+  --map-color-high: #3b82f6; /* Lighter vibrant blue: 130+ */
 
   /* Strokes */
   --map-stroke-low: #0a0a0a;    /* subtle, crisp edge */
-  --map-stroke-high: #9aa3ad;   /* cool light-gray outline for darker fills */
+  --map-stroke-high: #525252;   /* dark border for green/blue fills in dark mode */
   --map-stroke-hover: #60a5fa;  /* calm blue hover (clean, elegant, visible) */
 
   /* Change indicator colors (for +/- percentages) - brighter for dark backgrounds */

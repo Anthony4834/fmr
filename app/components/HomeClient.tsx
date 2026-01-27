@@ -23,9 +23,9 @@ function getTextColorForScore(score: number | null): string {
     return '#b91c1c'; // Dark red for text: <95 or no data (improved contrast for readability)
   }
   if (score >= 130) {
-    return '#14532d'; // Darker green for text: >= 130 (improved legibility for small/bold labels)
+    return '#2563eb'; // Lighter blue for text: >= 130 (improved legibility for small/bold labels)
   }
-  return '#16a34a'; // Darker green for text: >= 95 and < 130 (improved contrast, easier on eyes)
+  return '#16a34a'; // Darker green for text: 100-129 (improved contrast, easier on eyes)
 }
 
 const STATE_NAME_BY_CODE: Record<string, string> = Object.fromEntries(

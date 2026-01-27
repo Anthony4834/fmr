@@ -111,9 +111,9 @@ export default function ChoroplethMap({ stateCode, year, highlightFips, onCounty
       return '#fca5a5'; // Light red: <95 or no data (standardized)
     }
     if (score >= 130) {
-      return '#16a34a'; // Dark green: >= 130 (standardized)
+      return '#60a5fa'; // Light vibrant blue: >= 130 (standardized)
     }
-    return '#44e37e'; // Light green: >= 95 and < 130 (standardized)
+    return '#44e37e'; // Light green: 100-129 (standardized)
   };
 
   const getColor = (fips: string): string => {

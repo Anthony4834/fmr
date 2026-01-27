@@ -48,6 +48,22 @@ function formatLocation(item: MarketOverviewItem): string {
   return parts.join(', ');
 }
 
+// Get color for investment score
+function getScoreColor(score: number | null): string {
+  if (score === null || score < 0) return 'var(--text-muted)';
+  if (score < 95) return '#b91c1c';
+  if (score >= 130) return '#2563eb'; // Lighter blue for 130+
+  return '#16a34a'; // Green for 100-129
+}
+
+// Get color for cash flow
+function getCashFlowColor(cashFlow: number | null | undefined): string {
+  if (cashFlow === null || cashFlow === undefined) return 'var(--text-muted)';
+  if (cashFlow < 0) return '#b91c1c'; // red for negative
+  if (cashFlow < 200) return '#ca8a04'; // yellow
+  return '#16a34a'; // green
+}
+
 export default function MarketOverview({ year }: MarketOverviewProps) {
   const [data, setData] = useState<MarketOverviewData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -87,7 +103,9 @@ export default function MarketOverview({ year }: MarketOverviewProps) {
     getValue: (item: MarketOverviewItem) => string | number,
     getValueLabel: (item: MarketOverviewItem) => string,
     headerColor: string,
-    tooltipContent?: string
+    tooltipContent?: string,
+    useScoreColor: boolean = false,
+    useCashFlowColor: boolean = false
   ) => {
     return (
       <div className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] overflow-hidden">
@@ -149,7 +167,18 @@ export default function MarketOverview({ year }: MarketOverviewProps) {
                       </div>
                     </div>
                     <div className="text-right shrink-0">
-                      <div className="text-xs font-semibold text-green-600 dark:text-green-400 tabular-nums">
+                      <div 
+                        className="text-xs font-semibold tabular-nums"
+                        style={(() => {
+                          if (useScoreColor && typeof getValue(item) === 'number') {
+                            return { color: getScoreColor(getValue(item) as number) };
+                          }
+                          if (useCashFlowColor && typeof getValue(item) === 'number') {
+                            return { color: getCashFlowColor(getValue(item) as number) };
+                          }
+                          return { color: 'var(--text-primary)' };
+                        })()}
+                      >
                         {getValueLabel(item)}
                       </div>
                     </div>
@@ -184,7 +213,9 @@ export default function MarketOverview({ year }: MarketOverviewProps) {
           data?.highestScore || [],
           (item) => item.score,
           (item) => Math.round(item.score).toString(),
-          'bg-[var(--bg-tertiary)]'
+          'bg-[var(--bg-tertiary)]',
+          undefined,
+          true
         )}
 
         {renderContainer(
@@ -204,7 +235,9 @@ export default function MarketOverview({ year }: MarketOverviewProps) {
             return value >= 0 ? `+$${value}` : `-$${Math.abs(value)}`;
           },
           'bg-[var(--bg-tertiary)]',
-          'Monthly cash flow estimate based on: 20% down payment, current mortgage rates, 8% vacancy/maintenance allowance, and local property tax rates. Uses FMR rent data and Zillow property values.'
+          'Monthly cash flow estimate based on: 20% down payment, current mortgage rates, 8% vacancy/maintenance allowance, and local property tax rates. Uses FMR rent data and Zillow property values.',
+          false,
+          true
         )}
 
         {renderContainer(
@@ -216,7 +249,9 @@ export default function MarketOverview({ year }: MarketOverviewProps) {
             return value >= 0 ? `+$${value}` : `-$${Math.abs(value)}`;
           },
           'bg-[var(--bg-tertiary)]',
-          'Entry-level properties ($90K-$110K) with highest projected cash flow'
+          'Entry-level properties ($90K-$110K) with highest projected cash flow',
+          false,
+          true
         )}
       </div>
     </div>

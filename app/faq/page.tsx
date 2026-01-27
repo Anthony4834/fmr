@@ -51,7 +51,7 @@ const faqs = [
       },
       {
         q: 'What do the score ranges mean?',
-        a: 'Scores of 130+ indicate excellent investment potential with strong rent-to-value ratios. Scores between 95-129 represent good markets with solid fundamentals. Scores below 95 suggest below-average returns, often due to high property values relative to achievable rents.',
+        a: 'Scores of 130+ indicate excellent investment potential with strong rent-to-value ratios. Scores between 100-129 represent good markets with solid fundamentals. Scores below 95 suggest below-average returns, often due to high property values relative to achievable rents.',
       },
       {
         q: 'Should I base my investment decisions solely on the score?',
