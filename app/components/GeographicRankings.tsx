@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useLayoutEffect, useMemo, useCallback } from 'react';
+import { useState, useRef, useLayoutEffect, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import SearchInput from './SearchInput';
@@ -121,9 +121,25 @@ export default function GeographicRankings({ year }: GeographicRankingsProps) {
   const [mobileView, setMobileView] = useState<'overview' | 'explorer'>('overview');
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
 
   // Check authentication
   const { data: session, status: sessionStatus } = useSession();
+
+  // Close mobile menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target as Node)) {
+        setShowMobileMenu(false);
+      }
+    };
+
+    if (showMobileMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showMobileMenu]);
 
   // Data fetching hook
   const {
@@ -400,16 +416,17 @@ export default function GeographicRankings({ year }: GeographicRankingsProps) {
       <div className={`sticky top-0 z-10 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-t-lg px-3 sm:px-4 py-2.5 sm:py-3 ${mobileView === 'overview' ? 'lg:block hidden' : 'block'}`}>
         {/* Title row */}
         <div className="flex items-center justify-between mb-2">
-          <div>
+          <div className="min-w-0 flex-1">
             <h3 className="text-sm sm:text-base font-semibold text-[var(--text-primary)]">
               Market Explorer
             </h3>
-            <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
+            <p className="text-xs text-[var(--text-tertiary)] mt-0.5 hidden sm:block">
               Discover investment opportunities by geo
             </p>
           </div>
           
-          <div className="flex items-center gap-2">
+          {/* Desktop: Individual buttons */}
+          <div className="hidden sm:flex items-center gap-2">
             {/* Export button */}
             <button
               onClick={handleExport}
@@ -449,6 +466,79 @@ export default function GeographicRankings({ year }: GeographicRankingsProps) {
               </svg>
               Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
             </button>
+          </div>
+
+          {/* Mobile: Dropdown menu */}
+          <div className="relative sm:hidden" ref={mobileMenuRef}>
+            <button
+              onClick={() => setShowMobileMenu(!showMobileMenu)}
+              className="flex items-center justify-center w-9 h-9 rounded-lg transition-colors bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+              aria-label="Menu"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+              </svg>
+            </button>
+
+            {/* Dropdown menu */}
+            {showMobileMenu && (
+              <>
+                {/* Backdrop */}
+                <div
+                  className="fixed inset-0 z-20"
+                  onClick={() => setShowMobileMenu(false)}
+                />
+                {/* Menu */}
+                <div className="absolute right-0 top-full mt-2 w-48 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg shadow-lg z-30">
+                  <div className="py-1">
+                    {/* Export option */}
+                    <button
+                      onClick={() => {
+                        setShowMobileMenu(false);
+                        handleExport();
+                      }}
+                      disabled={isExporting || sessionStatus === 'loading'}
+                      className="w-full flex items-center gap-2 px-4 py-2 text-sm text-left text-[var(--text-primary)] hover:bg-[var(--bg-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {isExporting ? (
+                        <>
+                          <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                          </svg>
+                          <span>Exporting...</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          <span>Export</span>
+                        </>
+                      )}
+                    </button>
+
+                    {/* Filters option */}
+                    <button
+                      onClick={() => {
+                        setShowMobileMenu(false);
+                        setShowFilters(!showFilters);
+                      }}
+                      className={`w-full flex items-center gap-2 px-4 py-2 text-sm text-left transition-colors ${
+                        showFilters || hasActiveFilters
+                          ? 'bg-[var(--bg-hover)] text-[var(--text-primary)]'
+                          : 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
+                      }`}
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                      </svg>
+                      <span>Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}</span>
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -498,7 +588,120 @@ export default function GeographicRankings({ year }: GeographicRankingsProps) {
         {/* Filter Bar (collapsible) */}
         {showFilters && (
           <div className="mt-3 pt-3 border-t border-[var(--border-color)]">
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            {/* Mobile: Stacked layout */}
+            <div className="sm:hidden space-y-3">
+              {/* Affordability dropdown */}
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-[var(--text-muted)]" htmlFor="affordability-filter-mobile">
+                  Property Value
+                </label>
+                <select
+                  id="affordability-filter-mobile"
+                  value={affordabilityTier}
+                  onChange={(e) => setAffordabilityTier(e.target.value as AffordabilityTier)}
+                  className="h-9 px-3 rounded border border-[var(--border-color)] bg-[var(--bg-secondary)] text-sm text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--text-primary)]"
+                >
+                  {AFFORDABILITY_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Yield dropdown */}
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-[var(--text-muted)]" htmlFor="yield-filter-mobile">
+                  Yield
+                </label>
+                <select
+                  id="yield-filter-mobile"
+                  value={yieldRange}
+                  onChange={(e) => setYieldRange(e.target.value as YieldRange)}
+                  className="h-9 px-3 rounded border border-[var(--border-color)] bg-[var(--bg-secondary)] text-sm text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--text-primary)]"
+                >
+                  {YIELD_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Min Score input */}
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-[var(--text-muted)]" htmlFor="min-score-filter-mobile">
+                  Min Score
+                </label>
+                <input
+                  type="number"
+                  id="min-score-filter-mobile"
+                  value={minScore ?? ''}
+                  onChange={(e) => setMinScore(e.target.value ? Number(e.target.value) : null)}
+                  placeholder="0"
+                  min="0"
+                  max="200"
+                  className="h-9 px-3 rounded border border-[var(--border-color)] bg-[var(--bg-secondary)] text-sm text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--text-primary)]"
+                />
+              </div>
+
+              {/* Bedroom dropdown */}
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-[var(--text-muted)]" htmlFor="bedroom-filter-mobile">
+                  Bedroom
+                </label>
+                <select
+                  id="bedroom-filter-mobile"
+                  value={bedroom}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setBedroom(value === 'all' ? 'all' : Number(value) as BedroomCount);
+                  }}
+                  className="h-9 px-3 rounded border border-[var(--border-color)] bg-[var(--bg-secondary)] text-sm text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--text-primary)]"
+                >
+                  {BEDROOM_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* State filter (for non-state tabs) */}
+              {activeTab !== 'state' && (
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium text-[var(--text-muted)]" htmlFor="state-filter-mobile">
+                    State
+                  </label>
+                  <select
+                    id="state-filter-mobile"
+                    value={stateFilter}
+                    onChange={(e) => handleStateFilterChange(e.target.value)}
+                    className="h-9 px-3 rounded border border-[var(--border-color)] bg-[var(--bg-secondary)] text-sm text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--text-primary)]"
+                  >
+                    <option value="">All States</option>
+                    {STATE_OPTIONS.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Reset button */}
+              {hasActiveFilters && (
+                <button
+                  onClick={resetFilters}
+                  className="w-full h-9 px-3 text-sm font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] rounded border border-[var(--border-color)] transition-colors"
+                >
+                  Reset All Filters
+                </button>
+              )}
+            </div>
+
+            {/* Desktop: Horizontal layout */}
+            <div className="hidden sm:flex sm:flex-wrap sm:items-center gap-2 sm:gap-3">
               {/* Affordability dropdown */}
               <div className="flex items-center gap-1.5">
                 <label className="text-xs font-medium text-[var(--text-muted)]" htmlFor="affordability-filter">

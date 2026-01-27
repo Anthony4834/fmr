@@ -308,10 +308,90 @@ export default function VirtualizedRankingList({
             <a
               key={`${type}-${item.rank}`}
               href={getHref(item)}
-              className="block px-3 sm:px-4 py-4 sm:py-5 hover:bg-[var(--bg-hover)] transition-colors border-b border-[var(--border-color)]"
+              className="block px-3 sm:px-4 py-3 sm:py-4 md:py-5 hover:bg-[var(--bg-hover)] transition-colors border-b border-[var(--border-color)]"
             >
-              {/* Main grid row */}
-              <div className="grid grid-cols-[40px_1fr_70px_60px_70px_90px] sm:grid-cols-[50px_1fr_80px_70px_80px_110px] gap-2 sm:gap-3 items-center">
+              {/* Mobile: Stacked card layout */}
+              <div className="sm:hidden space-y-2">
+                {/* Header row with rank and location */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-2 min-w-0 flex-1">
+                    <span className="text-[11px] text-[var(--text-muted)] font-medium tabular-nums shrink-0 pt-0.5">
+                      #{item.rank}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium text-[var(--text-primary)] text-sm">
+                        {getLabel(item)}
+                      </div>
+                      {getSubLabel(item) && (
+                        <div className="text-[11px] text-[var(--text-tertiary)] mt-0.5">
+                          {getSubLabel(item)}
+                        </div>
+                      )}
+                      {badgesToShow.length > 0 && (
+                        <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+                          {badgesToShow.map(badge => (
+                            <span key={badge.key} className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${badge.colors}`}>
+                              {badge.label}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {/* Score - prominent on mobile */}
+                  <div className="text-right shrink-0">
+                    {item.medianScore !== null ? (
+                      <span
+                        className="font-semibold text-base tabular-nums"
+                        style={{ color: scoreColor }}
+                      >
+                        {Math.round(item.medianScore)}
+                      </span>
+                    ) : (
+                      <span className="text-[var(--text-tertiary)] text-sm">—</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Metrics row - horizontal scrollable on mobile */}
+                <div className="flex items-center gap-4 text-xs">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] text-[var(--text-muted)] mb-0.5">Yield</span>
+                    <span className="tabular-nums text-[var(--text-secondary)] font-medium">
+                      {item.netYield !== null && item.netYield !== undefined 
+                        ? formatPercent(item.netYield)
+                        : '—'}
+                    </span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[10px] text-[var(--text-muted)] mb-0.5">FMR</span>
+                    <span className="tabular-nums text-[var(--text-secondary)] font-medium">
+                      {item.medianFMR !== null && item.medianFMR !== undefined
+                        ? formatCurrency(item.medianFMR)
+                        : '—'}
+                    </span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[10px] text-[var(--text-muted)] mb-0.5">Cash Flow</span>
+                    <span 
+                      className="text-sm font-semibold tabular-nums"
+                      style={{ color: cashFlowColor }}
+                    >
+                      {formatCashFlow(item.cashFlowEstimate)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Aggregation context label */}
+                {getAggregationLabel(item) && (
+                  <div className="text-[10px] text-[var(--text-muted)] italic">
+                    {getAggregationLabel(item)}
+                  </div>
+                )}
+              </div>
+
+              {/* Desktop: Grid layout */}
+              <div className="hidden sm:grid grid-cols-[50px_1fr_80px_70px_80px_110px] gap-3 items-center">
                 {/* Rank */}
                 <span className="text-[11px] text-[var(--text-muted)] font-medium tabular-nums">
                   #{item.rank}
