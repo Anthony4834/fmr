@@ -64,6 +64,11 @@ html:not([data-theme]) {
   --badge-fmr-bg: #eff6ff;
   --badge-fmr-text: #2563eb;
 
+  /* Primary blue for buttons and accents */
+  --primary-blue: hsl(192 85% 42%);
+  --primary-blue-hover: hsl(192 85% 38%);
+  --primary-blue-light: hsl(192 85% 95%);
+
   /* Dark section backgrounds */
   --dark-bg-primary: #0a0a0a;
   --dark-bg-secondary: #111111;
@@ -108,6 +113,11 @@ html:not([data-theme]) {
   --badge-safmr-text: #16a34a;
   --badge-fmr-bg: #eff6ff;
   --badge-fmr-text: #2563eb;
+
+  /* Primary blue for buttons and accents */
+  --primary-blue: hsl(192 85% 42%);
+  --primary-blue-hover: hsl(192 85% 38%);
+  --primary-blue-light: hsl(192 85% 95%);
 
   /* Special colors */
   --warning-bg: #fef3c7;
@@ -176,6 +186,11 @@ html:not([data-theme]) {
   --badge-safmr-text: #4ade80;
   --badge-fmr-bg: #1e3a8a;
   --badge-fmr-text: #93c5fd;
+
+  /* Primary blue for buttons and accents */
+  --primary-blue: hsl(192 85% 42%);
+  --primary-blue-hover: hsl(192 85% 38%);
+  --primary-blue-light: hsl(192 85% 20%);
 
   /* Special colors */
   --warning-bg: rgba(254, 243, 199, 0.2);

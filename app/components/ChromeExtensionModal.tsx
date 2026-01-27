@@ -1,24 +1,40 @@
 'use client';
 
-import Image from 'next/image';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X, Check, Chrome, Settings, DollarSign, Percent } from 'lucide-react';
 import { usePathname } from 'next/navigation';
+import Image from 'next/image';
+import { ListingCardMockup } from './ListingCardMockup';
+import { cn } from '@/lib/utils';
 
-const OPEN_DELAY_MS = 900;  // was 2000
-const ENTER_MS = 260;       // open animation
-const EXIT_MS = 200;        // close animation
+// Fallback theme detection if ThemeProvider is not available
+function getEffectiveTheme(): 'light' | 'dark' {
+  if (typeof window === 'undefined') return 'light';
+
+  // Check data-theme attribute first (set by ThemeProvider)
+  const themeAttr = document.documentElement.getAttribute('data-theme');
+  if (themeAttr === 'dark' || themeAttr === 'light') {
+    return themeAttr;
+  }
+
+  // Fallback to system preference
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+const OPEN_DELAY_MS = 900;
+const ENTER_MS = 260;
+const EXIT_MS = 200;
 
 type ChromeExtensionModalProps = {
   open?: boolean;
   onClose?: () => void;
-
   chromeWebStoreUrl?: string;
-
   images?: {
-    badgeOnListing?: string; // /extension-cash-flow-mode-zoomed.png
-    miniView?: string; // /fmr-fyi-mini-view.png
-    popper?: string; // /extension-popper.png
-    customExpenses?: string; // /extension-popper-custom-expenses.png
+    badgeOnListing?: string;
+    miniView?: string;
+    popper?: string;
+    customExpenses?: string;
   };
 };
 
@@ -30,7 +46,7 @@ const STORAGE_KEYS = {
 
 function incrementVisitCount(): number {
   if (typeof window === 'undefined') return 0;
-  
+
   const currentCount = parseInt(localStorage.getItem(STORAGE_KEYS.VISIT_COUNT) || '0', 10);
   const newCount = currentCount + 1;
   localStorage.setItem(STORAGE_KEYS.VISIT_COUNT, newCount.toString());
@@ -43,6 +59,7 @@ function getVisitCount(): number {
 }
 
 function shouldShowModal(): boolean {
+  return true;
   if (typeof window === 'undefined') return false;
 
   // Check if user dismissed it permanently
@@ -78,68 +95,56 @@ function shouldShowModal(): boolean {
   return true;
 }
 
-function getEffectiveTheme(): 'light' | 'dark' {
-  if (typeof window === 'undefined') return 'light';
-  
-  // Check data-theme attribute first (set by ThemeProvider)
-  const themeAttr = document.documentElement.getAttribute('data-theme');
-  if (themeAttr === 'dark' || themeAttr === 'light') {
-    return themeAttr;
-  }
-  
-  // Fallback to system preference
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-}
-
-const CHROME_WEB_STORE_URL = 'https://chromewebstore.google.com/detail/fmrfyi-%E2%80%93-fair-market-rent/gkemjakehildeolcagbibhmbcddkkflb';
+const CHROME_WEB_STORE_URL =
+  'https://chromewebstore.google.com/detail/fmrfyi-%E2%80%93-fair-market-rent/gkemjakehildeolcagbibhmbcddkkflb';
 
 export default function ChromeExtensionModal({
   open: openProp,
   onClose: onCloseProp,
   chromeWebStoreUrl = CHROME_WEB_STORE_URL,
-  images
+  images,
 }: ChromeExtensionModalProps) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const [isDark, setIsDark] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [activeMode, setActiveMode] = useState<'cashflow' | 'fmr'>('cashflow');
+  const [isDark, setIsDark] = useState(false);
   const openTimeoutRef = useRef<number | null>(null);
 
-  const openWithAnimation = (delayMs = OPEN_DELAY_MS) => {
-    if (openTimeoutRef.current) window.clearTimeout(openTimeoutRef.current);
-    openTimeoutRef.current = window.setTimeout(() => {
-      setOpen(true);
-      // One RAF is enough; avoids the "double-RAF" stutter.
-      requestAnimationFrame(() => setIsAnimating(true));
-    }, delayMs);
-  };
-
-  // Detect theme
+  // Detect theme with fallback
   useEffect(() => {
     setIsDark(getEffectiveTheme() === 'dark');
-    
+
     // Watch for theme changes
     const observer = new MutationObserver(() => {
       setIsDark(getEffectiveTheme() === 'dark');
     });
-    
+
     observer.observe(document.documentElement, {
       attributes: true,
-      attributeFilter: ['data-theme']
+      attributeFilter: ['data-theme'],
     });
-    
+
     // Also listen to system theme changes
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     const handleChange = () => {
       setIsDark(getEffectiveTheme() === 'dark');
     };
     mediaQuery.addEventListener('change', handleChange);
-    
+
     return () => {
       observer.disconnect();
       mediaQuery.removeEventListener('change', handleChange);
     };
   }, []);
+
+  const openWithAnimation = (delayMs = OPEN_DELAY_MS) => {
+    if (openTimeoutRef.current) window.clearTimeout(openTimeoutRef.current);
+    openTimeoutRef.current = window.setTimeout(() => {
+      setOpen(true);
+      requestAnimationFrame(() => setIsAnimating(true));
+    }, delayMs);
+  };
 
   // Increment visit count when on homepage
   useEffect(() => {
@@ -188,28 +193,18 @@ export default function ChromeExtensionModal({
     }
   }, [open]);
 
-  const handleClose = () => {
+  const handleClose = (permanent = false) => {
     setIsAnimating(false);
     window.setTimeout(() => {
       setOpen(false);
+      if (permanent) {
+        localStorage.setItem(STORAGE_KEYS.NEVER_SHOW, 'true');
+      }
       onCloseProp?.();
     }, EXIT_MS);
   };
 
-  const handleNeverShow = () => {
-    localStorage.setItem(STORAGE_KEYS.NEVER_SHOW, 'true');
-    handleClose();
-  };
-
-  const img = useMemo(
-    () => ({
-      badgeOnListing: images?.badgeOnListing ?? '/extension-cash-flow-mode-zoomed.png',
-      miniView: images?.miniView ?? '/fmr-fyi-mini-view.png',
-      popper: images?.popper ?? '/extension-popper.png',
-      customExpenses: images?.customExpenses ?? '/extension-popper-custom-expenses.png'
-    }),
-    [images]
-  );
+  const miniViewImg = images?.miniView ?? '/fmr-fyi-mini-view.png';
 
   useEffect(() => {
     if (!open) return;
@@ -217,7 +212,7 @@ export default function ChromeExtensionModal({
     document.body.style.overflow = 'hidden';
 
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') handleClose();
+      if (e.key === 'Escape') handleClose(false);
     };
     window.addEventListener('keydown', onKeyDown);
 
@@ -231,358 +226,305 @@ export default function ChromeExtensionModal({
   if (!open && !isAnimating) return null;
 
   return (
-    <div 
-      className={`fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 overflow-x-hidden transition-opacity motion-reduce:transition-none ${
-        open && isAnimating ? 'opacity-100' : 'opacity-0 pointer-events-none'
-      }`}
-      role="dialog" 
-      aria-modal="true"
-    >
-      {/* Backdrop */}
-      <div 
-        className={`absolute inset-0 backdrop-blur-[8px] transition-opacity duration-200 ease-out motion-reduce:transition-none ${
-          isDark ? 'bg-black/60' : 'bg-black/45'
-        } ${open && isAnimating ? 'opacity-100' : 'opacity-0'}`}
-        onClick={handleClose} 
-        aria-hidden="true" 
-      />
-
-      {/* Panel */}
-      <div className={`relative w-full max-w-5xl overflow-hidden rounded-3xl border shadow-[0_30px_100px_rgba(0,0,0,0.35)] transform-gpu will-change-transform transition-[opacity,transform] motion-reduce:transition-none ease-[cubic-bezier(0.16,1,0.3,1)] ${
-        isDark 
-          ? 'border-white/10 bg-[var(--bg-secondary)]' 
-          : 'border-white/10 bg-white'
-      } ${
-        open && isAnimating 
-          ? 'opacity-100 translate-y-0 duration-[260ms]' 
-          : 'opacity-0 -translate-y-2 duration-200'
-      }`}>
-        <button
-          onClick={handleClose}
-          className={`absolute right-4 top-4 z-10 rounded-full border p-2 shadow-sm backdrop-blur transition-colors ${
-            isDark
-              ? 'border-white/10 bg-white/10 text-white/70 hover:bg-white/20'
-              : 'border-black/10 bg-white/80 text-black/70 hover:bg-white'
-          }`}
-          aria-label="Close"
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+    <AnimatePresence>
+      {open && (
+        <>
+          {/* Backdrop */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-end md:items-center justify-center md:p-4"
+            onClick={() => handleClose(false)}
           >
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
+            {/* Modal Content */}
+            <motion.div
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 4 }}
+              transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+              className="bg-[var(--bg-secondary)] w-full max-w-4xl h-full md:h-[650px] md:max-h-[90vh] md:rounded-xl shadow-2xl overflow-hidden overflow-x-hidden flex flex-col md:flex-row border border-[var(--border-color)]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Mobile Close Button (Fixed on top right for mobile) */}
+              <button
+                onClick={() => handleClose(false)}
+                className="absolute top-4 right-4 z-50 p-2 bg-[var(--bg-secondary)]/80 backdrop-blur rounded-lg text-[var(--text-tertiary)] hover:text-[var(--text-primary)] md:hidden shadow-sm border border-[var(--border-color)]"
+              >
+                <X className="w-5 h-5" />
+              </button>
 
-        <div className="max-h-[82vh] overflow-y-auto overflow-x-hidden">
-          {/* Hero */}
-          <div className={`relative border-b px-6 py-8 sm:px-8 sm:py-10 md:px-10 ${
-            isDark ? 'border-white/10' : 'border-black/10'
-          }`}>
-            <div className="pointer-events-none absolute inset-0">
-              <div className={`absolute -top-32 -right-28 h-96 w-96 rounded-full ${
-                isDark ? 'bg-white/[0.02]' : 'bg-black/[0.04]'
-              }`} />
-              <div className={`absolute -bottom-40 -left-32 h-[28rem] w-[28rem] rounded-full ${
-                isDark ? 'bg-white/[0.015]' : 'bg-black/[0.03]'
-              }`} />
-              <div className={`absolute inset-0 ${
-                isDark 
-                  ? 'bg-[radial-gradient(70%_55%_at_50%_0%,rgba(255,255,255,0.02),transparent_60%)]'
-                  : 'bg-[radial-gradient(70%_55%_at_50%_0%,rgba(0,0,0,0.05),transparent_60%)]'
-              }`} />
-            </div>
+              {/* Mobile: Single scrollable column, Desktop: Left column */}
+              <div className="w-full md:w-2/5 flex flex-col relative bg-[var(--bg-secondary)] z-10 border-b md:border-b-0 md:border-r border-[var(--border-color)] flex-shrink-0 overflow-x-hidden">
+                {/* Mobile: Scrollable content area */}
+                <div className="flex-1 overflow-y-auto overflow-x-hidden">
+                  <div className="p-6 md:p-8 pt-12 md:pt-8">
+                    <div>
+                      <h2 className="text-2xl md:text-3xl font-display font-bold text-[var(--text-primary)] leading-tight mb-3 md:mb-4">
+                        Analyze listings in {' '}
+                        <span className="text-[var(--primary-blue)]">real time.</span>
+                      </h2>
 
-            <div className="relative">
-              <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs ${
-                isDark
-                  ? 'border-white/10 bg-white/5 text-white/70'
-                  : 'border-black/10 bg-white text-black/70'
-              }`}>
-                <span className={`h-1.5 w-1.5 rounded-full ${isDark ? 'bg-white/40' : 'bg-black/40'}`} />
-                Chrome Extension
+                      <p className="text-[var(--text-secondary)] mb-6 text-sm leading-relaxed">
+                        Stop switching tabs. Get Cash Flow estimates and FMR data overlaid directly on
+                        Zillow or Redfin.
+                      </p>
+
+                      {/* Desktop: Features list */}
+                      <div className="space-y-6 hidden md:block">
+                        <div>
+                          <h3 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2 mb-3">
+                            <Check className="w-4 h-4 text-[var(--primary-blue)]" />
+                            Key Features
+                          </h3>
+                          <ul className="space-y-2.5">
+                            {[
+                              'Instant Cash Flow calculation',
+                              'FMR/SAFMR data',
+                              'Works on Map & List views',
+                              'One-click deep dive analysis',
+                            ].map((item, i) => (
+                              <li
+                                key={i}
+                                className="flex items-start gap-2.5 text-xs font-medium text-[var(--text-secondary)]"
+                              >
+                                <div className="w-4 h-4 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center flex-shrink-0 mt-0.5">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-[var(--text-tertiary)]" />
+                                </div>
+                                {item}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+
+                        <div>
+                          <h3 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2 mb-3">
+                            <Settings className="w-4 h-4 text-[var(--primary-blue)]" />
+                            Fully Customizable
+                          </h3>
+                          <p className="text-xs text-[var(--text-secondary)] leading-relaxed mb-2">
+                            Tailor the extension to your strategy. Adjust down payments, management fees, and expense
+                            assumptions in the settings panel.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Mobile: Listing card section - scrolls below heading */}
+                  <div className="md:hidden px-6 pb-6">
+                    <div className="relative w-full max-w-[320px] mx-auto">
+                      <div className="mb-4 flex justify-center gap-3">
+                        <button
+                          onClick={() => setActiveMode('cashflow')}
+                          className={cn(
+                            'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-sm border',
+                            activeMode === 'cashflow'
+                              ? 'bg-[var(--bg-secondary)] border-[var(--accent-success)] text-[var(--accent-success-dark)] ring-2 ring-[var(--accent-success)]/20'
+                              : 'bg-[var(--bg-secondary)]/50 border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)]'
+                          )}
+                        >
+                          <DollarSign className="w-3 h-3" />
+                          Cash Flow Mode
+                        </button>
+                        <button
+                          onClick={() => setActiveMode('fmr')}
+                          className={cn(
+                            'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-sm border',
+                            activeMode === 'fmr'
+                              ? 'bg-[var(--bg-secondary)] border-[var(--primary-blue)]/30 text-[var(--primary-blue)] ring-2 ring-[var(--primary-blue)]/20'
+                              : 'bg-[var(--bg-secondary)]/50 border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)]'
+                          )}
+                        >
+                          <Percent className="w-3 h-3" />
+                          FMR Mode
+                        </button>
+                      </div>
+
+                      <motion.div
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.15, duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
+                        className="relative"
+                      >
+                        <ListingCardMockup mode={activeMode} />
+                      </motion.div>
+                    </div>
+
+                    {/* Mobile: Detailed Analysis Image */}
+                    <motion.div
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.25, duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
+                      className="w-full mt-6"
+                    >
+                      <div className="bg-[var(--bg-secondary)] rounded-lg shadow-xl border border-[var(--border-color)] overflow-hidden ring-1 ring-black/5 group">
+                        <div className="relative">
+                          <Image
+                            src={miniViewImg}
+                            alt="Detailed FMR Analysis"
+                            width={2048}
+                            height={1394}
+                            className="w-full h-auto object-cover opacity-90 transition-opacity group-hover:opacity-100"
+                          />
+                        </div>
+                        <div className="p-4 bg-[var(--bg-tertiary)]/50 border-t border-[var(--border-color)]">
+                          <h4 className="font-bold text-[var(--text-primary)] text-sm mb-1">Deep Dive Data</h4>
+                          <p className="text-xs text-[var(--text-secondary)]">
+                            View complete breakdown by bedroom count, investment scores, and historical trends.
+                          </p>
+                        </div>
+                      </div>
+                    </motion.div>
+
+                    {/* Mobile: CTA at bottom */}
+                    <div className="w-full pt-6 border-t border-[var(--border-color)] mt-6">
+                      <a
+                        href={chromeWebStoreUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full bg-[var(--primary-blue)] hover:bg-[var(--primary-blue-hover)] text-white font-semibold h-11 rounded-lg shadow-md shadow-[var(--primary-blue)]/10 mb-3 flex items-center justify-center gap-2 transition-colors"
+                      >
+                        <Chrome className="w-4 h-4" />
+                        Add to Chrome
+                      </a>
+
+                      <button
+                        onClick={() => handleClose(true)}
+                        className="w-full text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors"
+                      >
+                        Don't show this again
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Desktop: CTA at bottom of left column */}
+                <div className="hidden md:block p-4 md:p-6 border-t border-[var(--border-color)] bg-[var(--bg-tertiary)]/50 mt-auto">
+                  <a
+                    href={chromeWebStoreUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full bg-[var(--primary-blue)] hover:bg-[var(--primary-blue-hover)] text-white font-semibold h-11 rounded-lg shadow-md shadow-[var(--primary-blue)]/10 mb-3 flex items-center justify-center gap-2 transition-colors"
+                  >
+                    <Chrome className="w-4 h-4" />
+                    Add to Chrome
+                  </a>
+
+                  <button
+                    onClick={() => handleClose(true)}
+                    className="w-full text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors"
+                  >
+                    Don't show this again
+                  </button>
+                </div>
               </div>
 
-              <h2 className={`mt-4 text-2xl font-semibold tracking-tight sm:text-3xl ${
-                isDark ? 'text-white' : 'text-black'
-              }`}>
-                Analyze any listing. <span className={isDark ? 'text-white/55' : 'text-black/55'}>Instantly.</span>
-              </h2>
+              {/* Desktop: Right Column: Visuals */}
+              <div className="hidden md:flex w-full md:w-3/5 bg-[var(--bg-tertiary)]/50 relative flex-col overflow-x-hidden">
+                <div className="flex-1 overflow-y-auto overflow-x-hidden">
+                  <div className="p-8 md:p-12 pb-12 md:pb-24 min-h-full flex flex-col items-center justify-center md:justify-start overflow-x-hidden">
+                    {/* Background decorative elements */}
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+                    <div className="absolute top-[40%] left-0 w-64 h-64 bg-green-500/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2 pointer-events-none" />
 
-              <p className={`mt-3 max-w-2xl text-sm leading-6 sm:text-[15px] ${
-                isDark ? 'text-white/70' : 'text-black/70'
-              }`}>
-                Stop switching tabs. Our Chrome extension overlays <span className={`font-medium ${isDark ? 'text-white/80' : 'text-black/80'}`}>FMR data</span> and{' '}
-                <span className={`font-medium ${isDark ? 'text-white/80' : 'text-black/80'}`}>cash flow analysis</span> directly on property listings from Zillow and Redfin. More sites coming soon.
-              </p>
+                    {/* Grid Pattern */}
+                    <div className="absolute inset-0 opacity-[0.03] bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
 
-              <div className={`mt-7 text-xs ${isDark ? 'text-white/55' : 'text-black/55'}`}>
-                Privacy-first: runs locally in your browser
+                    {/* Close Button Desktop */}
+                    <button
+                      onClick={() => handleClose(false)}
+                      className="hidden md:flex absolute top-6 right-6 p-2 rounded-lg bg-[var(--bg-secondary)]/50 hover:bg-[var(--bg-secondary)] backdrop-blur-sm text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-all z-20 border border-[var(--border-color)]"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+
+                    {/* Live Mockup Section */}
+                    <div className="relative w-full max-w-[320px] md:max-w-[380px] perspective-1000 z-10 mb-6 md:mb-12 mt-0 md:mt-0">
+                      <div className="mb-4 md:mb-6 flex justify-center gap-3">
+                        <button
+                          onClick={() => setActiveMode('cashflow')}
+                          className={cn(
+                            'flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 rounded-lg text-xs md:text-sm font-semibold transition-all shadow-sm border',
+                            activeMode === 'cashflow'
+                              ? 'bg-[var(--bg-secondary)] border-[var(--accent-success)] text-[var(--accent-success-dark)] ring-2 ring-[var(--accent-success)]/20'
+                              : 'bg-[var(--bg-secondary)]/50 border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)]'
+                          )}
+                        >
+                          <DollarSign className="w-3 h-3 md:w-4 md:h-4" />
+                          Cash Flow Mode
+                        </button>
+                        <button
+                          onClick={() => setActiveMode('fmr')}
+                          className={cn(
+                            'flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 rounded-lg text-xs md:text-sm font-semibold transition-all shadow-sm border',
+                            activeMode === 'fmr'
+                              ? 'bg-[var(--bg-secondary)] border-[var(--primary-blue)]/30 text-[var(--primary-blue)] ring-2 ring-[var(--primary-blue)]/20'
+                              : 'bg-[var(--bg-secondary)]/50 border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)]'
+                          )}
+                        >
+                          <Percent className="w-3 h-3 md:w-4 md:h-4" />
+                          FMR Mode
+                        </button>
+                      </div>
+
+                      <motion.div
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.15, duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
+                        className="relative"
+                      >
+                        <ListingCardMockup mode={activeMode} />
+                      </motion.div>
+                    </div>
+
+                    {/* Detailed Analysis Section (Hidden on small mobile) */}
+                    <motion.div
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.25, duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
+                      className="w-full max-w-[420px] z-10 hidden md:block"
+                    >
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="h-px bg-[var(--border-color)] flex-1" />
+                        <span className="text-xs font-bold uppercase tracking-widest text-[var(--text-tertiary)]">
+                          Detailed Analysis
+                        </span>
+                        <div className="h-px bg-[var(--border-color)] flex-1" />
+                      </div>
+
+                      <div className="bg-[var(--bg-secondary)] rounded-lg shadow-xl border border-[var(--border-color)] overflow-hidden ring-1 ring-black/5 hover:ring-[var(--primary-blue)]/20 transition-all duration-500 group">
+                        <div className="relative">
+                          <Image
+                            src={miniViewImg}
+                            alt="Detailed FMR Analysis"
+                            width={2048}
+                            height={1394}
+                            className="w-full h-auto object-cover opacity-90 transition-opacity group-hover:opacity-100"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center p-6">
+                            <p className="text-white font-medium text-sm drop-shadow-md">
+                              Click any badge to open detailed view
+                            </p>
+                          </div>
+                        </div>
+                        <div className="p-4 bg-[var(--bg-tertiary)]/50 border-t border-[var(--border-color)]">
+                          <h4 className="font-bold text-[var(--text-primary)] text-sm mb-1">Deep Dive Data</h4>
+                          <p className="text-xs text-[var(--text-secondary)]">
+                            View complete breakdown by bedroom count, investment scores, and historical trends.
+                          </p>
+                        </div>
+                      </div>
+                    </motion.div>
+
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-
-          {/* Sections (no "image box" containers; images ARE the cards) */}
-          <Section
-            title="See the signal right on the listing"
-            subtitle="Every property listing gets a smart badge that shows you the numbers that matter — no research required."
-            bullets={[
-              'Instantly see cash flow potential or FMR data as you browse',
-              'Works on list views, map views, and detail pages',
-              'One click opens the full analysis without leaving the page'
-            ]}
-            reverse={false}
-            isDark={isDark}
-            media={
-              <ImageCard
-                src={img.badgeOnListing}
-                alt="Badge shown on a listing card"
-                width={912}
-                height={878}
-                className="max-w-full md:max-w-[375px]"
-                priority
-                zoom
-                isDark={isDark}
-              />
-            }
-            caption="Badge shown on a listing card"
-          />
-
-          <Section
-            title="Dive deeper with one click"
-            subtitle="The mini view gives you everything you need to make a quick decision — all without leaving your current page."
-            bullets={[
-              'Compare HUD FMR and SAFMR side-by-side',
-              'See the ZIP investment score instantly',
-              'Review trends and bedroom breakdowns to spot opportunities'
-            ]}
-            reverse
-            isDark={isDark}
-            media={
-              <ImageCard
-                src={img.miniView}
-                alt="Mini view opened from the badge"
-                width={2048}
-                height={1394}
-                className="max-w-full md:max-w-[640px]"
-                isDark={isDark}
-              />
-            }
-            caption="Mini view shown after clicking the badge"
-          />
-
-          <Section
-            title="Set it once, use it everywhere"
-            subtitle="Configure your investment assumptions once, and every listing automatically calculates cash flow using your criteria."
-            bullets={[
-              'Choose between Cash Flow mode or FMR-only display',
-              'Set your standard down payment, insurance, and property management rates',
-              'Toggle on or off per site, or reset anytime'
-            ]}
-            reverse={false}
-            isDark={isDark}
-            media={
-              <ImageCard
-                src={img.popper}
-                alt="Extension popper settings"
-                width={804}
-                height={1198}
-                className="max-w-full md:max-w-[400px]"
-                isDark={isDark}
-              />
-            }
-            caption="Extension popper settings"
-          />
-
-          <Section
-            title="Account for the real costs"
-            subtitle="Every property is different. Add custom monthly expenses to get cash flow estimates that match reality."
-            bullets={[
-              'Include utilities, maintenance reserves, or special HOA fees',
-              'See how these costs impact your bottom line in real-time',
-              'Build more accurate projections before you make an offer'
-            ]}
-            reverse
-            isDark={isDark}
-            media={
-              <ImageCard
-                src={img.customExpenses}
-                alt="Custom expenses section"
-                width={738}
-                height={280}
-                className="max-w-full md:max-w-[400px]"
-                isDark={isDark}
-              />
-            }
-            caption="Custom expenses section"
-          />
-
-          {/* Footer */}
-          <div className={`border-t px-6 py-5 text-xs sm:px-8 md:px-10 ${
-            isDark ? 'border-white/10 text-white/55' : 'border-black/10 text-black/55'
-          }`}>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <span>All calculations run locally. No personal data or browsing activity is collected or stored.</span>
-              <span>Works on list, map, and detail pages.</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Floating action buttons - always visible */}
-        <div className={`sticky bottom-0 left-0 right-0 border-t px-6 py-4 sm:px-8 md:px-10 flex flex-col gap-3 sm:flex-row sm:items-center z-30 ${
-          isDark 
-            ? 'border-white/10 bg-[var(--bg-secondary)] backdrop-blur-sm' 
-            : 'border-black/10 bg-white/95 backdrop-blur-sm'
-        }`}>
-          <a
-            href={chromeWebStoreUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:opacity-90 focus:outline-none focus:ring-2 ${
-              isDark
-                ? 'bg-[var(--accent-primary)] focus:ring-[var(--accent-primary)]/20'
-                : 'bg-black focus:ring-black/20'
-            }`}
-          >
-            Add to Chrome
-          </a>
-          <button
-            onClick={handleNeverShow}
-            className={`inline-flex items-center justify-center rounded-xl border px-4 py-2.5 text-sm font-medium shadow-sm transition focus:outline-none focus:ring-2 ${
-              isDark
-                ? 'border-white/15 bg-white/5 text-white/80 hover:bg-white/10 focus:ring-white/10'
-                : 'border-black/15 bg-white text-black/80 hover:bg-black/[0.02] focus:ring-black/10'
-            }`}
-          >
-            Never show this again
-          </button>
-        </div>
-      </div>
-    </div>
+            </motion.div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
   );
 }
-
-/* ---------- UI building blocks ---------- */
-
-function Section({
-  title,
-  subtitle,
-  bullets,
-  media,
-  caption,
-  reverse,
-  isDark
-}: {
-  title: string;
-  subtitle?: string;
-  bullets: string[];
-  media: React.ReactNode;
-  caption?: string;
-  reverse?: boolean;
-  isDark: boolean;
-}) {
-  return (
-    <div className="px-6 py-8 sm:px-8 sm:py-10 md:px-10">
-      <div
-        className={[
-          'grid grid-cols-1 items-start gap-6 md:grid-cols-2 md:gap-10',
-          reverse ? 'md:[&>div:first-child]:order-2 md:[&>div:last-child]:order-1' : ''
-        ].join(' ')}
-      >
-        <div className="flex flex-col justify-center">
-          <h3 className={`text-lg font-semibold tracking-tight sm:text-xl ${
-            isDark ? 'text-white' : 'text-black'
-          }`}>{title}</h3>
-          {subtitle ? (
-            <p className={`mt-3 text-sm leading-6 sm:text-[15px] ${
-              isDark ? 'text-white/65' : 'text-black/65'
-            }`}>{subtitle}</p>
-          ) : null}
-
-          <ul className={`mt-5 space-y-3 text-sm leading-6 sm:text-[15px] ${
-            isDark ? 'text-white/70' : 'text-black/70'
-          }`}>
-            {bullets.map(b => (
-              <li key={b} className="flex gap-3">
-                <span className={`mt-2 h-1.5 w-1.5 flex-none rounded-full ${
-                  isDark ? 'bg-white/35' : 'bg-black/35'
-                }`} />
-                <span>{b}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div className={reverse ? 'flex md:justify-start' : 'flex md:justify-end'}>{media}</div>
-      </div>
-
-      {caption ? (
-        <div className={`mt-3 text-xs ${
-          reverse 
-            ? 'md:text-left' 
-            : 'md:text-right'
-        } ${
-          isDark ? 'text-white/55' : 'text-black/55'
-        }`}>
-          {caption}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function ImageCard({
-  src,
-  alt,
-  width,
-  height,
-  className,
-  priority,
-  zoom,
-  isDark
-}: {
-  src: string;
-  alt: string;
-  width: number;
-  height: number;
-  className?: string;
-  priority?: boolean;
-  zoom?: boolean;
-  isDark: boolean;
-}) {
-  return (
-    <div
-      className={[
-        // shrink-wrap + elegant "card" treatment (no extra space around the image)
-        'w-full overflow-hidden rounded-lg border shadow-[0_18px_60px_rgba(0,0,0,0.12)]',
-        isDark 
-          ? 'border-white/10 bg-[var(--bg-tertiary)]' 
-          : 'border-black/10 bg-white',
-        className ?? ''
-      ].join(' ')}
-    >
-      <div className={zoom ? 'relative overflow-hidden' : ''}>
-        <Image
-          src={src}
-          alt={alt}
-          width={width}
-          height={height}
-          priority={priority}
-          sizes="(max-width: 768px) 100vw, 1200px"
-          className={[
-            'block h-auto w-full max-w-full',
-            zoom ? 'scale-[1] origin-center' : ''
-          ].join(' ')}
-        />
-      </div>
-    </div>
-  );
-}
-
