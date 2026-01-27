@@ -34,6 +34,7 @@ declare module 'next-auth/jwt' {
     id?: string;
     tier?: string;
     role?: string;
+    lastRoleCheck?: number; // Timestamp of last role/tier check from database
   }
 }
 
@@ -138,6 +139,7 @@ const config: NextAuthConfig = {
         token.id = user.id;
         token.tier = user.tier || 'free';
         token.role = user.role || 'user';
+        token.lastRoleCheck = Date.now();
       }
 
       // For OAuth users, fetch tier and role from database if not present
@@ -149,6 +151,34 @@ const config: NextAuthConfig = {
         if (users[0]) {
           token.tier = users[0].tier || 'free';
           token.role = users[0].role || 'user';
+        }
+        token.lastRoleCheck = Date.now();
+      }
+
+      // Periodically refresh role and tier from database to pick up admin changes
+      // Check every 30 seconds to balance freshness with performance
+      // This ensures role changes made in the admin dashboard are reflected within 30 seconds
+      const now = Date.now();
+      const lastCheck = token.lastRoleCheck || 0;
+      const checkInterval = 30 * 1000; // 30 seconds
+
+      if (token.id && (now - lastCheck > checkInterval)) {
+        try {
+          const users = await query<{ tier: string; role: string }>(
+            'SELECT tier, role FROM users WHERE id = $1',
+            [token.id]
+          );
+          if (users[0]) {
+            token.tier = users[0].tier || 'free';
+            token.role = users[0].role || 'user';
+            token.lastRoleCheck = now;
+          }
+        } catch (error) {
+          // Silently fail - don't break auth if DB check fails
+          // The token will still have the cached values
+          if (process.env.NODE_ENV === 'development') {
+            console.error('Failed to refresh role/tier from database:', error);
+          }
         }
       }
 
