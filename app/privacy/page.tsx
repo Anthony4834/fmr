@@ -17,33 +17,36 @@ export default function PrivacyPage() {
         [data-custom-class='title'], [data-custom-class='title'] * {
           font-family: Arial !important;
           font-size: 26px !important;
-          color: #000000 !important;
+          color: var(--text-primary) !important;
         }
         [data-custom-class='subtitle'], [data-custom-class='subtitle'] * {
           font-family: Arial !important;
-          color: #595959 !important;
+          color: var(--text-secondary) !important;
           font-size: 14px !important;
         }
         [data-custom-class='heading_1'], [data-custom-class='heading_1'] * {
           font-family: Arial !important;
           font-size: 19px !important;
-          color: #000000 !important;
+          color: var(--text-primary) !important;
         }
         [data-custom-class='heading_2'], [data-custom-class='heading_2'] * {
           font-family: Arial !important;
           font-size: 17px !important;
-          color: #000000 !important;
+          color: var(--text-primary) !important;
         }
         [data-custom-class='body_text'], [data-custom-class='body_text'] * {
-          color: #595959 !important;
+          color: var(--text-secondary) !important;
           font-size: 14px !important;
           font-family: Arial !important;
         }
         [data-custom-class='link'], [data-custom-class='link'] * {
-          color: #3030F1 !important;
+          color: hsl(192 85% 42%) !important;
           font-size: 14px !important;
           font-family: Arial !important;
           word-break: break-word !important;
+        }
+        [data-custom-class='link']:hover, [data-custom-class='link'] *:hover {
+          opacity: 0.8;
         }
         .privacy-page ul {
           list-style-type: square;
@@ -63,12 +66,17 @@ export default function PrivacyPage() {
         }
         .privacy-page table th,
         .privacy-page table td {
-          border: 1px solid black;
+          border: 1px solid var(--border-color);
           padding: 8px;
           text-align: left;
+          color: var(--text-primary);
         }
         .privacy-page table th {
           font-weight: bold;
+          background-color: var(--bg-tertiary);
+        }
+        .privacy-page table td {
+          background-color: var(--bg-secondary);
         }
       `
       }} />
@@ -99,7 +107,7 @@ export default function PrivacyPage() {
               </strong>
             </div>
             <div>
-              <span style={{ color: 'rgb(127, 127, 127)' }}>
+              <span style={{ color: 'var(--text-secondary)' }}>
                 <strong>
                   <span style={{ fontSize: '15px' }}>
                     <span data-custom-class="subtitle">Last updated January 25, 2026</span>
@@ -117,8 +125,8 @@ export default function PrivacyPage() {
               <br />
             </div>
             <div style={{ lineHeight: 1.5 }}>
-              <span style={{ color: 'rgb(127, 127, 127)' }}>
-                <span style={{ color: 'rgb(89, 89, 89)', fontSize: '15px' }}>
+              <span style={{ color: 'var(--text-secondary)' }}>
+                <span style={{ color: 'var(--text-secondary)', fontSize: '15px' }}>
                   <span data-custom-class="body_text">
                     This Privacy Notice for <strong>fmr.fyi</strong> (<strong>"we,"</strong> <strong>"us,"</strong> or{' '}
                     <strong>"our"</strong>), describes how and why we might access, collect, store, use, and/or share (
@@ -130,7 +138,7 @@ export default function PrivacyPage() {
             </div>
             <ul>
               <li data-custom-class="body_text" style={{ lineHeight: 1.5 }}>
-                <span style={{ fontSize: '15px', color: 'rgb(89, 89, 89)' }}>
+                <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
                   <span data-custom-class="body_text">
                     Visit our website at{' '}
                     <a target="_blank" data-custom-class="link" href="https://fmr.fyi">
@@ -156,7 +164,7 @@ export default function PrivacyPage() {
             </ul>
             <ul>
               <li data-custom-class="body_text" style={{ lineHeight: 1.5 }}>
-                <span style={{ fontSize: '15px', color: 'rgb(89, 89, 89)' }}>
+                <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
                   <span data-custom-class="body_text">
                     Engage with us in other related ways, including any marketing or events
                   </span>
@@ -165,14 +173,14 @@ export default function PrivacyPage() {
             </ul>
             <div style={{ lineHeight: 1.5 }}>
               <span style={{ fontSize: '15px' }}>
-                <span style={{ color: 'rgb(127, 127, 127)' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>
                   <span data-custom-class="body_text">
                     <strong>Questions or concerns?</strong> Reading this Privacy Notice will help you understand your
                     privacy rights and choices. We are responsible for making decisions about how your personal
                     information is processed. If you do not agree with our policies and practices, please do not use our
                     Services. If you still have any questions or concerns, please contact us at{' '}
-                    <a target="_blank" data-custom-class="link" href="mailto:griffin-rei@outlook.com">
-                      griffin-rei@outlook.com
+                    <a target="_blank" data-custom-class="link" href="mailto:contact@fmr.fyi">
+                      contact@fmr.fyi
                     </a>
                     .
                   </span>
@@ -206,7 +214,7 @@ export default function PrivacyPage() {
                 </span>
               </span>
               <a data-custom-class="link" href="#toc">
-                <span style={{ color: 'rgb(0, 58, 250)', fontSize: '15px' }}>
+                <span style={{ color: 'hsl(192 85% 42%)', fontSize: '15px' }}>
                   <span data-custom-class="body_text">
                     <strong>
                       <em>table of contents</em>
@@ -234,7 +242,7 @@ export default function PrivacyPage() {
                 </span>
               </span>
               <a data-custom-class="link" href="#personalinfo">
-                <span style={{ color: 'rgb(0, 58, 250)', fontSize: '15px' }}>
+                <span style={{ color: 'hsl(192 85% 42%)', fontSize: '15px' }}>
                   <span data-custom-class="body_text">personal information you disclose to us</span>
                 </span>
               </a>
@@ -264,7 +272,7 @@ export default function PrivacyPage() {
                 </span>
               </span>
               <a data-custom-class="link" href="#othersources">
-                <span style={{ color: 'rgb(0, 58, 250)', fontSize: '15px' }}>
+                <span style={{ color: 'hsl(192 85% 42%)', fontSize: '15px' }}>
                   <span data-custom-class="body_text">information collected from other sources</span>
                 </span>
               </a>
@@ -283,7 +291,7 @@ export default function PrivacyPage() {
                 </span>
               </span>
               <a data-custom-class="link" href="#infouse">
-                <span style={{ color: 'rgb(0, 58, 250)', fontSize: '15px' }}>
+                <span style={{ color: 'hsl(192 85% 42%)', fontSize: '15px' }}>
                   <span data-custom-class="body_text">how we process your information</span>
                 </span>
               </a>
@@ -302,7 +310,7 @@ export default function PrivacyPage() {
                 </span>
               </span>
               <a data-custom-class="link" href="#whoshare">
-                <span style={{ color: 'rgb(0, 58, 250)', fontSize: '15px' }}>
+                <span style={{ color: 'hsl(192 85% 42%)', fontSize: '15px' }}>
                   <span data-custom-class="body_text">when and with whom we share your personal information</span>
                 </span>
               </a>
@@ -325,7 +333,7 @@ export default function PrivacyPage() {
                 </span>
               </span>
               <a data-custom-class="link" href="#infosafe">
-                <span style={{ color: 'rgb(0, 58, 250)', fontSize: '15px' }}>
+                <span style={{ color: 'hsl(192 85% 42%)', fontSize: '15px' }}>
                   <span data-custom-class="body_text">how we keep your information safe</span>
                 </span>
               </a>
@@ -343,7 +351,7 @@ export default function PrivacyPage() {
                 </span>
               </span>
               <a data-custom-class="link" href="#privacyrights">
-                <span style={{ color: 'rgb(0, 58, 250)', fontSize: '15px' }}>
+                <span style={{ color: 'hsl(192 85% 42%)', fontSize: '15px' }}>
                   <span data-custom-class="body_text">your privacy rights</span>
                 </span>
               </a>
@@ -375,7 +383,7 @@ export default function PrivacyPage() {
                 </span>
               </span>
               <a data-custom-class="link" href="#toc">
-                <span style={{ color: 'rgb(0, 58, 250)', fontSize: '15px' }}>
+                <span style={{ color: 'hsl(192 85% 42%)', fontSize: '15px' }}>
                   <span data-custom-class="body_text">Review the Privacy Notice in full</span>
                 </span>
               </a>
@@ -391,8 +399,8 @@ export default function PrivacyPage() {
             </div>
             <div id="toc" style={{ lineHeight: 1.5 }}>
               <span style={{ fontSize: '15px' }}>
-                <span style={{ color: 'rgb(127, 127, 127)' }}>
-                  <span style={{ color: 'rgb(0, 0, 0)' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>
+                  <span style={{ color: 'var(--text-primary)' }}>
                     <strong>
                       <span data-custom-class="heading_1">
                         <h2>TABLE OF CONTENTS</h2>
@@ -405,67 +413,67 @@ export default function PrivacyPage() {
             <div style={{ lineHeight: 1.5 }}>
               <span style={{ fontSize: '15px' }}>
                 <a data-custom-class="link" href="#infocollect">
-                  <span style={{ color: 'rgb(0, 58, 250)' }}>1. WHAT INFORMATION DO WE COLLECT?</span>
+                  <span style={{ color: 'hsl(192 85% 42%)' }}>1. WHAT INFORMATION DO WE COLLECT?</span>
                 </a>
               </span>
             </div>
             <div style={{ lineHeight: 1.5 }}>
               <span style={{ fontSize: '15px' }}>
                 <a data-custom-class="link" href="#infouse">
-                  <span style={{ color: 'rgb(0, 58, 250)' }}>2. HOW DO WE PROCESS YOUR INFORMATION?</span>
+                  <span style={{ color: 'hsl(192 85% 42%)' }}>2. HOW DO WE PROCESS YOUR INFORMATION?</span>
                 </a>
               </span>
             </div>
             <div style={{ lineHeight: 1.5 }}>
-              <span style={{ color: 'rgb(0, 58, 250)', fontSize: '15px' }}>
+              <span style={{ color: 'hsl(192 85% 42%)', fontSize: '15px' }}>
                 <a data-custom-class="link" href="#whoshare">
                   3. WHEN AND WITH WHOM DO WE SHARE YOUR PERSONAL INFORMATION?
                 </a>
               </span>
             </div>
             <div style={{ lineHeight: 1.5 }}>
-              <span style={{ color: 'rgb(0, 58, 250)', fontSize: '15px' }}>
+              <span style={{ color: 'hsl(192 85% 42%)', fontSize: '15px' }}>
                 <a data-custom-class="link" href="#3pwebsites">4. WHAT IS OUR STANCE ON THIRD-PARTY WEBSITES?</a>
               </span>
             </div>
             <div style={{ lineHeight: 1.5 }}>
               <span style={{ fontSize: '15px' }}>
                 <a data-custom-class="link" href="#cookies">
-                  <span style={{ color: 'rgb(0, 58, 250)' }}>5. DO WE USE COOKIES AND OTHER TRACKING TECHNOLOGIES?</span>
+                  <span style={{ color: 'hsl(192 85% 42%)' }}>5. DO WE USE COOKIES AND OTHER TRACKING TECHNOLOGIES?</span>
                 </a>
               </span>
             </div>
             <div style={{ lineHeight: 1.5 }}>
               <span style={{ fontSize: '15px' }}>
                 <a data-custom-class="link" href="#sociallogins">
-                  <span style={{ color: 'rgb(0, 58, 250)' }}>6. HOW DO WE HANDLE YOUR SOCIAL LOGINS?</span>
+                  <span style={{ color: 'hsl(192 85% 42%)' }}>6. HOW DO WE HANDLE YOUR SOCIAL LOGINS?</span>
                 </a>
               </span>
             </div>
             <div style={{ lineHeight: 1.5 }}>
               <span style={{ fontSize: '15px' }}>
                 <a data-custom-class="link" href="#inforetain">
-                  <span style={{ color: 'rgb(0, 58, 250)' }}>7. HOW LONG DO WE KEEP YOUR INFORMATION?</span>
+                  <span style={{ color: 'hsl(192 85% 42%)' }}>7. HOW LONG DO WE KEEP YOUR INFORMATION?</span>
                 </a>
               </span>
             </div>
             <div style={{ lineHeight: 1.5 }}>
               <span style={{ fontSize: '15px' }}>
                 <a data-custom-class="link" href="#infosafe">
-                  <span style={{ color: 'rgb(0, 58, 250)' }}>8. HOW DO WE KEEP YOUR INFORMATION SAFE?</span>
+                  <span style={{ color: 'hsl(192 85% 42%)' }}>8. HOW DO WE KEEP YOUR INFORMATION SAFE?</span>
                 </a>
               </span>
             </div>
             <div style={{ lineHeight: 1.5 }}>
               <span style={{ fontSize: '15px' }}>
                 <a data-custom-class="link" href="#infominors">
-                  <span style={{ color: 'rgb(0, 58, 250)' }}>9. DO WE COLLECT INFORMATION FROM MINORS?</span>
+                  <span style={{ color: 'hsl(192 85% 42%)' }}>9. DO WE COLLECT INFORMATION FROM MINORS?</span>
                 </a>
               </span>
             </div>
             <div style={{ lineHeight: 1.5 }}>
               <span style={{ fontSize: '15px' }}>
-                <span style={{ color: 'rgb(0, 58, 250)' }}>
+                <span style={{ color: 'hsl(192 85% 42%)' }}>
                   <a data-custom-class="link" href="#privacyrights">10. WHAT ARE YOUR PRIVACY RIGHTS?</a>
                 </span>
               </span>
@@ -473,14 +481,14 @@ export default function PrivacyPage() {
             <div style={{ lineHeight: 1.5 }}>
               <span style={{ fontSize: '15px' }}>
                 <a data-custom-class="link" href="#DNT">
-                  <span style={{ color: 'rgb(0, 58, 250)' }}>11. CONTROLS FOR DO-NOT-TRACK FEATURES</span>
+                  <span style={{ color: 'hsl(192 85% 42%)' }}>11. CONTROLS FOR DO-NOT-TRACK FEATURES</span>
                 </a>
               </span>
             </div>
             <div style={{ lineHeight: 1.5 }}>
               <span style={{ fontSize: '15px' }}>
                 <a data-custom-class="link" href="#uslaws">
-                  <span style={{ color: 'rgb(0, 58, 250)' }}>
+                  <span style={{ color: 'hsl(192 85% 42%)' }}>
                     12. DO UNITED STATES RESIDENTS HAVE SPECIFIC PRIVACY RIGHTS?
                   </span>
                 </a>
@@ -489,20 +497,20 @@ export default function PrivacyPage() {
             <div style={{ lineHeight: 1.5 }}>
               <span style={{ fontSize: '15px' }}>
                 <a data-custom-class="link" href="#policyupdates">
-                  <span style={{ color: 'rgb(0, 58, 250)' }}>13. DO WE MAKE UPDATES TO THIS NOTICE?</span>
+                  <span style={{ color: 'hsl(192 85% 42%)' }}>13. DO WE MAKE UPDATES TO THIS NOTICE?</span>
                 </a>
               </span>
             </div>
             <div style={{ lineHeight: 1.5 }}>
               <a data-custom-class="link" href="#contact">
-                <span style={{ color: 'rgb(0, 58, 250)', fontSize: '15px' }}>
+                <span style={{ color: 'hsl(192 85% 42%)', fontSize: '15px' }}>
                   14. HOW CAN YOU CONTACT US ABOUT THIS NOTICE?
                 </span>
               </a>
             </div>
             <div style={{ lineHeight: 1.5 }}>
               <a data-custom-class="link" href="#request">
-                <span style={{ color: 'rgb(0, 58, 250)' }}>
+                <span style={{ color: 'hsl(192 85% 42%)' }}>
                   15. HOW CAN YOU REVIEW, UPDATE, OR DELETE THE DATA WE COLLECT FROM YOU?
                 </span>
               </a>
@@ -517,8 +525,8 @@ export default function PrivacyPage() {
             {/* Rest of the content continues... */}
             {/* Due to length, I'll include the key sections. The full content would continue with all sections. */}
             <div id="infocollect" style={{ lineHeight: 1.5 }}>
-              <span style={{ color: 'rgb(0, 0, 0)' }}>
-                <span style={{ color: 'rgb(0, 0, 0)', fontSize: '15px' }}>
+              <span style={{ color: 'var(--text-primary)' }}>
+                <span style={{ color: 'var(--text-primary)', fontSize: '15px' }}>
                   <strong>
                     <span data-custom-class="heading_1">
                       <h2>1. WHAT INFORMATION DO WE COLLECT?</h2>
@@ -526,17 +534,17 @@ export default function PrivacyPage() {
                   </strong>
                 </span>
               </span>
-              <span data-custom-class="heading_2" id="personalinfo" style={{ color: 'rgb(0, 0, 0)' }}>
+              <span data-custom-class="heading_2" id="personalinfo" style={{ color: 'var(--text-primary)' }}>
                 <span style={{ fontSize: '15px' }}>
                   <strong>
                     <h3>Personal information you disclose to us</h3>
                   </strong>
                 </span>
               </span>
-              <span style={{ color: 'rgb(127, 127, 127)' }}>
-                <span style={{ color: 'rgb(89, 89, 89)', fontSize: '15px' }}>
+              <span style={{ color: 'var(--text-secondary)' }}>
+                <span style={{ color: 'var(--text-secondary)', fontSize: '15px' }}>
                   <span data-custom-class="body_text">
-                    <span style={{ fontSize: '15px', color: 'rgb(89, 89, 89)' }}>
+                    <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
                       <span data-custom-class="body_text">
                         <strong>
                           <em>In Short:</em>
@@ -545,7 +553,7 @@ export default function PrivacyPage() {
                     </span>
                   </span>
                   <span data-custom-class="body_text">
-                    <span style={{ fontSize: '15px', color: 'rgb(89, 89, 89)' }}>
+                    <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
                       <span data-custom-class="body_text">
                         <strong>
                           <em> We collect personal information that you provide to us.</em>
@@ -560,8 +568,8 @@ export default function PrivacyPage() {
               <br />
             </div>
             <div style={{ lineHeight: 1.5 }}>
-              <span style={{ fontSize: '15px', color: 'rgb(89, 89, 89)' }}>
-                <span style={{ fontSize: '15px', color: 'rgb(89, 89, 89)' }}>
+              <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
+                <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
                   <span data-custom-class="body_text">
                     We collect personal information that you voluntarily provide to us when you register on the
                     Services, express an interest in obtaining information about us or our products and Services, when
@@ -574,8 +582,8 @@ export default function PrivacyPage() {
               <br />
             </div>
             <div style={{ lineHeight: 1.5 }}>
-              <span style={{ fontSize: '15px', color: 'rgb(89, 89, 89)' }}>
-                <span style={{ fontSize: '15px', color: 'rgb(89, 89, 89)' }}>
+              <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
+                <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
                   <span data-custom-class="body_text">
                     <strong>Personal Information Provided by You.</strong> The personal information that we collect
                     depends on the context of your interactions with us and the Services, the choices you make, and the
@@ -586,21 +594,21 @@ export default function PrivacyPage() {
             </div>
             <ul>
               <li data-custom-class="body_text" style={{ lineHeight: 1.5 }}>
-                <span style={{ fontSize: '15px', color: 'rgb(89, 89, 89)' }}>
+                <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
                   <span data-custom-class="body_text">names</span>
                 </span>
               </li>
             </ul>
             <ul>
               <li data-custom-class="body_text" style={{ lineHeight: 1.5 }}>
-                <span style={{ fontSize: '15px', color: 'rgb(89, 89, 89)' }}>
+                <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
                   <span data-custom-class="body_text">email addresses</span>
                 </span>
               </li>
             </ul>
             <ul>
               <li data-custom-class="body_text" style={{ lineHeight: 1.5 }}>
-                <span style={{ fontSize: '15px', color: 'rgb(89, 89, 89)' }}>
+                <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
                   <span data-custom-class="body_text">passwords</span>
                 </span>
               </li>
@@ -616,8 +624,8 @@ export default function PrivacyPage() {
               <br />
             </div>
             <div style={{ lineHeight: 1.5 }}>
-              <span style={{ fontSize: '15px', color: 'rgb(89, 89, 89)' }}>
-                <span style={{ fontSize: '15px', color: 'rgb(89, 89, 89)' }}>
+              <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
+                <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
                   <span data-custom-class="body_text">
                     <strong>Social Media Login Data.</strong> We may provide you with the option to register with us
                     using your existing social media account details, like your Facebook, X, or other social media
@@ -635,8 +643,8 @@ export default function PrivacyPage() {
               <br />
             </div>
             <div style={{ lineHeight: 1.5 }}>
-              <span style={{ fontSize: '15px', color: 'rgb(89, 89, 89)' }}>
-                <span style={{ fontSize: '15px', color: 'rgb(89, 89, 89)' }}>
+              <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
+                <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
                   <span data-custom-class="body_text">
                     All personal information that you provide to us must be true, complete, and accurate, and you must
                     notify us of any changes to such personal information.
@@ -644,17 +652,17 @@ export default function PrivacyPage() {
                 </span>
               </span>
             </div>
-            <span data-custom-class="heading_2" style={{ color: 'rgb(0, 0, 0)' }}>
+            <span data-custom-class="heading_2" style={{ color: 'var(--text-primary)' }}>
               <span style={{ fontSize: '15px' }}>
                 <strong>
                   <h3>Information automatically collected</h3>
                 </strong>
               </span>
             </span>
-            <span style={{ color: 'rgb(127, 127, 127)' }}>
-              <span style={{ color: 'rgb(89, 89, 89)', fontSize: '15px' }}>
+            <span style={{ color: 'var(--text-secondary)' }}>
+              <span style={{ color: 'var(--text-secondary)', fontSize: '15px' }}>
                 <span data-custom-class="body_text">
-                  <span style={{ fontSize: '15px', color: 'rgb(89, 89, 89)' }}>
+                  <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
                     <span data-custom-class="body_text">
                       <strong>
                         <em>In Short:</em>
@@ -662,7 +670,7 @@ export default function PrivacyPage() {
                     </span>
                   </span>
                   <span data-custom-class="body_text">
-                    <span style={{ fontSize: '15px', color: 'rgb(89, 89, 89)' }}>
+                    <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
                       <span data-custom-class="body_text">
                         <strong>
                           <em> Some information — such as your Internet Protocol (IP) address and/or browser and device characteristics — is collected automatically when you visit our Services.</em>
@@ -677,8 +685,8 @@ export default function PrivacyPage() {
               <br />
             </div>
             <div style={{ lineHeight: 1.5 }}>
-              <span style={{ fontSize: '15px', color: 'rgb(89, 89, 89)' }}>
-                <span style={{ fontSize: '15px', color: 'rgb(89, 89, 89)' }}>
+              <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
+                <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
                   <span data-custom-class="body_text">
                     We automatically collect certain information when you visit, use, or navigate the Services. This
                     information does not reveal your specific identity (like your name or contact information) but may
@@ -695,8 +703,8 @@ export default function PrivacyPage() {
               <br />
             </div>
             <div style={{ lineHeight: 1.5 }}>
-              <span style={{ fontSize: '15px', color: 'rgb(89, 89, 89)' }}>
-                <span style={{ fontSize: '15px', color: 'rgb(89, 89, 89)' }}>
+              <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
+                <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
                   <span data-custom-class="body_text">
                     Like many businesses, we also collect information through cookies and similar technologies.
                   </span>
@@ -707,15 +715,15 @@ export default function PrivacyPage() {
               <br />
             </div>
             <div style={{ lineHeight: 1.5 }}>
-              <span style={{ fontSize: '15px', color: 'rgb(89, 89, 89)' }}>
-                <span style={{ fontSize: '15px', color: 'rgb(89, 89, 89)' }}>
+              <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
+                <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
                   <span data-custom-class="body_text">The information we collect includes:</span>
                 </span>
               </span>
             </div>
             <ul>
               <li data-custom-class="body_text" style={{ lineHeight: 1.5 }}>
-                <span style={{ fontSize: '15px', color: 'rgb(89, 89, 89)' }}>
+                <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
                   <span data-custom-class="body_text">
                     <em>Log and Usage Data.</em> Log and usage data is service-related, diagnostic, usage, and
                     performance information our servers automatically collect when you access or use our Services and
@@ -730,7 +738,7 @@ export default function PrivacyPage() {
             </ul>
             <ul>
               <li data-custom-class="body_text" style={{ lineHeight: 1.5 }}>
-                <span style={{ fontSize: '15px', color: 'rgb(89, 89, 89)' }}>
+                <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
                   <span data-custom-class="body_text">
                     <em>Device Data.</em> We collect device data such as information about your computer, phone, tablet,
                     or other device you use to access the Services. Depending on the device used, this device data may
@@ -743,7 +751,7 @@ export default function PrivacyPage() {
             </ul>
             <ul>
               <li data-custom-class="body_text" style={{ lineHeight: 1.5 }}>
-                <span style={{ fontSize: '15px', color: 'rgb(89, 89, 89)' }}>
+                <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
                   <span data-custom-class="body_text">
                     <em>Location Data.</em> We collect location data such as information about your device's location,
                     which can be either precise or imprecise. How much information we collect depends on the type and
@@ -773,7 +781,7 @@ export default function PrivacyPage() {
                 rel="noopener noreferrer"
                 target="_blank"
               >
-                <span style={{ color: 'rgb(0, 58, 250)', fontSize: '15px' }}>
+                <span style={{ color: 'hsl(192 85% 42%)', fontSize: '15px' }}>
                   <span data-custom-class="body_text">Google API Services User Data Policy</span>
                 </span>
               </a>
@@ -788,7 +796,7 @@ export default function PrivacyPage() {
                 rel="noopener noreferrer"
                 target="_blank"
               >
-                <span style={{ color: 'rgb(0, 58, 250)', fontSize: '15px' }}>
+                <span style={{ color: 'hsl(192 85% 42%)', fontSize: '15px' }}>
                   <span data-custom-class="body_text">Limited Use requirements</span>
                 </span>
               </a>
@@ -802,17 +810,17 @@ export default function PrivacyPage() {
                 <br />
               </span>
             </div>
-            <span data-custom-class="heading_2" id="othersources" style={{ color: 'rgb(0, 0, 0)' }}>
+            <span data-custom-class="heading_2" id="othersources" style={{ color: 'var(--text-primary)' }}>
               <span style={{ fontSize: '15px' }}>
                 <strong>
                   <h3>Information collected from other sources</h3>
                 </strong>
               </span>
             </span>
-            <span style={{ color: 'rgb(127, 127, 127)' }}>
-              <span style={{ color: 'rgb(89, 89, 89)', fontSize: '15px' }}>
+            <span style={{ color: 'var(--text-secondary)' }}>
+              <span style={{ color: 'var(--text-secondary)', fontSize: '15px' }}>
                 <span data-custom-class="body_text">
-                  <span style={{ fontSize: '15px', color: 'rgb(89, 89, 89)' }}>
+                  <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
                     <span data-custom-class="body_text">
                       <strong>
                         <em>In Short: </em>
@@ -830,8 +838,8 @@ export default function PrivacyPage() {
               <br />
             </div>
             <div style={{ lineHeight: 1.5 }}>
-              <span style={{ fontSize: '15px', color: 'rgb(89, 89, 89)' }}>
-                <span style={{ fontSize: '15px', color: 'rgb(89, 89, 89)' }}>
+              <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
+                <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
                   <span data-custom-class="body_text">
                     In order to enhance our ability to provide relevant marketing, offers, and services to you and
                     update our records, we may obtain information about you from other sources, such as public
@@ -848,8 +856,8 @@ export default function PrivacyPage() {
               <br />
             </div>
             <div style={{ lineHeight: 1.5 }}>
-              <span style={{ fontSize: '15px', color: 'rgb(89, 89, 89)' }}>
-                <span style={{ fontSize: '15px', color: 'rgb(89, 89, 89)' }}>
+              <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
+                <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
                   <span data-custom-class="body_text">
                     If you interact with us on a social media platform using your social media account (e.g., Facebook
                     or X), we receive personal information about you from such platforms such as your name, email
@@ -859,12 +867,12 @@ export default function PrivacyPage() {
                 </span>
               </span>
               <a data-custom-class="link" href="#withdrawconsent">
-                <span style={{ fontSize: '15px', color: 'rgb(0, 58, 250)' }}>
+                <span style={{ fontSize: '15px', color: 'hsl(192 85% 42%)' }}>
                   <span data-custom-class="body_text">withdrawing your consent</span>
                 </span>
               </a>
-              <span style={{ fontSize: '15px', color: 'rgb(89, 89, 89)' }}>
-                <span style={{ fontSize: '15px', color: 'rgb(89, 89, 89)' }}>
+              <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
+                <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
                   <span data-custom-class="body_text">
                     . Any personal information that we collect from your social media account depends on your social
                     media account's privacy settings. Please note that their own use of your information is not
@@ -879,10 +887,10 @@ export default function PrivacyPage() {
 
             {/* Additional sections would continue here - I'll add a few more key sections */}
             <div id="infouse" style={{ lineHeight: 1.5 }}>
-              <span style={{ color: 'rgb(127, 127, 127)' }}>
-                <span style={{ color: 'rgb(89, 89, 89)', fontSize: '15px' }}>
-                  <span style={{ fontSize: '15px', color: 'rgb(89, 89, 89)' }}>
-                    <span id="control" style={{ color: 'rgb(0, 0, 0)' }}>
+              <span style={{ color: 'var(--text-secondary)' }}>
+                <span style={{ color: 'var(--text-secondary)', fontSize: '15px' }}>
+                  <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
+                    <span id="control" style={{ color: 'var(--text-primary)' }}>
                       <strong>
                         <span data-custom-class="heading_1">
                           <h2>2. HOW DO WE PROCESS YOUR INFORMATION?</h2>
@@ -891,7 +899,7 @@ export default function PrivacyPage() {
                     </span>
                   </span>
                   <span data-custom-class="body_text">
-                    <span style={{ fontSize: '15px', color: 'rgb(89, 89, 89)' }}>
+                    <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
                       <span data-custom-class="body_text">
                         <strong>
                           <em>In Short: </em>
@@ -911,8 +919,8 @@ export default function PrivacyPage() {
               <br />
             </div>
             <div style={{ lineHeight: 1.5 }}>
-              <span style={{ fontSize: '15px', color: 'rgb(89, 89, 89)' }}>
-                <span style={{ fontSize: '15px', color: 'rgb(89, 89, 89)' }}>
+              <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
+                <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
                   <span data-custom-class="body_text">
                     <strong>We process your personal information for a variety of reasons, depending on how you interact with our Services, including:</strong>
                   </span>
@@ -921,7 +929,7 @@ export default function PrivacyPage() {
             </div>
             <ul>
               <li data-custom-class="body_text" style={{ lineHeight: 1.5 }}>
-                <span style={{ fontSize: '15px', color: 'rgb(89, 89, 89)' }}>
+                <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
                   <span data-custom-class="body_text">
                     <strong>
                       To facilitate account creation and authentication and otherwise manage user accounts.
@@ -948,10 +956,10 @@ export default function PrivacyPage() {
 
             {/* Continue with remaining sections - I'll add contact section as it's important */}
             <div id="contact" style={{ lineHeight: 1.5 }}>
-              <span style={{ color: 'rgb(127, 127, 127)' }}>
-                <span style={{ color: 'rgb(89, 89, 89)', fontSize: '15px' }}>
-                  <span style={{ fontSize: '15px', color: 'rgb(89, 89, 89)' }}>
-                    <span id="control" style={{ color: 'rgb(0, 0, 0)' }}>
+              <span style={{ color: 'var(--text-secondary)' }}>
+                <span style={{ color: 'var(--text-secondary)', fontSize: '15px' }}>
+                  <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
+                    <span id="control" style={{ color: 'var(--text-primary)' }}>
                       <strong>
                         <span data-custom-class="heading_1">
                           <h2>14. HOW CAN YOU CONTACT US ABOUT THIS NOTICE?</h2>
@@ -961,12 +969,12 @@ export default function PrivacyPage() {
                   </span>
                 </span>
               </span>
-              <span style={{ fontSize: '15px', color: 'rgb(89, 89, 89)' }}>
-                <span style={{ fontSize: '15px', color: 'rgb(89, 89, 89)' }}>
+              <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
+                <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
                   <span data-custom-class="body_text">
                     If you have questions or comments about this notice, you may email us at{' '}
-                    <a target="_blank" data-custom-class="link" href="mailto:griffin-rei@outlook.com">
-                      griffin-rei@outlook.com
+                    <a target="_blank" data-custom-class="link" href="mailto:contact@fmr.fyi">
+                      contact@fmr.fyi
                     </a>{' '}
                     or contact us by post at:
                   </span>
@@ -977,7 +985,7 @@ export default function PrivacyPage() {
               <br />
             </div>
             <div style={{ lineHeight: 1.5 }}>
-              <span style={{ fontSize: '15px', color: 'rgb(89, 89, 89)' }}>
+              <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
                 <span data-custom-class="body_text">
                   <strong>fmr.fyi</strong>
                 </span>
@@ -1007,10 +1015,10 @@ export default function PrivacyPage() {
               <br />
             </div>
             <div id="request" style={{ lineHeight: 1.5 }}>
-              <span style={{ color: 'rgb(127, 127, 127)' }}>
-                <span style={{ color: 'rgb(89, 89, 89)', fontSize: '15px' }}>
-                  <span style={{ fontSize: '15px', color: 'rgb(89, 89, 89)' }}>
-                    <span id="control" style={{ color: 'rgb(0, 0, 0)' }}>
+              <span style={{ color: 'var(--text-secondary)' }}>
+                <span style={{ color: 'var(--text-secondary)', fontSize: '15px' }}>
+                  <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
+                    <span id="control" style={{ color: 'var(--text-primary)' }}>
                       <strong>
                         <span data-custom-class="heading_1">
                           <h2>15. HOW CAN YOU REVIEW, UPDATE, OR DELETE THE DATA WE COLLECT FROM YOU?</h2>
@@ -1020,8 +1028,8 @@ export default function PrivacyPage() {
                   </span>
                 </span>
               </span>
-              <span style={{ fontSize: '15px', color: 'rgb(89, 89, 89)' }}>
-                <span style={{ fontSize: '15px', color: 'rgb(89, 89, 89)' }}>
+              <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
+                <span style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
                   <span data-custom-class="body_text">
                     You have the right to request access to the personal information we collect from you, details about
                     how we have processed it, correct inaccuracies, or delete your personal information. You may also
