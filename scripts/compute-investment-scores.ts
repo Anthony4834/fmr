@@ -260,6 +260,7 @@ async function computeZipScores(
     zip_data AS (
       SELECT 
         z.zip_code,
+        z.bedroom_count,
         z.state_code,
         z.city_name,
         -- Get FIPS from zip_county_mapping, normalizing county names for matching
@@ -277,24 +278,16 @@ async function computeZipScores(
           MAX(zcm.county_fips)
         ) as county_fips,
         -- Use canonical county name from FIPS lookup, fallback to original ZHVI name
-        -- We'll resolve this in the final SELECT after grouping
         z.county_name,
-        -- Priority: 3BR → 2BR → 4BR
-        COALESCE(
-          MAX(CASE WHEN z.bedroom_count = 3 AND z.zhvi IS NOT NULL THEN z.zhvi END),
-          MAX(CASE WHEN z.bedroom_count = 2 AND z.zhvi IS NOT NULL THEN z.zhvi END),
-          MAX(CASE WHEN z.bedroom_count = 4 AND z.zhvi IS NOT NULL THEN z.zhvi END)
-        ) as zip_zhvi,
-        COALESCE(
-          MAX(CASE WHEN z.bedroom_count = 3 THEN 3 END),
-          MAX(CASE WHEN z.bedroom_count = 2 THEN 2 END),
-          MAX(CASE WHEN z.bedroom_count = 4 THEN 4 END)
-        ) as selected_bedroom,
-        COALESCE(
-          MAX(CASE WHEN z.bedroom_count = 3 THEN fmr.fmr_3br END),
-          MAX(CASE WHEN z.bedroom_count = 2 THEN fmr.fmr_2br END),
-          MAX(CASE WHEN z.bedroom_count = 4 THEN fmr.fmr_4br END)
-        ) as fmr_value,
+        -- Use bedroom-specific ZHVI value
+        z.zhvi as zip_zhvi,
+        -- Select FMR value based on bedroom count
+        CASE z.bedroom_count
+          WHEN 2 THEN fmr.fmr_2br
+          WHEN 3 THEN fmr.fmr_3br
+          WHEN 4 THEN fmr.fmr_4br
+          ELSE NULL
+        END as fmr_value,
         MAX(tax.effective_tax_rate) as tax_rate,
         MAX(tax.acs_vintage) as acs_vintage
       FROM latest_zhvi z
@@ -319,7 +312,7 @@ async function computeZipScores(
       WHERE tax.effective_tax_rate IS NOT NULL
         AND z.zhvi IS NOT NULL
         AND z.zhvi > 0
-      GROUP BY z.zip_code, z.state_code, z.city_name, z.county_name`;
+      GROUP BY z.zip_code, z.bedroom_count, z.state_code, z.city_name, z.county_name, z.zhvi, fmr.fmr_2br, fmr.fmr_3br, fmr.fmr_4br`;
 
   if (stateFilter) {
     queryText += ` AND z.state_code = $${params.length + 1}`;
@@ -328,16 +321,13 @@ async function computeZipScores(
 
   queryText += `
       HAVING 
-        COALESCE(
-          MAX(CASE WHEN z.bedroom_count = 3 AND z.zhvi IS NOT NULL THEN z.zhvi END),
-          MAX(CASE WHEN z.bedroom_count = 2 AND z.zhvi IS NOT NULL THEN z.zhvi END),
-          MAX(CASE WHEN z.bedroom_count = 4 AND z.zhvi IS NOT NULL THEN z.zhvi END)
-        ) IS NOT NULL
-        AND COALESCE(
-          MAX(CASE WHEN z.bedroom_count = 3 THEN fmr.fmr_3br END),
-          MAX(CASE WHEN z.bedroom_count = 2 THEN fmr.fmr_2br END),
-          MAX(CASE WHEN z.bedroom_count = 4 THEN fmr.fmr_4br END)
-        ) IS NOT NULL
+        z.zhvi IS NOT NULL
+        AND CASE z.bedroom_count
+          WHEN 2 THEN fmr.fmr_2br
+          WHEN 3 THEN fmr.fmr_3br
+          WHEN 4 THEN fmr.fmr_4br
+          ELSE NULL
+        END IS NOT NULL
     ),
     zip_data_with_canonical AS (
       SELECT 
@@ -347,7 +337,7 @@ async function computeZipScores(
         -- Use canonical county name from FIPS lookup, fallback to original ZHVI name
         COALESCE(ccl.county_name, zd.county_name) as county_name,
         zd.county_fips,
-        zd.selected_bedroom as bedroom_count,
+        zd.bedroom_count,
         zd.zip_zhvi,
         county_zhvi.zhvi_median as county_zhvi_median,
         zd.tax_rate,
@@ -361,7 +351,7 @@ async function computeZipScores(
       LEFT JOIN zhvi_rollup_monthly county_zhvi ON (
         county_zhvi.geo_type = 'county'
         AND county_zhvi.month = $1
-        AND county_zhvi.bedroom_count = zd.selected_bedroom
+        AND county_zhvi.bedroom_count = zd.bedroom_count
         AND county_zhvi.state_code = zd.state_code
         AND (
           -- Primary: match by FIPS (most reliable)
@@ -542,8 +532,8 @@ async function computeZipScores(
 
   console.log(`Found ${result.rows.length} ZIP codes with complete data\n`);
 
-  // Compute scores and deduplicate by ZIP code (keep first occurrence)
-  const seenZips = new Set<string>();
+  // Compute scores and deduplicate by (zip_code, bedroom_count) combination
+  const seenZipBedrooms = new Set<string>();
   const scores: ZipScoreData[] = [];
   let skippedInvalid = 0;
   let priceFloorApplied = 0;
@@ -551,12 +541,14 @@ async function computeZipScores(
   let blendingApplied = 0;
   for (const row of result.rows) {
     const zipCode = row.zip_code;
+    const bedroomCount = Number(row.bedroom_count);
+    const zipBedroomKey = `${zipCode}:${bedroomCount}`;
 
-    // Skip duplicates - each ZIP should only appear once
-    if (seenZips.has(zipCode)) {
+    // Skip duplicates - each (ZIP, bedroom) combination should only appear once
+    if (seenZipBedrooms.has(zipBedroomKey)) {
       continue;
     }
-    seenZips.add(zipCode);
+    seenZipBedrooms.add(zipBedroomKey);
 
     const zipZhvi = Number(row.zip_zhvi);
     const countyZhviMedian = row.county_zhvi_median
@@ -871,17 +863,18 @@ async function computeZipScores(
     };
   });
 
-  // Deduplicate by ZIP code (keep first occurrence) to avoid ON CONFLICT issues
+  // Deduplicate by (zip_code, bedroom_count) combination to avoid ON CONFLICT issues
   const uniqueScores = new Map<string, (typeof normalizedScores)[0]>();
   for (const score of normalizedScores) {
-    if (!uniqueScores.has(score.zipCode)) {
-      uniqueScores.set(score.zipCode, score);
+    const key = `${score.zipCode}:${score.bedroomCount}`;
+    if (!uniqueScores.has(key)) {
+      uniqueScores.set(key, score);
     }
   }
   const deduplicatedScores = Array.from(uniqueScores.values());
 
   console.log(
-    `Deduplicated: ${normalizedScores.length} → ${deduplicatedScores.length} unique ZIP codes\n`
+    `Deduplicated: ${normalizedScores.length} → ${deduplicatedScores.length} unique (ZIP, bedroom) combinations\n`
   );
 
   // Debug: Check if demand data is present in deduplicated scores

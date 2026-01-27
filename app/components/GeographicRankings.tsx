@@ -1,12 +1,20 @@
 'use client';
 
-import { useState, useRef, useLayoutEffect } from 'react';
+import { useState, useRef, useLayoutEffect, useMemo, useCallback } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import SearchInput from './SearchInput';
 import VirtualizedRankingList from './VirtualizedRankingList';
+import FilterPills from './FilterPills';
+import MarketOverview from './MarketOverview';
+import AuthModal from './AuthModal';
 import { useGeographicRankings } from '@/app/hooks/useGeographicRankings';
 
 type GeoType = 'state' | 'county' | 'city' | 'zip';
+type SortField = 'score' | 'yield' | 'cashFlow' | 'appreciation' | 'affordability' | 'heat' | 'fmr' | 'name';
+type AffordabilityTier = 'all' | 'affordable' | 'midMarket' | 'premium';
+type YieldRange = 'all' | 'low' | 'moderate' | 'high';
+type BedroomCount = 2 | 3 | 4 | 'all';
 
 interface GeographicRankingsProps {
   year: number;
@@ -20,6 +28,44 @@ const STATE_OPTIONS = [
   'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
   'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY', 'DC'
 ];
+
+const SORT_OPTIONS: { value: SortField; label: string }[] = [
+  { value: 'score', label: 'Investment Score' },
+  { value: 'yield', label: 'Yield (High → Low)' },
+  { value: 'cashFlow', label: 'Cash Flow' },
+  { value: 'affordability', label: 'Affordability' },
+  { value: 'fmr', label: 'FMR (High → Low)' },
+  { value: 'name', label: 'Alphabetical' },
+];
+
+const AFFORDABILITY_OPTIONS: { value: AffordabilityTier; label: string }[] = [
+  { value: 'all', label: 'Any' },
+  { value: 'affordable', label: 'Under $150K' },
+  { value: 'midMarket', label: '$150K - $350K' },
+  { value: 'premium', label: 'Over $350K' },
+];
+
+const YIELD_OPTIONS: { value: YieldRange; label: string }[] = [
+  { value: 'all', label: 'Any' },
+  { value: 'high', label: 'High (7%+)' },
+  { value: 'moderate', label: 'Moderate (5-7%)' },
+  { value: 'low', label: 'Low (<5%)' },
+];
+
+const BEDROOM_OPTIONS: { value: BedroomCount; label: string }[] = [
+  { value: 'all', label: 'Any (Median)' },
+  { value: 2, label: '2 Bedroom' },
+  { value: 3, label: '3 Bedroom' },
+  { value: 4, label: '4 Bedroom' },
+];
+
+// Format currency compact
+function formatCurrencyCompact(value: number | null): string {
+  if (value === null) return '—';
+  if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
+  if (value >= 1000) return `$${Math.round(value / 1000)}K`;
+  return `$${Math.round(value)}`;
+}
 
 export default function GeographicRankings({ year }: GeographicRankingsProps) {
   const router = useRouter();
@@ -61,10 +107,23 @@ export default function GeographicRankings({ year }: GeographicRankingsProps) {
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Filter state (persisted in URL)
+  // Filter states
   const [stateFilter, setStateFilter] = useState(
     () => searchParams.get('geoState') || ''
   );
+  const [sortField, setSortField] = useState<SortField>('score');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [affordabilityTier, setAffordabilityTier] = useState<AffordabilityTier>('all');
+  const [yieldRange, setYieldRange] = useState<YieldRange>('all');
+  const [minScore, setMinScore] = useState<number | null>(null);
+  const [bedroom, setBedroom] = useState<BedroomCount>(3);
+  const [showFilters, setShowFilters] = useState(false);
+  const [mobileView, setMobileView] = useState<'overview' | 'explorer'>('overview');
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+
+  // Check authentication
+  const { data: session, status: sessionStatus } = useSession();
 
   // Data fetching hook
   const {
@@ -78,6 +137,12 @@ export default function GeographicRankings({ year }: GeographicRankingsProps) {
     year,
     search: searchQuery,
     stateFilter: activeTab !== 'state' ? stateFilter : undefined,
+    sort: sortField,
+    sortDirection,
+    affordabilityTier,
+    yieldRange,
+    minScore,
+    bedroom,
     limit: 100,
   });
 
@@ -121,16 +186,271 @@ export default function GeographicRankings({ year }: GeographicRankingsProps) {
     return 'Search ZIP codes...';
   };
 
+  // Check if any filters are active (exclude sort - it's handled by column headers)
+  const hasActiveFilters = useMemo(() => {
+    return affordabilityTier !== 'all' || 
+           yieldRange !== 'all' || 
+           minScore !== null ||
+           bedroom !== 3 ||
+           (activeTab !== 'state' && stateFilter !== '');
+  }, [affordabilityTier, yieldRange, minScore, bedroom, activeTab, stateFilter]);
+
+  // Count active filters for button display (exclude sort - it's handled by column headers)
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (affordabilityTier !== 'all') count++;
+    if (yieldRange !== 'all') count++;
+    if (minScore !== null) count++;
+    if (bedroom !== 3) count++;
+    if (activeTab !== 'state' && stateFilter !== '') count++;
+    return count;
+  }, [affordabilityTier, yieldRange, minScore, bedroom, activeTab, stateFilter]);
+
+  // Generate filter pills (exclude sort since it's handled by column headers)
+  const filterPills = useMemo(() => {
+    const pills: { id: string; label: string; value: string; onRemove: () => void }[] = [];
+    
+    if (affordabilityTier !== 'all') {
+      const priceLabel = AFFORDABILITY_OPTIONS.find(o => o.value === affordabilityTier)?.label || affordabilityTier;
+      pills.push({
+        id: 'price',
+        label: 'Property Value',
+        value: priceLabel,
+        onRemove: () => setAffordabilityTier('all'),
+      });
+    }
+    
+    if (yieldRange !== 'all') {
+      const yieldLabel = YIELD_OPTIONS.find(o => o.value === yieldRange)?.label || yieldRange;
+      pills.push({
+        id: 'yield',
+        label: 'Yield',
+        value: yieldLabel,
+        onRemove: () => setYieldRange('all'),
+      });
+    }
+    
+    if (minScore !== null) {
+      pills.push({
+        id: 'minScore',
+        label: 'Min Score',
+        value: String(minScore),
+        onRemove: () => setMinScore(null),
+      });
+    }
+    
+    if (bedroom !== 3) {
+      const bedroomLabel = BEDROOM_OPTIONS.find(o => o.value === bedroom)?.label || `${bedroom} Bedroom`;
+      pills.push({
+        id: 'bedroom',
+        label: 'Bedroom',
+        value: bedroomLabel,
+        onRemove: () => setBedroom(3),
+      });
+    }
+    
+    if (activeTab !== 'state' && stateFilter !== '') {
+      pills.push({
+        id: 'state',
+        label: 'State',
+        value: stateFilter,
+        onRemove: () => handleStateFilterChange(''),
+      });
+    }
+    
+    return pills;
+  }, [sortField, affordabilityTier, yieldRange, minScore, bedroom, activeTab, stateFilter]);
+
+  // Handle column header sorting - memoized to prevent header rerenders
+  const handleSort = useCallback((field: SortField) => {
+    if (sortField === field) {
+      // Toggle direction if same field clicked
+      setSortDirection(prev => prev === 'desc' ? 'asc' : 'desc');
+    } else {
+      // Set new field with default direction (desc for most, asc for affordability)
+      setSortField(field);
+      setSortDirection(field === 'affordability' ? 'asc' : 'desc');
+    }
+  }, [sortField]);
+
+  // Reset all filters
+  const resetFilters = () => {
+    setSortField('score');
+    setSortDirection('desc');
+    setAffordabilityTier('all');
+    setYieldRange('all');
+    setMinScore(null);
+    setBedroom(3);
+    if (activeTab !== 'state') {
+      handleStateFilterChange('');
+    }
+  };
+
+  // Export function
+  const handleExport = useCallback(async () => {
+    // Check if user is authenticated
+    if (sessionStatus === 'loading') {
+      return; // Still loading, wait
+    }
+
+    if (!session || sessionStatus === 'unauthenticated') {
+      setShowAuthModal(true);
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      // Build query parameters
+      const params = new URLSearchParams({
+        type: activeTab,
+        year: String(year),
+        sort: sortField,
+        sortDirection,
+        bedroom: String(bedroom),
+      });
+
+      if (searchQuery) params.set('search', searchQuery);
+      if (activeTab !== 'state' && stateFilter) params.set('state', stateFilter);
+      if (affordabilityTier !== 'all') params.set('affordabilityTier', affordabilityTier);
+      if (yieldRange !== 'all') params.set('yieldRange', yieldRange);
+      if (minScore !== null) params.set('minScore', String(minScore));
+
+      // Fetch export data
+      const response = await fetch(`/api/export/data?${params.toString()}`);
+      
+      if (response.status === 401) {
+        setShowAuthModal(true);
+        setIsExporting(false);
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error('Failed to export data');
+      }
+
+      // Create blob and trigger download
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      
+      // Try to get filename from Content-Disposition header, fallback to generated name
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = `fmr-export-${new Date().toISOString().split('T')[0]}.xlsx`;
+      if (contentDisposition) {
+        // Extract filename from Content-Disposition header
+        // Format: attachment; filename="filename.xlsx"
+        const quotedMatch = contentDisposition.match(/filename="([^"]+)"/i);
+        const unquotedMatch = contentDisposition.match(/filename=([^;]+)/i);
+        
+        if (quotedMatch && quotedMatch[1]) {
+          filename = quotedMatch[1].trim();
+        } else if (unquotedMatch && unquotedMatch[1]) {
+          filename = unquotedMatch[1].trim();
+        }
+      }
+      
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Export error:', error);
+      alert('Failed to export data. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
+  }, [session, sessionStatus, activeTab, year, sortField, sortDirection, bedroom, searchQuery, stateFilter, affordabilityTier, yieldRange, minScore]);
+
   return (
-    <div className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] overflow-hidden flex flex-col max-h-[56vh] sm:max-h-[600px] lg:max-h-[70vh]">
-      {/* Header */}
-      <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[var(--border-color)] bg-[var(--bg-tertiary)] flex-shrink-0">
-        <h3 className="text-xs sm:text-sm font-semibold text-[var(--text-primary)] mb-2">
-          Market Explorer
-        </h3>
-        <p className="text-xs text-[var(--text-tertiary)] -mt-1 mb-3">
-          Ranked by Investment Score
-        </p>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {/* Mobile View Tabs - Only on mobile */}
+      <div className="lg:hidden mb-4">
+        <div className="flex gap-2 border-b border-[var(--border-color)]">
+          <button
+            onClick={() => setMobileView('overview')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              mobileView === 'overview'
+                ? 'border-[var(--text-primary)] text-[var(--text-primary)]'
+                : 'border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
+            }`}
+          >
+            Overview
+          </button>
+          <button
+            onClick={() => setMobileView('explorer')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              mobileView === 'explorer'
+                ? 'border-[var(--text-primary)] text-[var(--text-primary)]'
+                : 'border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
+            }`}
+          >
+            Explorer
+          </button>
+        </div>
+      </div>
+
+      {/* Market Overview - Above Market Explorer on desktop, conditional on mobile */}
+      <div className={`mb-4 ${mobileView === 'explorer' ? 'lg:block hidden' : 'block'}`}>
+        <MarketOverview year={year} />
+      </div>
+
+      {/* Sticky Header */}
+      <div className={`sticky top-0 z-10 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-t-lg px-3 sm:px-4 py-2.5 sm:py-3 ${mobileView === 'overview' ? 'lg:block hidden' : 'block'}`}>
+        {/* Title row */}
+        <div className="flex items-center justify-between mb-2">
+          <div>
+            <h3 className="text-sm sm:text-base font-semibold text-[var(--text-primary)]">
+              Market Explorer
+            </h3>
+            <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
+              Discover investment opportunities by geo
+            </p>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            {/* Export button */}
+            <button
+              onClick={handleExport}
+              disabled={isExporting || sessionStatus === 'loading'}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Export to Excel (requires login)"
+            >
+              {isExporting ? (
+                <>
+                  <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Exporting...
+                </>
+              ) : (
+                <>
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Export
+                </>
+              )}
+            </button>
+
+            {/* Filter toggle button */}
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                showFilters || hasActiveFilters
+                  ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
+                  : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
+              }`}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              </svg>
+              Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+            </button>
+          </div>
+        </div>
 
         {/* Tabs */}
         <div ref={tabBarRef} className="relative flex gap-1 mb-3 pb-0.5">
@@ -162,6 +482,11 @@ export default function GeographicRankings({ year }: GeographicRankingsProps) {
           />
         </div>
 
+        {/* Active Filter Pills (shown when filters are active but panel is closed) */}
+        {!showFilters && filterPills.length > 0 && (
+          <FilterPills pills={filterPills} onClearAll={resetFilters} />
+        )}
+
         {/* Search Bar */}
         <SearchInput
           filterMode={true}
@@ -170,37 +495,145 @@ export default function GeographicRankings({ year }: GeographicRankingsProps) {
           placeholder={getSearchPlaceholder()}
         />
 
-        {/* Contextual Filters */}
-        {activeTab !== 'state' && (
-          <div className="flex items-center gap-2 mt-2">
-            <label className="text-xs font-semibold text-[var(--text-secondary)]" htmlFor="state-filter">
-              State
-            </label>
-            <select
-              id="state-filter"
-              value={stateFilter}
-              onChange={(e) => handleStateFilterChange(e.target.value)}
-              className="h-8 px-2.5 rounded-md border border-[var(--border-color)] bg-[var(--bg-secondary)] text-xs text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--text-primary)] focus:border-transparent"
-            >
-              <option value="">All States</option>
-              {STATE_OPTIONS.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
+        {/* Filter Bar (collapsible) */}
+        {showFilters && (
+          <div className="mt-3 pt-3 border-t border-[var(--border-color)]">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              {/* Affordability dropdown */}
+              <div className="flex items-center gap-1.5">
+                <label className="text-xs font-medium text-[var(--text-muted)]" htmlFor="affordability-filter">
+                  Property Value
+                </label>
+                <select
+                  id="affordability-filter"
+                  value={affordabilityTier}
+                  onChange={(e) => setAffordabilityTier(e.target.value as AffordabilityTier)}
+                  className="h-7 px-2 rounded border border-[var(--border-color)] bg-[var(--bg-secondary)] text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--text-primary)]"
+                >
+                  {AFFORDABILITY_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Yield dropdown */}
+              <div className="flex items-center gap-1.5">
+                <label className="text-xs font-medium text-[var(--text-muted)]" htmlFor="yield-filter">
+                  Yield
+                </label>
+                <select
+                  id="yield-filter"
+                  value={yieldRange}
+                  onChange={(e) => setYieldRange(e.target.value as YieldRange)}
+                  className="h-7 px-2 rounded border border-[var(--border-color)] bg-[var(--bg-secondary)] text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--text-primary)]"
+                >
+                  {YIELD_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Min Score input */}
+              <div className="flex items-center gap-1.5">
+                <label className="text-xs font-medium text-[var(--text-muted)]" htmlFor="min-score-filter">
+                  Min Score
+                </label>
+                <input
+                  type="number"
+                  id="min-score-filter"
+                  value={minScore ?? ''}
+                  onChange={(e) => setMinScore(e.target.value ? Number(e.target.value) : null)}
+                  placeholder="0"
+                  min="0"
+                  max="200"
+                  className="h-7 w-16 px-2 rounded border border-[var(--border-color)] bg-[var(--bg-secondary)] text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--text-primary)]"
+                />
+              </div>
+
+              {/* Bedroom dropdown */}
+              <div className="flex items-center gap-1.5">
+                <label className="text-xs font-medium text-[var(--text-muted)]" htmlFor="bedroom-filter">
+                  Bedroom
+                </label>
+                <select
+                  id="bedroom-filter"
+                  value={bedroom}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setBedroom(value === 'all' ? 'all' : Number(value) as BedroomCount);
+                  }}
+                  className="h-7 px-2 rounded border border-[var(--border-color)] bg-[var(--bg-secondary)] text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--text-primary)]"
+                >
+                  {BEDROOM_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* State filter (for non-state tabs) */}
+              {activeTab !== 'state' && (
+                <div className="flex items-center gap-1.5">
+                  <label className="text-xs font-medium text-[var(--text-muted)]" htmlFor="state-filter">
+                    State
+                  </label>
+                  <select
+                    id="state-filter"
+                    value={stateFilter}
+                    onChange={(e) => handleStateFilterChange(e.target.value)}
+                    className="h-7 px-2 rounded border border-[var(--border-color)] bg-[var(--bg-secondary)] text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--text-primary)]"
+                  >
+                    <option value="">All States</option>
+                    {STATE_OPTIONS.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Reset button */}
+              {hasActiveFilters && (
+                <button
+                  onClick={resetFilters}
+                  className="h-7 px-2.5 text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+                >
+                  Reset
+                </button>
+              )}
+            </div>
           </div>
         )}
+
       </div>
 
-      {/* Virtualized List */}
-      <VirtualizedRankingList
-        type={activeTab}
-        items={items}
-        loading={loading}
-        hasMore={hasMore}
-        onLoadMore={loadMore}
-        error={error}
+      {/* Content Container */}
+      <div className={`bg-[var(--bg-secondary)] border-x border-b border-[var(--border-color)] rounded-b-lg -mt-px ${mobileView === 'overview' ? 'lg:block hidden' : 'block'}`}>
+        <VirtualizedRankingList
+          type={activeTab}
+          items={items}
+          loading={loading}
+          hasMore={hasMore}
+          onLoadMore={loadMore}
+          error={error}
+          enhancedMode={true}
+          sortField={sortField}
+          sortDirection={sortDirection}
+          onSort={handleSort}
+        />
+      </div>
+
+      {/* Auth Modal */}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        initialMode="login"
       />
     </div>
   );

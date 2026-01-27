@@ -224,7 +224,7 @@ html:not([data-theme]) {
   }
   
   html {
-    overflow-x: hidden;
+    overflow-x: clip; /* Use clip instead of hidden to not break sticky positioning */
   }
   
   body {
@@ -233,7 +233,7 @@ html:not([data-theme]) {
     font-family: var(--font-sans), system-ui, sans-serif;
     font-feature-settings: 'rlig' 1, 'calt' 1, "cv02", "cv03", "cv04", "cv11";
     transition: background-color 0.2s ease, color 0.2s ease;
-    overflow-x: hidden;
+    overflow-x: clip; /* Use clip instead of hidden to not break sticky positioning */
     width: 100%;
   }
   

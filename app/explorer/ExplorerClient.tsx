@@ -87,7 +87,7 @@ export default function ExplorerClient() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-8 sm:py-8 md:py-10 lg:py-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 md:pt-10 lg:pt-10">
         {/* Header (match homepage) */}
         <AppHeader 
           className="mb-4 sm:mb-6 lg:mb-4"
@@ -95,24 +95,25 @@ export default function ExplorerClient() {
           onSearchSelect={handleSearch}
         />
 
-        <div className="flex flex-col gap-3 sm:gap-4">
+        {/* Breadcrumbs */}
+        <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-[var(--text-tertiary)] flex-wrap mb-3 sm:mb-4">
+          <a href="/" className="hover:text-[var(--text-primary)] transition-colors">
+            Home
+          </a>
+          <span className="text-[var(--text-muted)]">/</span>
+          <span aria-current="page" className="text-[var(--text-primary)] font-medium">
+            Explorer
+          </span>
+        </nav>
 
-          {/* Breadcrumbs */}
-          <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-[var(--text-tertiary)] flex-wrap">
-            <a href="/" className="hover:text-[var(--text-primary)] transition-colors">
-              Home
-            </a>
-            <span className="text-[var(--text-muted)]">/</span>
-            <span aria-current="page" className="text-[var(--text-primary)] font-medium">
-              Explorer
-            </span>
-          </nav>
-
-          <h2 className="sr-only">Market Explorer</h2>
-
-          <GeographicRankings year={year} />
-        </div>
+        <h2 className="sr-only">Market Explorer</h2>
       </div>
+
+      {/* GeographicRankings with sticky header - outside max-w container for proper sticky behavior */}
+      <GeographicRankings year={year} />
+
+      {/* Bottom padding */}
+      <div className="pb-8 sm:pb-10" />
     </main>
   );
 }

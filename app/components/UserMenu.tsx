@@ -106,6 +106,7 @@ export default function UserMenu({ onSignInClick }: UserMenuProps) {
   const [showSettings, setShowSettings] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   
   // Get theme context
@@ -139,6 +140,11 @@ export default function UserMenu({ onSignInClick }: UserMenuProps) {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Reset image error when session image changes
+  useEffect(() => {
+    setImageError(false);
+  }, [session?.user?.image]);
 
   // Theme colors
   const textForeground = isDark ? 'hsl(0 0% 98%)' : 'hsl(220 30% 12%)';
@@ -275,11 +281,12 @@ export default function UserMenu({ onSignInClick }: UserMenuProps) {
         aria-expanded={isOpen}
         aria-haspopup="true"
       >
-        {session.user?.image ? (
+        {session.user?.image && !imageError ? (
           <img
             src={session.user.image}
             alt={session.user.name || 'User'}
             className="w-6 h-6 sm:w-7 sm:h-7 rounded-full flex-shrink-0"
+            onError={() => setImageError(true)}
           />
         ) : (
           <div 
@@ -313,11 +320,12 @@ export default function UserMenu({ onSignInClick }: UserMenuProps) {
             style={{ borderColor: borderColor }}
           >
             <div className="flex items-center gap-3">
-              {session.user?.image ? (
+              {session.user?.image && !imageError ? (
                 <img
                   src={session.user.image}
                   alt={session.user.name || 'User'}
                   className="w-9 h-9 rounded-full flex-shrink-0"
+                  onError={() => setImageError(true)}
                 />
               ) : (
                 <div 

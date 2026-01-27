@@ -29,30 +29,47 @@ export async function GET(req: NextRequest) {
       const zip = normalizeZip(zipParam);
       const result = await sql.query(
         `
+        WITH latest_versions AS (
+          SELECT
+            MAX(zhvi_month) as latest_zhvi_month,
+            MAX(acs_vintage) as latest_acs_vintage
+          FROM investment_score
+          WHERE fmr_year = $2
+            AND data_sufficient = true
+        )
         SELECT 
-          geo_type,
-          geo_key,
-          zip_code,
-          state_code,
-          city_name,
-          county_name,
-          county_fips,
-          bedroom_count,
-          fmr_year,
-          property_value,
-          tax_rate,
-          annual_rent,
-          annual_taxes,
-          net_yield,
-          rent_to_price_ratio,
-          score,
-          COALESCE(score_with_demand, score) as score_with_demand,
-          data_sufficient,
-          computed_at
-        FROM investment_score
-        WHERE zip_code = $1
-          AND fmr_year = $2
-        ORDER BY bedroom_count
+          isc.geo_type,
+          isc.geo_key,
+          isc.zip_code,
+          isc.state_code,
+          isc.city_name,
+          isc.county_name,
+          isc.county_fips,
+          isc.bedroom_count,
+          isc.fmr_year,
+          isc.property_value,
+          isc.tax_rate,
+          isc.annual_rent,
+          isc.annual_taxes,
+          isc.net_yield,
+          isc.rent_to_price_ratio,
+          isc.score,
+          COALESCE(isc.score_with_demand, isc.score) as score_with_demand,
+          isc.data_sufficient,
+          isc.computed_at
+        FROM investment_score isc
+        CROSS JOIN latest_versions lv
+        WHERE isc.zip_code = $1
+          AND isc.fmr_year = $2
+          AND isc.bedroom_count = 3
+          AND (
+            (lv.latest_zhvi_month IS NULL AND isc.zhvi_month IS NULL) OR
+            (lv.latest_zhvi_month IS NOT NULL AND isc.zhvi_month = lv.latest_zhvi_month)
+          )
+          AND (
+            (lv.latest_acs_vintage IS NULL AND isc.acs_vintage IS NULL) OR
+            (lv.latest_acs_vintage IS NOT NULL AND isc.acs_vintage = lv.latest_acs_vintage)
+          )
         LIMIT 1
         `,
         [zip, year]

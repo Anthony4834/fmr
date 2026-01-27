@@ -626,7 +626,9 @@ export default function SearchInput({
             placeholder={placeholder}
             className={`w-full pl-11 ${
               currentQuery.trim().length > 0 ? 'pr-28 sm:pr-40' : 'pr-16 sm:pr-24'
-            } py-3 sm:py-3.5 text-[15px] sm:text-base bg-[var(--bg-secondary)] border border-[#e5e5e5] rounded-xl appearance-none focus:outline-none focus:ring-0 focus:ring-offset-0 focus:border-[var(--text-tertiary)] transition-colors placeholder:text-[var(--text-muted)] text-[var(--text-primary)]`}
+            } ${
+              filterMode ? 'py-2 sm:py-2.5 text-sm' : 'py-3 sm:py-3.5 text-[15px] sm:text-base'
+            } bg-[var(--bg-secondary)] border border-[#e5e5e5] rounded-xl appearance-none focus:outline-none focus:ring-0 focus:ring-offset-0 focus:border-[var(--text-tertiary)] transition-colors placeholder:text-[var(--text-muted)] text-[var(--text-primary)]`}
             aria-autocomplete={filterMode ? "none" : "list"}
             aria-expanded={filterMode ? false : showSuggestions}
           />
