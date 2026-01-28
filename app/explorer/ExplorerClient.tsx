@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import GeographicRankings from '@/app/components/GeographicRankings';
 import AppHeader from '@/app/components/AppHeader';
@@ -11,6 +11,16 @@ export default function ExplorerClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [year, setYear] = useState(2026);
+
+  // Fix white-screen when returning via back button (bfcache restore or soft nav). Refresh route
+  // so we don't show a stale/broken cached shell (e.g. only Home/Explorer breadcrumb visible).
+  useEffect(() => {
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) router.refresh();
+    };
+    window.addEventListener('pageshow', onPageShow);
+    return () => window.removeEventListener('pageshow', onPageShow);
+  }, [router]);
 
   const handleSearch = (value: string, type: 'zip' | 'city' | 'county' | 'address' | 'state') => {
     if (type === 'state') {

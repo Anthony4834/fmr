@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useEffect, useMemo } from 'react';
+import Link from 'next/link';
 import { buildCitySlug, buildCountySlug } from '@/lib/location-slugs';
 import { STATES } from '@/lib/states';
 import { formatCountyName } from '@/lib/county-utils';
@@ -347,7 +348,7 @@ export default function VirtualizedRankingList({
         // Enhanced mode with grid layout
         if (hasEnhancedData) {
           return (
-            <a
+            <Link
               key={`${type}-${item.rank}`}
               href={getHref(item)}
               className="block px-3 sm:px-4 py-2 sm:py-4 md:py-5 hover:bg-[var(--bg-hover)] transition-all border-b border-[var(--border-color)] group relative"
@@ -541,13 +542,13 @@ export default function VirtualizedRankingList({
                   </span>
                 </div>
               </div>
-            </a>
+            </Link>
           );
         }
 
         // Fallback: Simple mode (original layout)
         return (
-          <a
+          <Link
             key={`${type}-${item.rank}`}
             href={getHref(item)}
             className="block px-3 sm:px-4 py-2 sm:py-2.5 hover:bg-[var(--bg-hover)] transition-colors border-b border-[var(--border-color)]"
@@ -586,7 +587,7 @@ export default function VirtualizedRankingList({
                 )}
               </div>
             </div>
-          </a>
+          </Link>
         );
       })}
 
