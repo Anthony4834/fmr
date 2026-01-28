@@ -194,6 +194,48 @@ export async function middleware(request: NextRequest) {
       return response;
     }
 
+    // Skip rate limiting for track endpoints (fire-and-forget analytics); still set guest_id for logged-out users
+    if (pathname.startsWith('/api/track/')) {
+      const response = NextResponse.next();
+      response.headers.set('Access-Control-Allow-Origin', '*');
+      response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+      response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+      let token: AuthToken | null = await validateExtensionToken(request.headers.get('authorization'));
+      if (!token) {
+        try {
+          const isSecure = request.url.startsWith('https://');
+          token = await getToken({
+            req: request,
+            secret: process.env.NEXTAUTH_SECRET,
+            cookieName: isSecure ? '__Secure-authjs.session-token' : 'authjs.session-token',
+          }) as AuthToken | null;
+          if (!token) {
+            token = await getToken({
+              req: request,
+              secret: process.env.NEXTAUTH_SECRET,
+              cookieName: isSecure ? '__Secure-next-auth.session-token' : 'next-auth.session-token',
+            }) as AuthToken | null;
+          }
+        } catch {
+          token = null;
+        }
+      }
+      const tier = getUserTierFromToken(token);
+      if (tier === 'logged-out' && !isBotRequest(request) && !isScriptRequest(request)) {
+        const { guestId } = getOrCreateGuestId(request, response);
+        const isSecure = request.url.startsWith('https://');
+        response.cookies.set('guest_id', guestId, {
+          httpOnly: true,
+          secure: isSecure,
+          sameSite: 'lax',
+          maxAge: 60 * 60 * 24 * 365,
+          path: '/',
+        });
+      }
+      return response;
+    }
+
     // Apply rate limiting to all other API routes
     return await handleRateLimit(request);
   }

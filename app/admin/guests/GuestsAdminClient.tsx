@@ -46,6 +46,9 @@ export default function GuestsAdminClient({
   const [resetting, setResetting] = useState<string | null>(null); // guestId or 'all'
   const [resetError, setResetError] = useState<string | null>(null);
   const [myGuestId, setMyGuestId] = useState<string | null>(null);
+  const [expandedGuestId, setExpandedGuestId] = useState<string | null>(null);
+  const [routeHits, setRouteHits] = useState<Record<string, Array<{ path: string; hit_at: string }>>>({});
+  const [routeHitsLoading, setRouteHitsLoading] = useState<string | null>(null);
 
   // Get my own guest_id from cookies
   useEffect(() => {
@@ -137,6 +140,27 @@ export default function GuestsAdminClient({
       setResetError(error instanceof Error ? error.message : 'Failed to reset rate limit');
     } finally {
       setResetting(null);
+    }
+  };
+
+  const toggleRoutes = async (guestId: string) => {
+    if (expandedGuestId === guestId) {
+      setExpandedGuestId(null);
+      return;
+    }
+    setExpandedGuestId(guestId);
+    if (routeHits[guestId]) return;
+    setRouteHitsLoading(guestId);
+    try {
+      const res = await fetch(`/api/admin/guests/routes?guest_id=${encodeURIComponent(guestId)}`);
+      if (!res.ok) throw new Error('Failed to fetch routes');
+      const data = await res.json();
+      setRouteHits((prev) => ({ ...prev, [guestId]: data.routes ?? [] }));
+    } catch (e) {
+      console.error(e);
+      setRouteHits((prev) => ({ ...prev, [guestId]: [] }));
+    } finally {
+      setRouteHitsLoading(null);
     }
   };
 
@@ -359,7 +383,23 @@ export default function GuestsAdminClient({
             {guests.map((guest) => (
               <li key={guest.id} className="px-6 py-4">
                 <div className="flex items-center justify-between">
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 flex items-start gap-2">
+                    <button
+                      type="button"
+                      onClick={() => toggleRoutes(guest.guest_id)}
+                      className="mt-0.5 p-0.5 rounded text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                      title={expandedGuestId === guest.guest_id ? 'Collapse routes' : 'View routes'}
+                      aria-expanded={expandedGuestId === guest.guest_id}
+                    >
+                      <svg
+                        className={`w-4 h-4 transition-transform ${expandedGuestId === guest.guest_id ? 'rotate-90' : ''}`}
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                    <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 dark:text-white truncate font-mono">
                       {guest.guest_id}
                     </p>
@@ -378,6 +418,7 @@ export default function GuestsAdminClient({
                         Converted ({guest.conversion_reason || 'unknown'}): {guest.user_email || guest.converted_user_id}
                       </p>
                     )}
+                    </div>
                   </div>
                   <div className="ml-4 flex items-center gap-2">
                     {guest.limit_hit_at && (
@@ -405,6 +446,35 @@ export default function GuestsAdminClient({
                     )}
                   </div>
                 </div>
+                {expandedGuestId === guest.guest_id && (
+                  <div className="mt-3 ml-6 border-l-2 border-gray-200 dark:border-gray-600 pl-4">
+                    <h4 className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">FE routes hit</h4>
+                    {routeHitsLoading === guest.guest_id ? (
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Loading...</p>
+                    ) : !routeHits[guest.guest_id]?.length ? (
+                      <p className="text-xs text-gray-500 dark:text-gray-400">No route data</p>
+                    ) : (
+                      <div className="overflow-x-auto max-h-48 overflow-y-auto">
+                        <table className="min-w-full text-xs">
+                          <thead>
+                            <tr className="text-left text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-600">
+                              <th className="py-1 pr-4">Path</th>
+                              <th className="py-1">Last seen</th>
+                            </tr>
+                          </thead>
+                          <tbody className="text-gray-700 dark:text-gray-300">
+                            {routeHits[guest.guest_id].map((r, i) => (
+                              <tr key={i} className="border-b border-gray-100 dark:border-gray-700/50">
+                                <td className="py-1 pr-4 font-mono">{r.path}</td>
+                                <td className="py-1 whitespace-nowrap">{new Date(r.hit_at).toLocaleString()}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
               </li>
             ))}
           </ul>

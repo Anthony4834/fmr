@@ -4,6 +4,7 @@ import Script from "next/script";
 import { Space_Grotesk, IBM_Plex_Sans } from "next/font/google";
 import Analytics from "./components/Analytics";
 import StructuredData from "./components/StructuredData";
+import GuestRouteTracker from "./components/GuestRouteTracker";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { RateLimitProvider } from "./contexts/RateLimitContext";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -153,6 +154,7 @@ export default function RootLayout({
               </Script>
               <Analytics />
               <StructuredData />
+              <GuestRouteTracker />
               <VercelAnalytics />
               {children}
             </RateLimitProvider>
