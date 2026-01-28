@@ -27,6 +27,9 @@ export async function GET(request: NextRequest) {
   const params: any[] = [];
   let paramIndex = 1;
 
+  // Filter out guests with less than 5 requests
+  conditions.push(`request_count >= 5`);
+
   if (limitHit === 'true') {
     conditions.push(`limit_hit_at IS NOT NULL`);
   } else if (limitHit === 'false') {

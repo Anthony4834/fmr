@@ -364,8 +364,8 @@ export default function GuestsAdminClient({
                       {guest.guest_id}
                     </p>
                     <div className="mt-1 flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
-                      <span>First seen: {new Date(guest.first_seen).toLocaleDateString()}</span>
-                      <span>Last seen: {new Date(guest.last_seen).toLocaleDateString()}</span>
+                      <span>First seen: {new Date(guest.first_seen).toLocaleString()}</span>
+                      <span>Last seen: {new Date(guest.last_seen).toLocaleString()}</span>
                       <span>Requests: {guest.request_count}</span>
                     </div>
                     {guest.limit_hit_at && (
