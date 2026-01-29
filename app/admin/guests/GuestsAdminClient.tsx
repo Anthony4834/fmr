@@ -39,6 +39,14 @@ export default function GuestsAdminClient({
     total: 0,
     totalPages: 0,
   });
+  const [stats, setStats] = useState({
+    total: 0,
+    limitHit: 0,
+    converted: 0,
+    organic: 0,
+    afterLimitHit: 0,
+    extension: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState(initialSearch);
   const [limitHitFilter, setLimitHitFilter] = useState(initialLimitHit);
@@ -83,6 +91,9 @@ export default function GuestsAdminClient({
       const data = await response.json();
       setGuests(data.guests);
       setPagination(data.pagination);
+      if (data.stats) {
+        setStats(data.stats);
+      }
     } catch (error) {
       console.error('Error fetching guests:', error);
     } finally {
@@ -162,16 +173,6 @@ export default function GuestsAdminClient({
     } finally {
       setRouteHitsLoading(null);
     }
-  };
-
-  // Calculate stats
-  const stats = {
-    total: pagination.total,
-    limitHit: guests.filter(g => g.limit_hit_at !== null).length,
-    converted: guests.filter(g => g.converted_user_id !== null).length,
-    organic: guests.filter(g => g.conversion_reason === 'organic').length,
-    afterLimitHit: guests.filter(g => g.conversion_reason === 'after_limit_hit').length,
-    extension: guests.filter(g => g.conversion_reason === 'extension').length,
   };
 
   return (

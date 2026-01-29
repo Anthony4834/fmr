@@ -50,13 +50,43 @@ export async function GET(request: NextRequest) {
 
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
-  // Get total count
-  const countResult = await query<{ count: string }>(
-    `SELECT COUNT(*) as count FROM guests ${whereClause}`,
-    params
-  );
+  // Get total count and overall stats (same filters)
+  const [countResult, statsResult] = await Promise.all([
+    query<{ count: string }>(
+      `SELECT COUNT(*) as count FROM guests ${whereClause}`,
+      params
+    ),
+    query<{
+      total: string;
+      limit_hit: string;
+      converted: string;
+      organic: string;
+      after_limit_hit: string;
+      extension: string;
+    }>(
+      `SELECT
+        COUNT(*)::text AS total,
+        COUNT(*) FILTER (WHERE limit_hit_at IS NOT NULL)::text AS limit_hit,
+        COUNT(*) FILTER (WHERE converted_user_id IS NOT NULL)::text AS converted,
+        COUNT(*) FILTER (WHERE conversion_reason = 'organic')::text AS organic,
+        COUNT(*) FILTER (WHERE conversion_reason = 'after_limit_hit')::text AS after_limit_hit,
+        COUNT(*) FILTER (WHERE conversion_reason = 'extension')::text AS extension
+       FROM guests ${whereClause}`,
+      params
+    ),
+  ]);
+
   const total = parseInt(countResult[0]?.count || '0', 10);
   const totalPages = Math.ceil(total / limit);
+  const statsRow = statsResult[0];
+  const stats = {
+    total: parseInt(statsRow?.total || '0', 10),
+    limitHit: parseInt(statsRow?.limit_hit || '0', 10),
+    converted: parseInt(statsRow?.converted || '0', 10),
+    organic: parseInt(statsRow?.organic || '0', 10),
+    afterLimitHit: parseInt(statsRow?.after_limit_hit || '0', 10),
+    extension: parseInt(statsRow?.extension || '0', 10),
+  };
 
   // Get guests
   const guests = await query<{
@@ -100,5 +130,6 @@ export async function GET(request: NextRequest) {
       total,
       totalPages,
     },
+    stats,
   });
 }

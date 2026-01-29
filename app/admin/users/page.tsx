@@ -47,8 +47,9 @@ export default async function UsersAdminPage({
     tier: string;
     signup_method: string | null;
     created_at: string;
+    last_seen: string | null;
   }>(
-    `SELECT id, email, name, role, tier, signup_method, created_at 
+    `SELECT id, email, name, role, tier, signup_method, created_at, last_seen 
      FROM users 
      WHERE ${whereClause}
      ORDER BY created_at DESC
@@ -71,6 +72,7 @@ export default async function UsersAdminPage({
     tier: user.tier,
     signupMethod: user.signup_method,
     createdAt: user.created_at,
+    lastSeen: user.last_seen,
   }));
 
   return (

@@ -3,6 +3,7 @@ import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { checkRateLimit, getUserTierFromToken, getUserIdFromToken, type AuthToken, getClientIP } from '@/lib/rate-limit';
 import { trackGuestActivity } from '@/lib/guest-tracking';
+import { trackUserActivity } from '@/lib/user-tracking';
 import * as jose from 'jose';
 
 /**
@@ -412,6 +413,11 @@ async function handleRateLimit(request: NextRequest): Promise<NextResponse> {
     }
     
     const rateLimitResult = await checkRateLimit(tier, request, userId, guestId);
+
+    // Update user last_seen (authenticated users)
+    if (userId) {
+      trackUserActivity(userId);
+    }
 
     // Track guest activity asynchronously (for logged-out users)
     if (tier === 'logged-out' && guestId) {

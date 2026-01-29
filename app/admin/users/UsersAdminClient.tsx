@@ -11,6 +11,7 @@ interface User {
   tier: string;
   signupMethod: string | null;
   createdAt: string;
+  lastSeen: string | null;
 }
 
 interface UsersAdminClientProps {
@@ -223,6 +224,9 @@ export default function UsersAdminClient({
                         ? ' Admin'
                         : ' Unknown'}
                     </span>
+                    {user.lastSeen != null && (
+                      <span className="ml-2">• Last seen: {new Date(user.lastSeen).toLocaleString()}</span>
+                    )}
                   </p>
                 </div>
                 <div className="flex items-center gap-4 ml-4">

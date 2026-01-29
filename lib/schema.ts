@@ -713,9 +713,23 @@ export async function createSchema() {
       role VARCHAR(20) DEFAULT 'user' CHECK (role IN ('user', 'admin')),
       signup_method VARCHAR(20) CHECK (signup_method IN ('credentials', 'google', 'admin_created')),
       locked_until TIMESTAMPTZ,  -- account lockout timestamp
+      last_seen TIMESTAMPTZ,  -- last activity (middleware / auth)
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
+  `);
+
+  // Add last_seen column if it doesn't exist (existing DBs)
+  await execute(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'users' AND column_name = 'last_seen'
+      ) THEN
+        ALTER TABLE users ADD COLUMN last_seen TIMESTAMPTZ;
+      END IF;
+    END $$;
   `);
 
   // Add role column if it doesn't exist (for existing tables)

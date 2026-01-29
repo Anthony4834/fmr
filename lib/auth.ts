@@ -207,6 +207,11 @@ const config: NextAuthConfig = {
 
   events: {
     async signIn({ user, account, isNewUser }) {
+      // Update user last_seen on every sign-in
+      if (user?.id) {
+        const { trackUserActivity } = await import('./user-tracking');
+        trackUserActivity(user.id);
+      }
       // Log successful sign-ins (optional, for monitoring)
       if (process.env.NODE_ENV === 'development') {
         console.log(`User signed in: ${user.email} via ${account?.provider}${isNewUser ? ' (new user)' : ''}`);
