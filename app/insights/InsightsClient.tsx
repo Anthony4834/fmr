@@ -147,18 +147,18 @@ function SignalCell({
   deltaColorClass: string;
 }) {
   return (
-    <div className="rounded-md border border-[var(--border-color)] bg-[var(--bg-primary)] p-2 sm:p-3">
-      <div className="flex items-center justify-between gap-2">
-        <div className="min-w-0">
+    <div className="rounded-md border border-[var(--border-color)] bg-[var(--bg-primary)] p-1.5 sm:p-3">
+      <div className="flex flex-row items-center justify-between gap-2">
+        <div className="min-w-0 flex items-center gap-1.5 sm:block">
           <div className="truncate text-[11px] sm:text-[12px] font-medium text-[var(--text-primary)]">
             {valueMain}
           </div>
-          <div className="mt-0.5 flex items-center gap-2 text-[11px]">
+          <div className="flex items-center gap-1.5 text-[10px] sm:mt-0.5 sm:text-[11px] shrink-0">
             <span className={`font-medium ${deltaColorClass}`}>
               {delta > 0 ? '+' : ''}
               {formatPct(delta)}
             </span>
-            <span className="text-[var(--text-muted)]">YoY</span>
+            <span className="text-[var(--text-muted)] hidden sm:inline">YoY</span>
           </div>
         </div>
         <TrendPill trend={trend} />
@@ -347,6 +347,12 @@ export default function InsightsClient() {
   const [sortMode, setSortMode] = useState<SortMode>(() => getStoredInsightsSettings().sortMode);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [mobileView, setMobileView] = useState<'overview' | 'movers'>(() => {
+    const view = searchParams.get('mobileView');
+    return view === 'movers' ? 'movers' : 'overview';
+  });
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
 
   const PAGE_SIZE = 50;
   const [screenerData, setScreenerData] = useState<{
@@ -734,6 +740,20 @@ export default function InsightsClient() {
     [geoType]
   );
 
+  const handleMobileViewChange = useCallback(
+    (view: 'overview' | 'movers') => {
+      setMobileView(view);
+      const params = new URLSearchParams(searchParams.toString());
+      if (view === 'movers') {
+        params.set('mobileView', 'movers');
+      } else {
+        params.delete('mobileView');
+      }
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    },
+    [router, pathname, searchParams]
+  );
+
   const handleSearch = useCallback(
     (value: string, type: 'zip' | 'city' | 'county' | 'address' | 'state') => {
       if (type === 'state') {
@@ -901,6 +921,18 @@ export default function InsightsClient() {
     return () => document.removeEventListener('keydown', handleKey);
   }, [settingsOpen]);
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target as Node)) {
+        setShowMobileMenu(false);
+      }
+    };
+    if (showMobileMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showMobileMenu]);
+
   const deltaColor = (delta: number) =>
     delta > flatBandPct
       ? 'text-change-positive'
@@ -935,11 +967,39 @@ export default function InsightsClient() {
           </span>
         </nav>
         <h2 className="sr-only">Market Movement</h2>
+
+        {/* Mobile: Overview vs Market Movement tabs */}
+        <div className="lg:hidden mb-4">
+          <div className="flex gap-2 border-b border-[var(--border-color)]">
+            <button
+              type="button"
+              onClick={() => handleMobileViewChange('overview')}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                mobileView === 'overview'
+                  ? 'border-[var(--text-primary)] text-[var(--text-primary)]'
+                  : 'border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              Overview
+            </button>
+            <button
+              type="button"
+              onClick={() => handleMobileViewChange('movers')}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                mobileView === 'movers'
+                  ? 'border-[var(--text-primary)] text-[var(--text-primary)]'
+                  : 'border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              Market Movement
+            </button>
+          </div>
+        </div>
       </div>
 
       <div className="max-w-7xl mx-auto pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] sm:px-6 lg:px-8">
-        {/* Market Overview (ZIP lists) */}
-        <div className="mb-4">
+        {/* Market Overview (ZIP lists) - hidden on mobile when Movers tab active */}
+        <div className={`mb-4 ${mobileView === 'movers' ? 'lg:block hidden' : 'block'}`}>
           <ExplorerTopLists
             stateFilter={stateFilter || undefined}
             minPrice={minPrice || undefined}
@@ -948,6 +1008,8 @@ export default function InsightsClient() {
           />
         </div>
 
+        {/* Market Movement - hidden on mobile when Overview tab active */}
+        <div className={mobileView === 'overview' ? 'lg:block hidden' : 'block'}>
         {/* Sticky toolbar */}
         <div className="sticky top-0 z-10 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-t-lg pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] sm:px-4 py-2.5 sm:py-3">
           <div className="flex items-center justify-between mb-2">
@@ -960,11 +1022,13 @@ export default function InsightsClient() {
               </p>
             </div>
             <div className="flex items-center gap-2">
+              {/* Desktop: Export, Filters, Settings buttons */}
+              <div className="hidden sm:flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => downloadCsv(results.map((m) => ({ label: getItemLabel(m), location: formatLocation(m), zhviCurr: m.zhviCurr, zhviYoy: m.zhviYoy, fmrCurr: m.fmrCurr, fmrYoy: m.fmrYoy, yieldCurr: m.yieldCurr, yieldDeltaPp: m.yieldDeltaPp })))}
                 disabled={results.length === 0}
-                className="flex items-center gap-1.5 px-2.5 py-3 sm:py-1.5 min-h-[44px] sm:min-h-0 text-xs font-medium rounded-lg transition-colors bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -975,7 +1039,7 @@ export default function InsightsClient() {
                 <button
                   type="button"
                   onClick={() => setFiltersOpen((o) => !o)}
-                  className={`flex items-center gap-1.5 px-2.5 py-3 sm:py-1.5 min-h-[44px] sm:min-h-0 text-xs font-medium rounded-lg transition-colors ${
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors ${
                     filtersOpen || activeFiltersCount > 0
                       ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
                       : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
@@ -989,7 +1053,7 @@ export default function InsightsClient() {
                 {filtersOpen && (
                   <>
                     <div
-                      className="fixed inset-0 z-20"
+                      className="fixed inset-0 z-20 bg-black/15 dark:bg-black/40"
                       aria-hidden
                       onClick={() => setFiltersOpen(false)}
                     />
@@ -997,7 +1061,7 @@ export default function InsightsClient() {
                       id="insights-filters-panel"
                       role="dialog"
                       aria-label="Filters"
-                      className="fixed bottom-0 left-0 right-0 z-30 w-full max-h-[85vh] overflow-auto rounded-t-xl border border-b-0 border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-lg p-4 space-y-3 sm:absolute sm:bottom-auto sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[min(360px,calc(100vw-2rem))] sm:max-h-[min(85vh,600px)] sm:rounded-lg sm:border-b"
+                      className="fixed bottom-0 left-0 right-0 z-30 w-full max-h-[85vh] overflow-auto rounded-t-xl border-2 border-b-0 border-[var(--border-color)] bg-[var(--bg-primary)] shadow-xl p-4 space-y-3 sm:absolute sm:bottom-auto sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[min(360px,calc(100vw-2rem))] sm:max-h-[min(85vh,600px)] sm:rounded-lg sm:border-b"
                     >
                       <div>
                         <label className="mb-1.5 block text-xs font-medium text-[var(--text-muted)]">State</label>
@@ -1221,7 +1285,7 @@ export default function InsightsClient() {
                 <button
                   type="button"
                   onClick={() => setSettingsOpen((o) => !o)}
-                  className={`flex items-center gap-1.5 px-2.5 py-3 sm:py-1.5 min-h-[44px] sm:min-h-0 text-xs font-medium rounded-lg transition-colors ${
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors ${
                     settingsOpen
                       ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
                       : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
@@ -1235,14 +1299,14 @@ export default function InsightsClient() {
                 {settingsOpen && (
                   <>
                     <div
-                      className="fixed inset-0 z-20"
+                      className="fixed inset-0 z-20 bg-black/15 dark:bg-black/40"
                       aria-hidden
                       onClick={() => setSettingsOpen(false)}
                     />
                     <div
                       role="dialog"
                       aria-label="Settings"
-                      className="fixed bottom-0 left-0 right-0 z-30 w-full max-h-[85vh] overflow-auto rounded-t-xl border border-b-0 border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-lg p-4 space-y-4 sm:absolute sm:bottom-auto sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[min(300px,calc(100vw-2rem))] sm:max-h-[min(85vh,400px)] sm:rounded-lg sm:border-b"
+                      className="fixed bottom-0 left-0 right-0 z-30 w-full max-h-[85vh] overflow-auto rounded-t-xl border-2 border-b-0 border-[var(--border-color)] bg-[var(--bg-primary)] shadow-xl p-4 space-y-4 sm:absolute sm:bottom-auto sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[min(300px,calc(100vw-2rem))] sm:max-h-[min(85vh,400px)] sm:rounded-lg sm:border-b"
                     >
                       <div>
                         <label className="mb-1.5 block text-xs font-medium text-[var(--text-muted)]">
@@ -1336,6 +1400,78 @@ export default function InsightsClient() {
                   </>
                 )}
               </div>
+              </div>
+
+              {/* Mobile: single menu with Export, Filters, Settings */}
+              <div className="relative sm:hidden" ref={mobileMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setShowMobileMenu(!showMobileMenu)}
+                  className="flex items-center justify-center w-9 h-9 rounded-lg transition-colors bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+                  aria-label="Menu"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                  </svg>
+                </button>
+                {showMobileMenu && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-20"
+                      aria-hidden
+                      onClick={() => setShowMobileMenu(false)}
+                    />
+                    <div className="absolute right-0 top-full mt-2 w-48 min-w-[12rem] bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg shadow-lg z-30 py-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowMobileMenu(false);
+                          if (results.length > 0) {
+                            downloadCsv(results.map((m) => ({ label: getItemLabel(m), location: formatLocation(m), zhviCurr: m.zhviCurr, zhviYoy: m.zhviYoy, fmrCurr: m.fmrCurr, fmrYoy: m.fmrYoy, yieldCurr: m.yieldCurr, yieldDeltaPp: m.yieldDeltaPp })));
+                          }
+                        }}
+                        disabled={results.length === 0}
+                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-left text-[var(--text-primary)] hover:bg-[var(--bg-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <span>Export</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowMobileMenu(false);
+                          setFiltersOpen(true);
+                        }}
+                        className={`w-full flex items-center gap-2 px-4 py-2 text-sm text-left transition-colors ${
+                          filtersOpen || activeFiltersCount > 0
+                            ? 'bg-[var(--bg-hover)] text-[var(--text-primary)]'
+                            : 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
+                        }`}
+                      >
+                        <Filter className="w-4 h-4" />
+                        <span>Filters{activeFiltersCount > 0 ? ` (${activeFiltersCount})` : ''}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowMobileMenu(false);
+                          setSettingsOpen(true);
+                        }}
+                        className={`w-full flex items-center gap-2 px-4 py-2 text-sm text-left transition-colors ${
+                          settingsOpen
+                            ? 'bg-[var(--bg-hover)] text-[var(--text-primary)]'
+                            : 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
+                        }`}
+                      >
+                        <Settings className="w-4 h-4" />
+                        <span>Settings</span>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
 
@@ -1386,15 +1522,15 @@ export default function InsightsClient() {
                 {status === 'loading' && (screenerData?.items?.length ?? 0) === 0 && (
                   <>
                     {[...Array(10)].map((_, i) => (
-                      <div key={i} className="px-3 sm:px-4 py-2 sm:py-4 md:py-5 grid grid-cols-1 gap-3 md:grid-cols-[50px_1.5fr_1fr_1fr_1fr_0.8fr] md:items-center">
+                      <div key={i} className="px-3 sm:px-4 py-1.5 sm:py-4 md:py-5 grid grid-cols-1 gap-1.5 sm:gap-3 md:grid-cols-[50px_1.5fr_1fr_1fr_1fr_0.8fr] md:items-center">
                         <div className="h-4 w-8 bg-[var(--border-color)] rounded animate-pulse hidden sm:block" aria-hidden />
                         <div className="flex items-center gap-2">
                           <div className="h-6 w-6 rounded-md bg-[var(--border-color)] animate-pulse sm:hidden" aria-hidden />
                           <div className="h-4 w-32 bg-[var(--border-color)] rounded animate-pulse" aria-hidden />
                         </div>
-                        <div className="h-14 bg-[var(--border-color)] rounded-md animate-pulse" aria-hidden />
-                        <div className="h-14 bg-[var(--border-color)] rounded-md animate-pulse" aria-hidden />
-                        <div className="h-14 bg-[var(--border-color)] rounded-md animate-pulse" aria-hidden />
+                        <div className="h-10 sm:h-14 bg-[var(--border-color)] rounded-md animate-pulse" aria-hidden />
+                        <div className="h-10 sm:h-14 bg-[var(--border-color)] rounded-md animate-pulse" aria-hidden />
+                        <div className="h-10 sm:h-14 bg-[var(--border-color)] rounded-md animate-pulse" aria-hidden />
                         <div className="h-6 w-12 bg-[var(--border-color)] rounded animate-pulse justify-end hidden md:flex" aria-hidden />
                       </div>
                     ))}
@@ -1432,10 +1568,10 @@ export default function InsightsClient() {
                       return (
                         <div
                           key={m.geoKey}
-                          className="group relative block px-3 sm:px-4 py-2.5 sm:py-4 md:py-5 hover:bg-[var(--bg-hover)] transition-all"
+                          className="group relative block px-3 sm:px-4 py-1.5 sm:py-4 md:py-5 hover:bg-[var(--bg-hover)] transition-all"
                         >
                           <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-[var(--text-primary)]/0 group-hover:bg-[var(--text-primary)]/20 transition-colors" aria-hidden />
-                          <div className="grid grid-cols-1 gap-2 sm:gap-3 md:grid-cols-[50px_1.5fr_1fr_1fr_1fr_0.8fr] md:items-center">
+                          <div className="grid grid-cols-1 gap-1.5 sm:gap-3 md:grid-cols-[50px_1.5fr_1fr_1fr_1fr_0.8fr] md:items-center">
                             <span className="hidden sm:block text-[11px] text-[var(--text-muted)] font-medium tabular-nums">
                               #{idx + 1}
                             </span>
@@ -1514,6 +1650,7 @@ export default function InsightsClient() {
             )}
         </div>
 
+        </div>
       </div>
       <div className="pb-[max(2rem,env(safe-area-inset-bottom))] sm:pb-10" />
     </main>
