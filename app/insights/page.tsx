@@ -29,7 +29,7 @@ export const metadata: Metadata = {
 
 function InsightsFallback() {
   return (
-    <main className="min-h-screen bg-[var(--bg-primary)]">
+    <main className="noise min-h-screen bg-[var(--bg-primary)]">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -38,36 +38,44 @@ function InsightsFallback() {
             '@type': 'BreadcrumbList',
             itemListElement: [
               { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://fmr.fyi/' },
-              { '@type': 'ListItem', position: 2, name: 'Insights', item: 'https://fmr.fyi/insights' },
+              { '@type': 'ListItem', position: 2, name: 'Market explorer', item: 'https://fmr.fyi/insights' },
             ],
           }),
         }}
       />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-8 sm:py-8 md:py-10 lg:py-10">
-        {/* Header Skeleton */}
-        <AppHeaderSkeleton showSearch={true} showDescription={true} className="mb-4 sm:mb-6 lg:mb-4" />
-
-        <div className="flex flex-col gap-2 sm:gap-3">
-
-          <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-[var(--text-tertiary)] flex-wrap">
-            <a href="/" className="hover:text-[var(--text-primary)] transition-colors">
-              Home
-            </a>
-            <span className="text-[var(--text-muted)]">/</span>
-            <span aria-current="page" className="text-[var(--text-primary)] font-medium">
-              Insights
-            </span>
+      <div className="max-w-6xl mx-auto px-4 sm:px-5 py-6 sm:py-8">
+        <AppHeaderSkeleton showSearch showDescription={true} className="mb-4 sm:mb-6" />
+        <div className="flex flex-col gap-5">
+          <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
+            <span className="h-4 w-24 bg-[var(--border-color)] rounded animate-pulse" aria-hidden />
           </nav>
-
-          <div className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] overflow-hidden">
-            <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[var(--border-color)] bg-[var(--bg-tertiary)]">
-              <div className="h-4 w-44 bg-[var(--border-color)] rounded animate-pulse" aria-hidden="true" />
-              <div className="h-3 w-56 bg-[var(--border-color)] rounded mt-2 animate-pulse" aria-hidden="true" />
+          <div className="h-24 bg-[var(--border-color)] rounded animate-pulse" aria-hidden />
+          <div className="h-10 w-full max-w-[420px] bg-[var(--border-color)] rounded-md animate-pulse" aria-hidden />
+          <div className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] overflow-hidden">
+            <div className="p-4 sm:p-5 space-y-3">
+              <div className="h-10 bg-[var(--border-color)] rounded animate-pulse w-full" aria-hidden />
+              <div className="h-px bg-[var(--border-color)]" />
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-20 bg-[var(--border-color)] rounded animate-pulse" aria-hidden />
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="mt-6 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] overflow-hidden">
+            <div className="px-4 py-3 border-b border-[var(--border-color)] grid grid-cols-[1.5fr_1fr_1fr_1fr_0.8fr] gap-3">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="h-4 bg-[var(--border-color)] rounded animate-pulse" aria-hidden />
+              ))}
             </div>
             <div className="divide-y divide-[var(--border-color)]">
-              {[...Array(12)].map((_, i) => (
-                <div key={i} className="px-3 sm:px-4 py-2 sm:py-2.5">
-                  <div className="h-4 bg-[var(--border-color)] rounded animate-pulse" aria-hidden="true" />
+              {[...Array(8)].map((_, i) => (
+                <div key={i} className="px-4 py-4 grid grid-cols-[1.5fr_1fr_1fr_1fr_0.8fr] gap-3 items-center">
+                  <div className="h-4 bg-[var(--border-color)] rounded animate-pulse w-3/4" aria-hidden />
+                  <div className="h-4 bg-[var(--border-color)] rounded animate-pulse" aria-hidden />
+                  <div className="h-4 bg-[var(--border-color)] rounded animate-pulse" aria-hidden />
+                  <div className="h-4 bg-[var(--border-color)] rounded animate-pulse" aria-hidden />
+                  <div className="h-4 bg-[var(--border-color)] rounded animate-pulse w-12" aria-hidden />
                 </div>
               ))}
             </div>

@@ -20,6 +20,7 @@ export default async function GuestsAdminPage({
     search?: string;
     limit_hit?: string;
     converted?: string;
+    min_requests?: string;
   };
 }) {
   // Require admin access
@@ -32,6 +33,7 @@ export default async function GuestsAdminPage({
   const search = searchParams.search || '';
   const limitHit = searchParams.limit_hit || '';
   const converted = searchParams.converted || '';
+  const minRequests = searchParams.min_requests ?? '5';
 
   return (
     <GuestsAdminClient
@@ -39,6 +41,7 @@ export default async function GuestsAdminPage({
       initialSearch={search}
       initialLimitHit={limitHit}
       initialConverted={converted}
+      initialMinRequests={minRequests}
     />
   );
 }

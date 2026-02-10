@@ -12,6 +12,7 @@ interface User {
   signupMethod: string | null;
   createdAt: string;
   lastSeen: string | null;
+  extensionLastUsed: string | null;
 }
 
 interface UsersAdminClientProps {
@@ -123,6 +124,9 @@ export default function UsersAdminClient({
     }
   };
 
+  const formatDate = (d: string | null) =>
+    d ? new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     setCreating(true);
@@ -199,82 +203,78 @@ export default function UsersAdminClient({
         </form>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-md">
-        <ul className="divide-y divide-gray-200 dark:divide-gray-700">
-          {initialUsers.map((user) => (
-            <li key={user.id} className="px-6 py-4">
-              <div className="flex items-center justify-between">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+      <div className="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-md overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <thead>
+            <tr className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+              <th className="px-4 py-3">Email</th>
+              <th className="px-4 py-3 whitespace-nowrap">Signup</th>
+              <th className="px-4 py-3 whitespace-nowrap">Joined</th>
+              <th className="px-4 py-3 whitespace-nowrap">Last seen</th>
+              <th className="px-4 py-3 whitespace-nowrap">Extension</th>
+              <th className="px-4 py-3 whitespace-nowrap">Role</th>
+              <th className="px-4 py-3 whitespace-nowrap">Tier</th>
+              <th className="px-4 py-3 whitespace-nowrap">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+            {initialUsers.map((user) => (
+              <tr key={user.id} className="text-sm">
+                <td className="px-4 py-3">
+                  <span className="font-medium text-gray-900 dark:text-white block truncate max-w-[200px]" title={user.email}>
                     {user.email}
-                  </p>
+                  </span>
                   {user.name && (
-                    <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
-                      {user.name}
-                    </p>
+                    <span className="text-gray-500 dark:text-gray-400 block truncate max-w-[200px]">{user.name}</span>
                   )}
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                    Joined: {new Date(user.createdAt).toLocaleDateString()}
-                    <span className="ml-2">• 
-                      {user.signupMethod === 'credentials' 
-                        ? ' Email' 
-                        : user.signupMethod === 'google' 
-                        ? ' Google' 
-                        : user.signupMethod === 'admin_created'
-                        ? ' Admin'
-                        : ' Unknown'}
-                    </span>
-                    {user.lastSeen != null && (
-                      <span className="ml-2">• Last seen: {new Date(user.lastSeen).toLocaleString()}</span>
-                    )}
-                  </p>
-                </div>
-                <div className="flex items-center gap-4 ml-4">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Role
-                    </label>
-                    <select
-                      value={user.role}
-                      onChange={(e) => handleRoleChange(user.id, e.target.value)}
-                      disabled={updating === user.id || deleting === user.id}
-                      className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-                    >
-                      <option value="user">User</option>
-                      <option value="admin">Admin</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Tier
-                    </label>
-                    <select
-                      value={user.tier}
-                      onChange={(e) => handleTierChange(user.id, e.target.value)}
-                      disabled={updating === user.id || deleting === user.id}
-                      className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-                    >
-                      <option value="free">Free</option>
-                      <option value="paid">Paid</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Actions
-                    </label>
-                    <button
-                      onClick={() => handleDelete(user.id, user.email)}
-                      disabled={deleting === user.id || updating === user.id}
-                      className="px-3 py-1 text-sm bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white font-medium rounded-md transition-colors disabled:opacity-50"
-                    >
-                      {deleting === user.id ? 'Deleting...' : 'Delete'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </li>
-          ))}
-        </ul>
+                </td>
+                <td className="px-4 py-3 text-gray-600 dark:text-gray-300">
+                  {user.signupMethod === 'credentials' ? 'Email' : user.signupMethod === 'google' ? 'Google' : user.signupMethod === 'admin_created' ? 'Admin' : '—'}
+                </td>
+                <td className="px-4 py-3 text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                  {formatDate(user.createdAt)}
+                </td>
+                <td className="px-4 py-3 text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                  {formatDate(user.lastSeen)}
+                </td>
+                <td className="px-4 py-3 text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                  {formatDate(user.extensionLastUsed)}
+                </td>
+                <td className="px-4 py-3">
+                  <select
+                    value={user.role}
+                    onChange={(e) => handleRoleChange(user.id, e.target.value)}
+                    disabled={updating === user.id || deleting === user.id}
+                    className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                  >
+                    <option value="user">User</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </td>
+                <td className="px-4 py-3">
+                  <select
+                    value={user.tier}
+                    onChange={(e) => handleTierChange(user.id, e.target.value)}
+                    disabled={updating === user.id || deleting === user.id}
+                    className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                  >
+                    <option value="free">Free</option>
+                    <option value="paid">Paid</option>
+                  </select>
+                </td>
+                <td className="px-4 py-3">
+                  <button
+                    onClick={() => handleDelete(user.id, user.email)}
+                    disabled={deleting === user.id || updating === user.id}
+                    className="px-2 py-1 text-xs bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white font-medium rounded transition-colors disabled:opacity-50"
+                  >
+                    {deleting === user.id ? 'Deleting...' : 'Delete'}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
       {initialTotalPages > 1 && (

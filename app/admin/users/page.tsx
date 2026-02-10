@@ -48,11 +48,18 @@ export default async function UsersAdminPage({
     signup_method: string | null;
     created_at: string;
     last_seen: string | null;
+    extension_last_used: string | null;
   }>(
-    `SELECT id, email, name, role, tier, signup_method, created_at, last_seen 
-     FROM users 
-     WHERE ${whereClause}
-     ORDER BY created_at DESC
+    `SELECT u.id, u.email, u.name, u.role, u.tier, u.signup_method, u.created_at, u.last_seen,
+            ext.extension_last_used
+     FROM users u
+     LEFT JOIN (
+       SELECT user_id, MAX(last_used_at) as extension_last_used
+       FROM extension_tokens
+       GROUP BY user_id
+     ) ext ON ext.user_id = u.id
+     WHERE ${search ? whereClause.replace('email', 'u.email') : whereClause}
+     ORDER BY u.created_at DESC
      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
     [...params, pageSize, offset]
   );
@@ -73,6 +80,7 @@ export default async function UsersAdminPage({
     signupMethod: user.signup_method,
     createdAt: user.created_at,
     lastSeen: user.last_seen,
+    extensionLastUsed: user.extension_last_used,
   }));
 
   return (

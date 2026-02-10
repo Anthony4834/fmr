@@ -21,14 +21,17 @@ export async function GET(request: NextRequest) {
   const limitHit = searchParams.get('limit_hit'); // 'true' or 'false'
   const converted = searchParams.get('converted'); // 'true' or 'false'
   const search = searchParams.get('search'); // Search by guest_id
+  const minRequestsParam = searchParams.get('min_requests');
+  const minRequests = Math.min(10000, Math.max(0, parseInt(minRequestsParam || '5', 10) || 5));
 
   // Build WHERE clause
   const conditions: string[] = [];
   const params: any[] = [];
   let paramIndex = 1;
 
-  // Filter out guests with less than 5 requests
-  conditions.push(`request_count >= 5`);
+  conditions.push(`request_count >= $${paramIndex}`);
+  params.push(minRequests);
+  paramIndex++;
 
   if (limitHit === 'true') {
     conditions.push(`limit_hit_at IS NOT NULL`);

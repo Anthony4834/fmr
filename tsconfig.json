@@ -37,6 +37,7 @@
     "chrome",
     "scripts",
     "app/landing/v2-mockup",
+    "app/insights-demo",
     "Limit-Exceeded"
   ]
 }

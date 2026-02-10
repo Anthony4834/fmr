@@ -58,6 +58,20 @@ html:not([data-theme]) {
   --change-negative: #dc2626;
   --change-neutral: #525252;
 
+  /* Trend / risk pill colors (Insights cards) */
+  --pill-up-bg: rgba(16, 185, 129, 0.1);
+  --pill-up-text: #047857;
+  --pill-up-border: rgba(5, 150, 105, 0.2);
+  --pill-down-bg: rgba(244, 63, 94, 0.1);
+  --pill-down-text: #be123c;
+  --pill-down-border: rgba(190, 18, 60, 0.2);
+  --pill-flat-bg: rgba(100, 116, 139, 0.1);
+  --pill-flat-text: #475569;
+  --pill-flat-border: rgba(71, 85, 105, 0.2);
+  --pill-warning-bg: rgba(245, 158, 11, 0.1);
+  --pill-warning-text: #b45309;
+  --pill-warning-border: rgba(180, 83, 9, 0.2);
+
   /* Badge colors */
   --badge-safmr-bg: #f0fdf4;
   --badge-safmr-text: #16a34a;
@@ -76,8 +90,8 @@ html:not([data-theme]) {
   --dark-bg-quaternary: #2a2a2a;
   --dark-text-primary: #ffffff;
   --dark-text-secondary: rgba(255, 255, 255, 0.8);
-  --dark-text-tertiary: rgba(255, 255, 255, 0.6);
-  --dark-text-muted: rgba(255, 255, 255, 0.5);
+  --dark-text-tertiary: rgba(255, 255, 255, 0.75);
+  --dark-text-muted: rgba(255, 255, 255, 0.65);
   --dark-border-color: rgba(255, 255, 255, 0.1);
   --dark-border-secondary: rgba(255, 255, 255, 0.08);
   --dark-border-tertiary: rgba(255, 255, 255, 0.05);
@@ -143,6 +157,20 @@ html:not([data-theme]) {
   --change-negative: #dc2626;
   --change-neutral: #525252;
 
+  /* Trend / risk pill colors (Insights cards) - light */
+  --pill-up-bg: rgba(16, 185, 129, 0.1);
+  --pill-up-text: #047857;
+  --pill-up-border: rgba(5, 150, 105, 0.2);
+  --pill-down-bg: rgba(244, 63, 94, 0.1);
+  --pill-down-text: #be123c;
+  --pill-down-border: rgba(190, 18, 60, 0.2);
+  --pill-flat-bg: rgba(100, 116, 139, 0.1);
+  --pill-flat-text: #475569;
+  --pill-flat-border: rgba(71, 85, 105, 0.2);
+  --pill-warning-bg: rgba(245, 158, 11, 0.1);
+  --pill-warning-text: #b45309;
+  --pill-warning-border: rgba(180, 83, 9, 0.2);
+
   /* Dark section backgrounds (for landing pages) */
   --dark-bg-primary: #0a0a0a;
   --dark-bg-secondary: #111111;
@@ -150,8 +178,8 @@ html:not([data-theme]) {
   --dark-bg-quaternary: #2a2a2a;
   --dark-text-primary: #ffffff;
   --dark-text-secondary: rgba(255, 255, 255, 0.8);
-  --dark-text-tertiary: rgba(255, 255, 255, 0.6);
-  --dark-text-muted: rgba(255, 255, 255, 0.5);
+  --dark-text-tertiary: rgba(255, 255, 255, 0.75);
+  --dark-text-muted: rgba(255, 255, 255, 0.65);
   --dark-border-color: rgba(255, 255, 255, 0.1);
   --dark-border-secondary: rgba(255, 255, 255, 0.08);
   --dark-border-tertiary: rgba(255, 255, 255, 0.05);
@@ -168,8 +196,8 @@ html:not([data-theme]) {
   /* Text colors - using #EDEDED (237,237,237) for reduced contrast */
   --text-primary: #ededed;
   --text-secondary: rgba(237, 237, 237, 0.8);
-  --text-tertiary: rgba(237, 237, 237, 0.6);
-  --text-muted: rgba(237, 237, 237, 0.5);
+  --text-tertiary: rgba(237, 237, 237, 0.75);
+  --text-muted: rgba(237, 237, 237, 0.65);
 
   /* Border colors */
   --border-color: rgba(237, 237, 237, 0.1);
@@ -219,6 +247,20 @@ html:not([data-theme]) {
   --change-negative: #f87171;
   --change-neutral: #a3a3a3;
 
+  /* Trend / risk pill colors (Insights cards) - dark mode */
+  --pill-up-bg: rgba(74, 222, 128, 0.15);
+  --pill-up-text: #4ade80;
+  --pill-up-border: rgba(74, 222, 128, 0.3);
+  --pill-down-bg: rgba(248, 113, 113, 0.15);
+  --pill-down-text: #f87171;
+  --pill-down-border: rgba(248, 113, 113, 0.3);
+  --pill-flat-bg: rgba(148, 163, 184, 0.15);
+  --pill-flat-text: #94a3b8;
+  --pill-flat-border: rgba(148, 163, 184, 0.25);
+  --pill-warning-bg: rgba(251, 191, 36, 0.15);
+  --pill-warning-text: #fbbf24;
+  --pill-warning-border: rgba(251, 191, 36, 0.3);
+
   /* Dark section backgrounds (same as primary in dark mode) */
   --dark-bg-primary: #0a0a0a;
   --dark-bg-secondary: #111111;
@@ -226,8 +268,8 @@ html:not([data-theme]) {
   --dark-bg-quaternary: #2a2a2a;
   --dark-text-primary: #ededed;
   --dark-text-secondary: rgba(237, 237, 237, 0.8);
-  --dark-text-tertiary: rgba(237, 237, 237, 0.6);
-  --dark-text-muted: rgba(237, 237, 237, 0.5);
+  --dark-text-tertiary: rgba(237, 237, 237, 0.75);
+  --dark-text-muted: rgba(237, 237, 237, 0.65);
   --dark-border-color: rgba(237, 237, 237, 0.1);
   --dark-border-secondary: rgba(237, 237, 237, 0.08);
   --dark-border-tertiary: rgba(237, 237, 237, 0.05);
@@ -351,6 +393,46 @@ html:not([data-theme]) {
   .tabular-nums {
     font-variant-numeric: tabular-nums;
   }
+
+  /*
+   * iOS Safari can fail to paint background/text on small elements (known WebKit bug).
+   * Forcing a composited layer fixes rendering so pill colors display correctly.
+   * See: https://developer.apple.com/forums/thread/691608
+   */
+  .ios-pill-paint-fix {
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+  }
+
+  /* Insights trend / risk pills - use theme variables for light and dark */
+  .pill-up {
+    background-color: var(--pill-up-bg);
+    color: var(--pill-up-text);
+    border-color: var(--pill-up-border);
+  }
+  .pill-down {
+    background-color: var(--pill-down-bg);
+    color: var(--pill-down-text);
+    border-color: var(--pill-down-border);
+  }
+  .pill-flat {
+    background-color: var(--pill-flat-bg);
+    color: var(--pill-flat-text);
+    border-color: var(--pill-flat-border);
+  }
+  .pill-warning {
+    background-color: var(--pill-warning-bg);
+    color: var(--pill-warning-text);
+    border-color: var(--pill-warning-border);
+  }
+  .text-change-positive {
+    color: var(--change-positive);
+  }
+  .text-change-negative {
+    color: var(--change-negative);
+  }
 }
 
 /* Reduced motion preferences */
@@ -399,3 +481,31 @@ html:not([data-theme]) {
   --foreground: 220 30% 12%;
 }
 
+/* Noise overlay for insights / market explorer */
+.noise {
+  position: relative;
+}
+.noise::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='.12'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+  opacity: 0.14;
+}
+
+/* ReactSlider (insights price range) */
+.slider {
+  position: relative;
+}
+/* Center thumbs vertically on the track */
+.slider .insights-slider-thumb,
+.slider .thumb {
+  top: 50% !important;
+  transform: translateY(-50%);
+}
+.slider .insights-slider-thumb:active,
+.slider .thumb:active {
+  cursor: grabbing;
+}

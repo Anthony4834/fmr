@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@vercel/postgres';
 import { getLatestFMRYear } from '@/lib/queries';
+import { indexInsights } from '@/lib/insights-index';
 
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
@@ -234,6 +235,7 @@ export async function GET(req: NextRequest) {
       zillowRentals: null,
       cbsaMapping: null,
       investmentScores: null,
+      insightsIndex: null,
       skippedPropertyData: !isIndexingDay,
     };
 
@@ -317,6 +319,17 @@ export async function GET(req: NextRequest) {
       }
     } else {
       console.log(`[daily cron] Skipping property data indexing (today is day ${dayOfMonth}, not 18)`);
+    }
+
+    if (dayOfMonth === 19) {
+      try {
+        console.log('[daily cron] Running insights index (day 19)...');
+        results.insightsIndex = await indexInsights();
+        console.log('[daily cron] Insights index complete');
+      } catch (e: any) {
+        console.error('[daily cron] Insights index error:', e);
+        results.insightsIndex = { success: false, error: e?.message };
+      }
     }
 
     return NextResponse.json({

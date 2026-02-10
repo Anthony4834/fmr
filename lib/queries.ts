@@ -37,6 +37,35 @@ export async function getLatestFMRYear(): Promise<number> {
   return latest;
 }
 
+let cachedLatestZhviMonth: string | null = null;
+let cachedLatestZhviMonthAtMs = 0;
+
+/** Get latest ZHVI month (YYYY-MM-DD) for a bedroom count. Uses 2BR if not specified. */
+export async function getLatestZhviMonth(bedroomCount: number = 2): Promise<string> {
+  const br = Math.max(1, Math.min(5, Math.floor(bedroomCount)));
+  const now = Date.now();
+  const cacheKey = `${br}`;
+  if (cachedLatestZhviMonth && cacheKey === '2' && now - cachedLatestZhviMonthAtMs < LATEST_FY_TTL_MS) {
+    return cachedLatestZhviMonth;
+  }
+  const result = await sql.query(
+    `SELECT MAX(month) as max_month FROM zhvi_zip_bedroom_monthly WHERE bedroom_count = $1`,
+    [br]
+  );
+  const raw = result.rows[0]?.max_month;
+  if (!raw) return '';
+  const d = new Date(raw);
+  const yyyy = d.getUTCFullYear();
+  const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(d.getUTCDate()).padStart(2, '0');
+  const formatted = `${yyyy}-${mm}-${dd}`;
+  if (br === 2) {
+    cachedLatestZhviMonth = formatted;
+    cachedLatestZhviMonthAtMs = now;
+  }
+  return formatted;
+}
+
 function median(values: number[]): number | undefined {
   if (values.length === 0) return undefined;
   const sorted = [...values].sort((a, b) => a - b);

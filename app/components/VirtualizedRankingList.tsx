@@ -238,7 +238,7 @@ export default function VirtualizedRankingList({
     };
     
     return (
-      <div className="hidden sm:grid grid-cols-[50px_1fr_80px_70px_80px_110px] gap-3 px-4 py-2 bg-[var(--bg-tertiary)] border-b border-[var(--border-color)] text-xs text-[var(--text-muted)] font-medium">
+      <div className="hidden sm:grid grid-cols-[50px_1fr_80px_70px_80px_110px] gap-3 px-4 py-2 bg-[var(--bg-tertiary)] text-xs text-[var(--text-muted)] font-medium">
         <div>Rank</div>
         <div>Location</div>
         {renderHeaderButton('score', 'Score', "A standardized benchmark used to compare rental investment potential across U.S. locations, combining cash-flow yield with market demand.")}
@@ -313,7 +313,7 @@ export default function VirtualizedRankingList({
   // Empty state
   if (!loading && items.length === 0) {
     return (
-      <div>
+      <div className="divide-y divide-[var(--border-color)]">
         {headerElement}
         <div className="flex items-center justify-center p-8 text-sm text-[var(--text-tertiary)]">
           No results found
@@ -328,7 +328,7 @@ export default function VirtualizedRankingList({
   );
 
   return (
-    <div>
+    <div className="divide-y divide-[var(--border-color)]">
       {/* Column headers for enhanced mode */}
       {headerElement}
 
@@ -351,7 +351,7 @@ export default function VirtualizedRankingList({
             <Link
               key={`${type}-${item.rank}`}
               href={getHref(item)}
-              className="block px-3 sm:px-4 py-2 sm:py-4 md:py-5 hover:bg-[var(--bg-hover)] transition-all border-b border-[var(--border-color)] group relative"
+              className="block px-3 sm:px-4 py-2 sm:py-4 md:py-5 hover:bg-[var(--bg-hover)] transition-all group relative"
             >
               {/* Left accent bar on hover */}
               <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-[var(--text-primary)]/0 group-hover:bg-[var(--text-primary)]/20 transition-colors" />
@@ -380,7 +380,7 @@ export default function VirtualizedRankingList({
                     {badgesToShow.length > 0 && (
                       <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                         {badgesToShow.map(badge => (
-                          <span key={badge.key} className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${badge.colors}`}>
+                          <span key={badge.key} className={`ios-pill-paint-fix inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${badge.colors}`}>
                             {badge.label}
                           </span>
                         ))}
@@ -486,7 +486,7 @@ export default function VirtualizedRankingList({
                         </span>
                       )}
                       {badgesToShow.map(badge => (
-                        <span key={badge.key} className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${badge.colors}`}>
+                        <span key={badge.key} className={`ios-pill-paint-fix inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${badge.colors}`}>
                           {badge.label}
                         </span>
                       ))}
@@ -551,7 +551,7 @@ export default function VirtualizedRankingList({
           <Link
             key={`${type}-${item.rank}`}
             href={getHref(item)}
-            className="block px-3 sm:px-4 py-2 sm:py-2.5 hover:bg-[var(--bg-hover)] transition-colors border-b border-[var(--border-color)]"
+            className="block px-3 sm:px-4 py-2 sm:py-2.5 hover:bg-[var(--bg-hover)] transition-colors"
           >
             <div className="flex items-start justify-between gap-2 sm:gap-3">
               <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">

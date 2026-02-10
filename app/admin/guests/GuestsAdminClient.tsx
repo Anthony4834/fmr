@@ -22,6 +22,23 @@ interface GuestsAdminClientProps {
   initialSearch: string;
   initialLimitHit: string;
   initialConverted: string;
+  initialMinRequests: string;
+}
+
+function buildGuestsQuery(params: {
+  page: number;
+  search: string;
+  limitHit: string;
+  converted: string;
+  minRequests: string;
+}) {
+  const sp = new URLSearchParams();
+  sp.set('page', String(params.page));
+  if (params.search) sp.set('search', params.search);
+  if (params.limitHit) sp.set('limit_hit', params.limitHit);
+  if (params.converted) sp.set('converted', params.converted);
+  sp.set('min_requests', params.minRequests);
+  return sp.toString();
 }
 
 export default function GuestsAdminClient({
@@ -29,6 +46,7 @@ export default function GuestsAdminClient({
   initialSearch,
   initialLimitHit,
   initialConverted,
+  initialMinRequests,
 }: GuestsAdminClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -51,6 +69,7 @@ export default function GuestsAdminClient({
   const [search, setSearch] = useState(initialSearch);
   const [limitHitFilter, setLimitHitFilter] = useState(initialLimitHit);
   const [convertedFilter, setConvertedFilter] = useState(initialConverted);
+  const [minRequestsFilter, setMinRequestsFilter] = useState(initialMinRequests);
   const [resetting, setResetting] = useState<string | null>(null); // guestId or 'all'
   const [resetError, setResetError] = useState<string | null>(null);
   const [myGuestId, setMyGuestId] = useState<string | null>(null);
@@ -72,18 +91,19 @@ export default function GuestsAdminClient({
 
   useEffect(() => {
     fetchGuests();
-  }, [initialPage, initialSearch, initialLimitHit, initialConverted]);
+  }, [initialPage, search, limitHitFilter, convertedFilter, minRequestsFilter]);
 
   const fetchGuests = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      params.set('page', initialPage.toString());
-      if (initialSearch) params.set('search', initialSearch);
-      if (initialLimitHit) params.set('limit_hit', initialLimitHit);
-      if (initialConverted) params.set('converted', initialConverted);
-
-      const response = await fetch(`/api/admin/guests?${params.toString()}`);
+      const query = buildGuestsQuery({
+        page: initialPage,
+        search,
+        limitHit: limitHitFilter,
+        converted: convertedFilter,
+        minRequests: minRequestsFilter,
+      });
+      const response = await fetch(`/api/admin/guests?${query}`);
       if (!response.ok) {
         throw new Error('Failed to fetch guests');
       }
@@ -104,7 +124,7 @@ export default function GuestsAdminClient({
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     startTransition(() => {
-      router.push(`/admin/guests?search=${encodeURIComponent(search)}&page=1&limit_hit=${limitHitFilter}&converted=${convertedFilter}`);
+      router.push(`/admin/guests?${buildGuestsQuery({ page: 1, search, limitHit: limitHitFilter, converted: convertedFilter, minRequests: minRequestsFilter })}`);
     });
   };
 
@@ -112,14 +132,21 @@ export default function GuestsAdminClient({
     if (filterType === 'limit_hit') {
       setLimitHitFilter(value);
       startTransition(() => {
-        router.push(`/admin/guests?search=${encodeURIComponent(search)}&page=1&limit_hit=${value}&converted=${convertedFilter}`);
+        router.push(`/admin/guests?${buildGuestsQuery({ page: 1, search, limitHit: value, converted: convertedFilter, minRequests: minRequestsFilter })}`);
       });
     } else {
       setConvertedFilter(value);
       startTransition(() => {
-        router.push(`/admin/guests?search=${encodeURIComponent(search)}&page=1&limit_hit=${limitHitFilter}&converted=${value}`);
+        router.push(`/admin/guests?${buildGuestsQuery({ page: 1, search, limitHit: limitHitFilter, converted: value, minRequests: minRequestsFilter })}`);
       });
     }
+  };
+
+  const handleMinRequestsChange = (value: string) => {
+    setMinRequestsFilter(value);
+    startTransition(() => {
+      router.push(`/admin/guests?${buildGuestsQuery({ page: 1, search, limitHit: limitHitFilter, converted: convertedFilter, minRequests: value })}`);
+    });
   };
 
   const handleResetLimit = async (guestId?: string) => {
@@ -321,7 +348,26 @@ export default function GuestsAdminClient({
           </button>
         </form>
 
-        <div className="flex gap-4">
+        <div className="flex flex-wrap gap-4 items-end">
+          <div>
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Min requests
+            </label>
+            <select
+              value={minRequestsFilter}
+              onChange={(e) => handleMinRequestsChange(e.target.value)}
+              className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="0">0+</option>
+              <option value="1">1+</option>
+              <option value="5">5+</option>
+              <option value="10">10+</option>
+              <option value="25">25+</option>
+              <option value="50">50+</option>
+              <option value="100">100+</option>
+            </select>
+          </div>
+
           <div>
             <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
               Limit Hit
@@ -491,7 +537,7 @@ export default function GuestsAdminClient({
           <div className="flex gap-2">
             {pagination.page > 1 && (
               <a
-                href={`/admin/guests?page=${pagination.page - 1}${search ? `&search=${encodeURIComponent(search)}` : ''}${limitHitFilter ? `&limit_hit=${limitHitFilter}` : ''}${convertedFilter ? `&converted=${convertedFilter}` : ''}`}
+                href={`/admin/guests?${buildGuestsQuery({ page: pagination.page - 1, search, limitHit: limitHitFilter, converted: convertedFilter, minRequests: minRequestsFilter })}`}
                 className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
               >
                 Previous
@@ -499,7 +545,7 @@ export default function GuestsAdminClient({
             )}
             {pagination.page < pagination.totalPages && (
               <a
-                href={`/admin/guests?page=${pagination.page + 1}${search ? `&search=${encodeURIComponent(search)}` : ''}${limitHitFilter ? `&limit_hit=${limitHitFilter}` : ''}${convertedFilter ? `&converted=${convertedFilter}` : ''}`}
+                href={`/admin/guests?${buildGuestsQuery({ page: pagination.page + 1, search, limitHit: limitHitFilter, converted: convertedFilter, minRequests: minRequestsFilter })}`}
                 className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
               >
                 Next

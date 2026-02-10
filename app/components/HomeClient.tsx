@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState, useEffect, useLayoutEffect } from 'react';
+import { useMemo, useRef, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import SearchInput from './SearchInput';
@@ -14,6 +14,7 @@ import IdealPurchasePriceCard from './IdealPurchasePriceCard';
 import AppHeader from './AppHeader';
 import NewBadge from './NewBadge';
 import ChromeExtensionModal from './ChromeExtensionModal';
+import GeoTabBar from './GeoTabBar';
 import FooterV2 from './landing/FooterV2';
 import { formatCountyName } from '@/lib/county-utils';
 import { useRateLimit } from '@/app/contexts/RateLimitContext';
@@ -632,9 +633,6 @@ export default function HomeClient(props: {
   const [marketPreviewStatus, setMarketPreviewStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('loading');
   const [marketPreviewError, setMarketPreviewError] = useState<string | null>(null);
   const marketPreviewAbortRef = useRef<AbortController | null>(null);
-  const tabBarRef = useRef<HTMLDivElement>(null);
-  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
-  const [tabBarStyle, setTabBarStyle] = useState<{ left: number; width: number }>({ left: 0, width: 0 });
 
   const [indexComputedAt, setIndexComputedAt] = useState<string | null>(null);
   const [indexStatus, setIndexStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
@@ -739,28 +737,6 @@ export default function HomeClient(props: {
       }
     };
   }, [marketPreviewType, showResults]);
-
-  // Update tab bar position when active tab changes or window resizes
-  useLayoutEffect(() => {
-    const updateTabBar = () => {
-      if (!tabBarRef.current || tabRefs.current.length === 0) return;
-      const activeIndex = (['state', 'county', 'city', 'zip'] as MarketPreviewType[]).indexOf(marketPreviewType);
-      const activeTab = tabRefs.current[activeIndex];
-      const container = tabBarRef.current;
-      if (!activeTab || !container) return;
-
-      const containerRect = container.getBoundingClientRect();
-      const tabRect = activeTab.getBoundingClientRect();
-      setTabBarStyle({
-        left: tabRect.left - containerRect.left,
-        width: tabRect.width,
-      });
-    };
-
-    updateTabBar();
-    window.addEventListener('resize', updateTabBar);
-    return () => window.removeEventListener('resize', updateTabBar);
-  }, [marketPreviewType]);
 
   const marketPreviewLabel = (item: MarketPreviewItem) => {
     if (marketPreviewType === 'state') {
@@ -981,37 +957,13 @@ export default function HomeClient(props: {
                     </div>
 
                     <div className="px-3 sm:px-4 py-2 border-b border-[var(--border-color)] bg-[var(--bg-secondary)]">
-                      <div ref={tabBarRef} className="relative flex gap-1 overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-0">
-                        {(['state', 'county', 'city', 'zip'] as MarketPreviewType[]).map((t, index) => {
-                          const active = marketPreviewType === t;
-                          const label = t === 'state' ? 'States' : t === 'county' ? 'Counties' : t === 'city' ? 'Cities' : 'ZIPs';
-                          return (
-                            <button
-                              key={t}
-                              ref={(el) => {
-                                tabRefs.current[index] = el;
-                              }}
-                              type="button"
-                              onClick={() => setMarketPreviewType(t)}
-                              className={`px-3 py-1.5 text-xs font-medium rounded transition-colors whitespace-nowrap relative ${
-                                active
-                                  ? 'text-[var(--text-primary)]'
-                                  : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
-                              }`}
-                            >
-                              {label}
-                            </button>
-                          );
-                        })}
-                        {/* Animated bottom bar */}
-                        <div
-                          className="absolute bottom-0 h-0.5 bg-[var(--text-primary)] transition-all duration-300 ease-out"
-                          style={{
-                            left: `${tabBarStyle.left}px`,
-                            width: `${tabBarStyle.width}px`,
-                          }}
-                        />
-                      </div>
+                      <GeoTabBar
+                        value={marketPreviewType}
+                        onChange={(t) => setMarketPreviewType(t as MarketPreviewType)}
+                        tabs={['state', 'county', 'city', 'zip']}
+                        getLabel={(t) => (t === 'state' ? 'States' : t === 'county' ? 'Counties' : t === 'city' ? 'Cities' : 'ZIPs')}
+                        className="relative flex gap-1 overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-0"
+                      />
                     </div>
 
                     <div className="divide-y divide-[var(--border-color)]">

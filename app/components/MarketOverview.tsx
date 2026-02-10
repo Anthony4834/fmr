@@ -274,7 +274,7 @@ export default function MarketOverview({ year }: MarketOverviewProps) {
                 onClick={() => setBestEntryLevelMode('cashFlow')}
                 className={`px-1.5 py-0.5 text-[10px] font-medium rounded transition-colors ${
                   bestEntryLevelMode === 'cashFlow'
-                    ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
+                    ? 'bg-[var(--text-secondary)] text-[var(--bg-primary)]'
                     : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
                 }`}
                 title="Best Cash Flow"
@@ -285,7 +285,7 @@ export default function MarketOverview({ year }: MarketOverviewProps) {
                 onClick={() => setBestEntryLevelMode('score')}
                 className={`px-1.5 py-0.5 text-[10px] font-medium rounded transition-colors ${
                   bestEntryLevelMode === 'score'
-                    ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
+                    ? 'bg-[var(--text-secondary)] text-[var(--bg-primary)]'
                     : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
                 }`}
                 title="Highest Score"

@@ -230,6 +230,31 @@ export async function createSchema() {
     );
   `);
 
+  // Precomputed insights (yield movers) for screener and yield-movers APIs; populated on the 19th by cron
+  await execute(`
+    CREATE TABLE IF NOT EXISTS insights_index (
+      geo_type VARCHAR(10) NOT NULL CHECK (geo_type IN ('zip', 'city', 'county')),
+      geo_key VARCHAR(255) NOT NULL,
+      state_code VARCHAR(2) NOT NULL,
+      zip_code VARCHAR(10),
+      city_name TEXT,
+      area_name TEXT,
+      county_name TEXT,
+      fmr_curr NUMERIC(14, 2) NOT NULL,
+      fmr_yoy NUMERIC(10, 4) NOT NULL,
+      zhvi_curr NUMERIC(14, 2) NOT NULL,
+      zhvi_yoy NUMERIC(10, 4) NOT NULL,
+      yield_curr NUMERIC(10, 6) NOT NULL,
+      yield_delta_pp NUMERIC(10, 4) NOT NULL,
+      divergence_pp NUMERIC(10, 4) NOT NULL,
+      zip_count INTEGER,
+      zhvi_as_of_month VARCHAR(10) NOT NULL,
+      fmr_year INTEGER NOT NULL,
+      indexed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (geo_type, geo_key)
+    );
+  `);
+
   // Create indexes
   console.log("Creating indexes...");
 
@@ -288,6 +313,10 @@ export async function createSchema() {
 
   await execute(
     "CREATE INDEX IF NOT EXISTS idx_cities_state ON cities(state_code);"
+  );
+
+  await execute(
+    "CREATE INDEX IF NOT EXISTS idx_insights_index_geo_state ON insights_index(geo_type, state_code);"
   );
 
   await execute(

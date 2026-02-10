@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useLayoutEffect, useEffect, useMemo, useCallback } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import SearchInput from './SearchInput';
@@ -8,6 +8,7 @@ import VirtualizedRankingList from './VirtualizedRankingList';
 import FilterPills from './FilterPills';
 import MarketOverview from './MarketOverview';
 import AuthModal from './AuthModal';
+import GeoTabBar from './GeoTabBar';
 import { useGeographicRankings } from '@/app/hooks/useGeographicRankings';
 
 type GeoType = 'state' | 'county' | 'city' | 'zip';
@@ -78,57 +79,6 @@ export default function GeographicRankings({ year }: GeographicRankingsProps) {
     return tab === 'county' || tab === 'city' || tab === 'zip' ? tab : 'state';
   });
 
-  const tabBarRef = useRef<HTMLDivElement>(null);
-  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
-  const [tabBarStyle, setTabBarStyle] = useState<{ left: number; width: number }>({ left: 0, width: 0 });
-
-  // Update tab bar position when active tab changes or window resizes
-  useLayoutEffect(() => {
-    const updateTabBar = () => {
-      if (!tabBarRef.current || tabRefs.current.length === 0) return;
-      const activeIndex = (['state', 'county', 'city', 'zip'] as GeoType[]).indexOf(activeTab);
-      const activeTabEl = tabRefs.current[activeIndex];
-      const container = tabBarRef.current;
-      if (!activeTabEl || !container) return;
-
-      const containerRect = container.getBoundingClientRect();
-      const tabRect = activeTabEl.getBoundingClientRect();
-      setTabBarStyle({
-        left: tabRect.left - containerRect.left,
-        width: tabRect.width,
-      });
-    };
-
-    // Use requestAnimationFrame to ensure DOM is ready
-    requestAnimationFrame(() => {
-      updateTabBar();
-    });
-    
-    window.addEventListener('resize', updateTabBar);
-    return () => window.removeEventListener('resize', updateTabBar);
-  }, [activeTab]);
-
-  // Initialize tab bar position on mount
-  useEffect(() => {
-    // Small delay to ensure refs are populated
-    const timer = setTimeout(() => {
-      if (tabBarRef.current && tabRefs.current.length > 0) {
-        const activeIndex = (['state', 'county', 'city', 'zip'] as GeoType[]).indexOf(activeTab);
-        const activeTabEl = tabRefs.current[activeIndex];
-        const container = tabBarRef.current;
-        if (activeTabEl && container) {
-          const containerRect = container.getBoundingClientRect();
-          const tabRect = activeTabEl.getBoundingClientRect();
-          setTabBarStyle({
-            left: tabRect.left - containerRect.left,
-            width: tabRect.width,
-          });
-        }
-      }
-    }, 0);
-    return () => clearTimeout(timer);
-  }, []); // Run once on mount
-
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -151,6 +101,7 @@ export default function GeographicRankings({ year }: GeographicRankingsProps) {
   const [isExporting, setIsExporting] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
+  const filtersButtonRef = useRef<HTMLDivElement>(null);
 
   // Check authentication
   const { data: session, status: sessionStatus } = useSession();
@@ -168,6 +119,16 @@ export default function GeographicRankings({ year }: GeographicRankingsProps) {
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [showMobileMenu]);
+
+  // Close filters popper on Escape
+  useEffect(() => {
+    if (!showFilters) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowFilters(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [showFilters]);
 
   // Data fetching hook
   const {
@@ -465,47 +426,142 @@ export default function GeographicRankings({ year }: GeographicRankingsProps) {
             </p>
           </div>
           
-          {/* Desktop: Individual buttons */}
-          <div className="hidden sm:flex items-center gap-2">
-            {/* Export button */}
-            <button
-              onClick={handleExport}
-              disabled={isExporting || sessionStatus === 'loading'}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Export to Excel (requires login)"
-            >
-              {isExporting ? (
-                <>
-                  <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  Exporting...
-                </>
-              ) : (
-                <>
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  Export
-                </>
-              )}
-            </button>
+          {/* Desktop: Individual buttons + Filters popper anchor */}
+          <div ref={filtersButtonRef} className="relative flex items-center gap-2">
+            <div className="hidden sm:flex items-center gap-2">
+              {/* Export button */}
+              <button
+                onClick={handleExport}
+                disabled={isExporting || sessionStatus === 'loading'}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Export to Excel (requires login)"
+              >
+                {isExporting ? (
+                  <>
+                    <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Exporting...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Export
+                  </>
+                )}
+              </button>
 
-            {/* Filter toggle button */}
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-                showFilters || hasActiveFilters
-                  ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
-                  : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
-              }`}
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-              </svg>
-              Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
-            </button>
+              {/* Filter toggle button */}
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                  showFilters || hasActiveFilters
+                    ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
+                    : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
+                }`}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                </svg>
+                Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+              </button>
+            </div>
+
+            {/* Filters popper */}
+            {showFilters && (
+              <>
+                <div
+                  className="fixed inset-0 z-20"
+                  aria-hidden
+                  onClick={() => setShowFilters(false)}
+                />
+                <div
+                  role="dialog"
+                  aria-label="Filters"
+                  className="fixed right-4 top-24 z-30 w-[min(320px,calc(100vw-2rem))] max-h-[min(85vh,520px)] overflow-auto rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-lg p-4 space-y-3"
+                >
+                  <div className="flex flex-col gap-3">
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-[var(--text-muted)]">Property Value</label>
+                      <select
+                        value={affordabilityTier}
+                        onChange={(e) => setAffordabilityTier(e.target.value as AffordabilityTier)}
+                        className="h-9 w-full rounded border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--text-primary)]"
+                      >
+                        {AFFORDABILITY_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-[var(--text-muted)]">Yield</label>
+                      <select
+                        value={yieldRange}
+                        onChange={(e) => setYieldRange(e.target.value as YieldRange)}
+                        className="h-9 w-full rounded border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--text-primary)]"
+                      >
+                        {YIELD_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-[var(--text-muted)]">Min Score</label>
+                      <input
+                        type="number"
+                        value={minScore ?? ''}
+                        onChange={(e) => setMinScore(e.target.value ? Number(e.target.value) : null)}
+                        placeholder="0"
+                        min={0}
+                        max={200}
+                        className="h-9 w-16 rounded border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--text-primary)]"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-[var(--text-muted)]">Bedroom</label>
+                      <select
+                        value={bedroom}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setBedroom(value === 'all' ? 'all' : Number(value) as BedroomCount);
+                        }}
+                        className="h-9 w-full rounded border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--text-primary)]"
+                      >
+                        {BEDROOM_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    {activeTab !== 'state' && (
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-[var(--text-muted)]">State</label>
+                        <select
+                          value={stateFilter}
+                          onChange={(e) => handleStateFilterChange(e.target.value)}
+                          className="h-9 w-full rounded border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--text-primary)]"
+                        >
+                          <option value="">All States</option>
+                          {STATE_OPTIONS.map((s) => (
+                            <option key={s} value={s}>{s}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                    {hasActiveFilters && (
+                      <button
+                        onClick={resetFilters}
+                        className="w-full h-9 px-3 text-sm font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] rounded border border-[var(--border-color)] transition-colors"
+                      >
+                        Reset All Filters
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Mobile: Dropdown menu */}
@@ -583,34 +639,13 @@ export default function GeographicRankings({ year }: GeographicRankingsProps) {
         </div>
 
         {/* Tabs */}
-        <div ref={tabBarRef} className="relative flex gap-1 mb-3 pb-0.5">
-          {(['state', 'county', 'city', 'zip'] as GeoType[]).map((tab, index) => (
-            <button
-              key={tab}
-              ref={(el) => {
-                tabRefs.current[index] = el;
-              }}
-              onClick={() => handleTabChange(tab)}
-              className={`px-3 py-1.5 text-xs font-medium rounded transition-colors relative ${
-                activeTab === tab
-                  ? 'text-[var(--text-primary)]'
-                  : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
-              }`}
-              role="tab"
-              aria-selected={activeTab === tab}
-            >
-              {getTabLabel(tab)}
-            </button>
-          ))}
-          {/* Animated bottom bar */}
-          <div
-            className="absolute bottom-0 h-0.5 bg-[var(--text-primary)] transition-all duration-300 ease-out"
-            style={{
-              left: `${tabBarStyle.left}px`,
-              width: `${tabBarStyle.width}px`,
-            }}
-          />
-        </div>
+        <GeoTabBar
+          value={activeTab}
+          onChange={handleTabChange}
+          tabs={['state', 'county', 'city', 'zip']}
+          getLabel={getTabLabel}
+          className="relative flex gap-1 mb-3 pb-0.5"
+        />
 
         {/* Active Filter Pills (shown when filters are active but panel is closed) */}
         {!showFilters && filterPills.length > 0 && (
@@ -624,235 +659,6 @@ export default function GeographicRankings({ year }: GeographicRankingsProps) {
           onChange={handleSearchChange}
           placeholder={getSearchPlaceholder()}
         />
-
-        {/* Filter Bar (collapsible) */}
-        {showFilters && (
-          <div className="mt-3 pt-3 border-t border-[var(--border-color)]">
-            {/* Mobile: Stacked layout */}
-            <div className="sm:hidden space-y-3">
-              {/* Affordability dropdown */}
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-[var(--text-muted)]" htmlFor="affordability-filter-mobile">
-                  Property Value
-                </label>
-                <select
-                  id="affordability-filter-mobile"
-                  value={affordabilityTier}
-                  onChange={(e) => setAffordabilityTier(e.target.value as AffordabilityTier)}
-                  className="h-9 px-3 rounded border border-[var(--border-color)] bg-[var(--bg-secondary)] text-sm text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--text-primary)]"
-                >
-                  {AFFORDABILITY_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Yield dropdown */}
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-[var(--text-muted)]" htmlFor="yield-filter-mobile">
-                  Yield
-                </label>
-                <select
-                  id="yield-filter-mobile"
-                  value={yieldRange}
-                  onChange={(e) => setYieldRange(e.target.value as YieldRange)}
-                  className="h-9 px-3 rounded border border-[var(--border-color)] bg-[var(--bg-secondary)] text-sm text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--text-primary)]"
-                >
-                  {YIELD_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Min Score input */}
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-[var(--text-muted)]" htmlFor="min-score-filter-mobile">
-                  Min Score
-                </label>
-                <input
-                  type="number"
-                  id="min-score-filter-mobile"
-                  value={minScore ?? ''}
-                  onChange={(e) => setMinScore(e.target.value ? Number(e.target.value) : null)}
-                  placeholder="0"
-                  min="0"
-                  max="200"
-                  className="h-9 px-3 rounded border border-[var(--border-color)] bg-[var(--bg-secondary)] text-sm text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--text-primary)]"
-                />
-              </div>
-
-              {/* Bedroom dropdown */}
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-[var(--text-muted)]" htmlFor="bedroom-filter-mobile">
-                  Bedroom
-                </label>
-                <select
-                  id="bedroom-filter-mobile"
-                  value={bedroom}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setBedroom(value === 'all' ? 'all' : Number(value) as BedroomCount);
-                  }}
-                  className="h-9 px-3 rounded border border-[var(--border-color)] bg-[var(--bg-secondary)] text-sm text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--text-primary)]"
-                >
-                  {BEDROOM_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* State filter (for non-state tabs) */}
-              {activeTab !== 'state' && (
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-medium text-[var(--text-muted)]" htmlFor="state-filter-mobile">
-                    State
-                  </label>
-                  <select
-                    id="state-filter-mobile"
-                    value={stateFilter}
-                    onChange={(e) => handleStateFilterChange(e.target.value)}
-                    className="h-9 px-3 rounded border border-[var(--border-color)] bg-[var(--bg-secondary)] text-sm text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--text-primary)]"
-                  >
-                    <option value="">All States</option>
-                    {STATE_OPTIONS.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* Reset button */}
-              {hasActiveFilters && (
-                <button
-                  onClick={resetFilters}
-                  className="w-full h-9 px-3 text-sm font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] rounded border border-[var(--border-color)] transition-colors"
-                >
-                  Reset All Filters
-                </button>
-              )}
-            </div>
-
-            {/* Desktop: Horizontal layout */}
-            <div className="hidden sm:flex sm:flex-wrap sm:items-center gap-2 sm:gap-3">
-              {/* Affordability dropdown */}
-              <div className="flex items-center gap-1.5">
-                <label className="text-xs font-medium text-[var(--text-muted)]" htmlFor="affordability-filter">
-                  Property Value
-                </label>
-                <select
-                  id="affordability-filter"
-                  value={affordabilityTier}
-                  onChange={(e) => setAffordabilityTier(e.target.value as AffordabilityTier)}
-                  className="h-7 px-2 rounded border border-[var(--border-color)] bg-[var(--bg-secondary)] text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--text-primary)]"
-                >
-                  {AFFORDABILITY_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Yield dropdown */}
-              <div className="flex items-center gap-1.5">
-                <label className="text-xs font-medium text-[var(--text-muted)]" htmlFor="yield-filter">
-                  Yield
-                </label>
-                <select
-                  id="yield-filter"
-                  value={yieldRange}
-                  onChange={(e) => setYieldRange(e.target.value as YieldRange)}
-                  className="h-7 px-2 rounded border border-[var(--border-color)] bg-[var(--bg-secondary)] text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--text-primary)]"
-                >
-                  {YIELD_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Min Score input */}
-              <div className="flex items-center gap-1.5">
-                <label className="text-xs font-medium text-[var(--text-muted)]" htmlFor="min-score-filter">
-                  Min Score
-                </label>
-                <input
-                  type="number"
-                  id="min-score-filter"
-                  value={minScore ?? ''}
-                  onChange={(e) => setMinScore(e.target.value ? Number(e.target.value) : null)}
-                  placeholder="0"
-                  min="0"
-                  max="200"
-                  className="h-7 w-16 px-2 rounded border border-[var(--border-color)] bg-[var(--bg-secondary)] text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--text-primary)]"
-                />
-              </div>
-
-              {/* Bedroom dropdown */}
-              <div className="flex items-center gap-1.5">
-                <label className="text-xs font-medium text-[var(--text-muted)]" htmlFor="bedroom-filter">
-                  Bedroom
-                </label>
-                <select
-                  id="bedroom-filter"
-                  value={bedroom}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setBedroom(value === 'all' ? 'all' : Number(value) as BedroomCount);
-                  }}
-                  className="h-7 px-2 rounded border border-[var(--border-color)] bg-[var(--bg-secondary)] text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--text-primary)]"
-                >
-                  {BEDROOM_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* State filter (for non-state tabs) */}
-              {activeTab !== 'state' && (
-                <div className="flex items-center gap-1.5">
-                  <label className="text-xs font-medium text-[var(--text-muted)]" htmlFor="state-filter">
-                    State
-                  </label>
-                  <select
-                    id="state-filter"
-                    value={stateFilter}
-                    onChange={(e) => handleStateFilterChange(e.target.value)}
-                    className="h-7 px-2 rounded border border-[var(--border-color)] bg-[var(--bg-secondary)] text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--text-primary)]"
-                  >
-                    <option value="">All States</option>
-                    {STATE_OPTIONS.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* Reset button */}
-              {hasActiveFilters && (
-                <button
-                  onClick={resetFilters}
-                  className="h-7 px-2.5 text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
-                >
-                  Reset
-                </button>
-              )}
-            </div>
-          </div>
-        )}
 
       </div>
 
