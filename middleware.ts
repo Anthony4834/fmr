@@ -278,7 +278,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.rewrite(url);
   }
 
-  return NextResponse.next();
+  // All other matched routes (page loads): rate limit and track last_seen
+  return await handleRateLimit(request);
 }
 
 /**
@@ -498,8 +499,11 @@ async function handleRateLimit(request: NextRequest): Promise<NextResponse> {
   }
 }
 
+// Run on every request except Next.js internals and static assets (so last_seen and rate limits apply to all routes without hardcoding)
 export const config = {
-  matcher: ['/api/:path*', '/zip/:path*', '/county/:path*', '/sitemaps/zips/:path*', '/sitemaps/cities/:path*', '/sitemaps/counties/:path*'],
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff2?|ttf|eot)$).*)',
+  ],
 };
 
 
