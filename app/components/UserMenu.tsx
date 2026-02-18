@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useContext } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
 import { ThemeContext } from '@/app/contexts/ThemeContext';
+import Tooltip from '@/app/components/Tooltip';
 
 interface UserMenuProps {
   onSignInClick: () => void;
@@ -96,6 +97,12 @@ const SettingsIcon = ({ className, style }: IconProps) => (
 const ChevronRightIcon = ({ className, style }: IconProps) => (
   <svg className={className} style={style} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+  </svg>
+);
+
+const InfoIcon = ({ className, style }: IconProps) => (
+  <svg className={className} style={style} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
   </svg>
 );
 
@@ -365,16 +372,28 @@ export default function UserMenu({ onSignInClick }: UserMenuProps) {
             </div>
             
             {/* Tier badge */}
-            <div
-              className="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium"
-              style={{
-                backgroundColor: `${tierColor}15`,
-                color: tierColor,
-              }}
-              title={session.user?.tier === 'free_forever' ? freeForeverTooltip : undefined}
-            >
-              <SparklesIcon className="w-3.5 h-3.5 flex-shrink-0" />
-              {tierLabel} Plan
+            <div className="mt-3 inline-flex items-center gap-1.5">
+              <div
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium"
+                style={{
+                  backgroundColor: `${tierColor}15`,
+                  color: tierColor,
+                }}
+              >
+                <SparklesIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                {tierLabel} Plan
+              </div>
+              {session.user?.tier === 'free_forever' && (
+                <Tooltip content={freeForeverTooltip} side="top" maxWidthPx={260}>
+                  <span
+                    className="inline-flex items-center justify-center w-4 h-4 rounded-full cursor-help"
+                    style={{ color: tierColor, backgroundColor: `${tierColor}20` }}
+                    aria-label="Free Forever plan info"
+                  >
+                    <InfoIcon className="w-3 h-3" />
+                  </span>
+                </Tooltip>
+              )}
             </div>
           </div>
 
