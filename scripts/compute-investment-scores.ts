@@ -1119,14 +1119,18 @@ async function computeZipScores(
 // Export for use in API routes
 export { computeZipScores };
 
-if (import.meta.main) {
-  const { year, stateFilter, zhviMonth, acsVintage, useHistorical } = parseArgs(process.argv);
-  const fmrYear = year || (await getLatestFMRYear());
+// Bun sets import.meta.main; Node/Next do not (avoid type error and skip when imported by cron)
+if (typeof (import.meta as { main?: boolean }).main !== 'undefined' && (import.meta as { main?: boolean }).main) {
+  (async () => {
+    const { year, stateFilter, zhviMonth, acsVintage, useHistorical } = parseArgs(process.argv);
+    const fmrYear = year || (await getLatestFMRYear());
 
-  computeZipScores(fmrYear, stateFilter, zhviMonth, acsVintage, useHistorical)
-    .then(() => process.exit(0))
-    .catch((e) => {
+    try {
+      await computeZipScores(fmrYear, stateFilter, zhviMonth, acsVintage, useHistorical);
+      process.exit(0);
+    } catch (e) {
       console.error("❌ Error:", e);
       process.exit(1);
-    });
+    }
+  })();
 }

@@ -4,7 +4,7 @@
   "installCommand": "bun install",
   "framework": "nextjs",
   "crons": [
-    { "path": "/api/cron/property-data", "schedule": "0 6 * * *" }
+    { "path": "/api/cron/property-data", "schedule": "35 22 * * *" }
   ]
 }
 

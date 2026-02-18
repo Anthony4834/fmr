@@ -319,17 +319,20 @@ async function buildCbsaMappingFromZordi() {
 // Export for use in cron API
 export { ensureCbsaTables, buildCbsaMappingFromFmrData, buildCbsaMappingFromZordi };
 
-if (import.meta.main) {
-  await ensureCbsaTables();
+// Bun sets import.meta.main; Node/Next do not (avoid type error and skip when imported by cron)
+if (typeof (import.meta as { main?: boolean }).main !== 'undefined' && (import.meta as { main?: boolean }).main) {
+  (async () => {
+    await ensureCbsaTables();
 
-  // Primary method: build from existing FMR county-metro data
-  const fromFmr = await buildCbsaMappingFromFmrData();
+    // Primary method: build from existing FMR county-metro data
+    await buildCbsaMappingFromFmrData();
 
-  // If ZORDI data exists, also try to match metro names
-  const zordiCount = await query('SELECT COUNT(*) as cnt FROM zillow_zordi_metro_monthly');
-  if (zordiCount[0]?.cnt > 0) {
-    await buildCbsaMappingFromZordi();
-  }
+    // If ZORDI data exists, also try to match metro names
+    const zordiCount = await query('SELECT COUNT(*) as cnt FROM zillow_zordi_metro_monthly');
+    if (zordiCount[0]?.cnt > 0) {
+      await buildCbsaMappingFromZordi();
+    }
 
-  console.log('\nCBSA mapping ingestion complete.');
+    console.log('\nCBSA mapping ingestion complete.');
+  })();
 }

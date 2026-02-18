@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@vercel/postgres';
 import { getLatestFMRYear } from '@/lib/queries';
 import { indexInsights } from '@/lib/insights-index';
+import { ensureCbsaTables, buildCbsaMappingFromFmrData, buildCbsaMappingFromZordi } from '../../../../scripts/ingest-cbsa-mapping';
+import { query } from '@/lib/db';
+import { computeZipScores } from '../../../../scripts/compute-investment-scores';
 
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
@@ -163,17 +166,16 @@ async function indexMortgageRate() {
   }
 }
 
-// Compute investment scores by calling the script via exec
+// Compute investment scores by calling the script logic in-process (no subprocess; Vercel has no bun)
 async function computeInvestmentScores(year: number) {
   try {
-    // Get the latest ZHVI month and ACS vintage to pass to the script
     const latestZhvi = await sql`
       SELECT MAX(month) as latest_month
       FROM zhvi_zip_bedroom_monthly
       WHERE zhvi IS NOT NULL
     `;
     const latestMonth = latestZhvi.rows[0]?.latest_month
-      ? new Date(latestZhvi.rows[0].latest_month).toISOString().split('T')[0]
+      ? new Date(latestZhvi.rows[0].latest_month as string)
       : null;
 
     const latestAcs = await sql`
@@ -184,36 +186,16 @@ async function computeInvestmentScores(year: number) {
       ? Number(latestAcs.rows[0].latest_vintage)
       : null;
 
-    // Build command arguments
-    const args = [`--year`, String(year)];
-    if (latestMonth) {
-      args.push(`--zhvi-month`, latestMonth);
-    }
-    if (acsVintage) {
-      args.push(`--acs-vintage`, String(acsVintage));
-    }
-
-    // Use dynamic import for child_process (Node.js built-in)
-    const { exec } = await import('child_process');
-    const { promisify } = await import('util');
-    const execAsync = promisify(exec);
-
-    const command = `bun scripts/compute-investment-scores.ts ${args.join(' ')}`;
-    const { stdout, stderr } = await execAsync(command, {
-      env: { ...process.env, POSTGRES_URL: process.env.POSTGRES_URL },
-      maxBuffer: 10 * 1024 * 1024, // 10MB buffer
-    });
+    await computeZipScores(year, null, latestMonth ?? null, acsVintage ?? null, false);
 
     return {
       success: true,
       year,
-      zhviMonth: latestMonth,
+      zhviMonth: latestMonth?.toISOString().split('T')[0] ?? null,
       acsVintage,
-      output: stdout,
-      warnings: stderr
     };
   } catch (e: any) {
-    return { success: false, error: e.message, stderr: e.stderr, stdout: e.stdout };
+    return { success: false, error: e.message };
   }
 }
 
@@ -286,25 +268,17 @@ export async function GET(req: NextRequest) {
       // Step 3.5: Update CBSA mappings (for metro fallback in demand scoring)
       try {
         console.log('[property-data cron] Starting CBSA mapping update...');
-        const { exec } = await import('child_process');
-        const { promisify } = await import('util');
-        const execAsync = promisify(exec);
-
-        const command = 'bun scripts/ingest-cbsa-mapping.ts';
-        const { stdout, stderr } = await execAsync(command, {
-          env: { ...process.env, POSTGRES_URL: process.env.POSTGRES_URL },
-          maxBuffer: 10 * 1024 * 1024, // 10MB buffer
-        });
-
-        results.cbsaMapping = {
-          success: true,
-          output: stdout,
-          warnings: stderr
-        };
+        await ensureCbsaTables();
+        const fromFmr = await buildCbsaMappingFromFmrData();
+        const zordiCount = await query<{ cnt: string }>('SELECT COUNT(*) as cnt FROM zillow_zordi_metro_monthly');
+        if (zordiCount[0] && Number(zordiCount[0].cnt) > 0) {
+          await buildCbsaMappingFromZordi();
+        }
+        results.cbsaMapping = { success: true, fromFmr };
         console.log('[property-data cron] CBSA mapping update complete');
       } catch (e: any) {
         console.error('[property-data cron] CBSA mapping update error:', e);
-        results.cbsaMapping = { error: e.message, stderr: e.stderr, stdout: e.stdout };
+        results.cbsaMapping = { error: e.message };
       }
 
       // Step 4: Compute investment scores (depends on ZHVI, tax, rentals, and CBSA data)
