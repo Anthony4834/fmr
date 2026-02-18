@@ -17,6 +17,7 @@ import AppHeader from '@/app/components/AppHeader';
 import ExplorerTopLists from '@/app/components/ExplorerTopLists';
 import FilterPills from '@/app/components/FilterPills';
 import GeoTabBar from '@/app/components/GeoTabBar';
+import InsightsPanel from '@/app/components/InsightsPanel';
 import SearchInput from '@/app/components/SearchInput';
 import { buildCitySlug, buildCountySlug } from '@/lib/location-slugs';
 import { STATES } from '@/lib/states';
@@ -687,14 +688,6 @@ export default function InsightsClient() {
   sortStateRef.current = { sortBy, sortDir };
 
   useEffect(() => {
-    if (!filtersOpen) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setFiltersOpen(false);
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [filtersOpen]);
-  useEffect(() => {
     const el = sentinelRef.current;
     if (!el) return;
     const observer = new IntersectionObserver(
@@ -1140,20 +1133,16 @@ export default function InsightsClient() {
                 )}
               </div>
 
-              {/* Filters panel - rendered outside hidden div so it is visible on mobile */}
-              {filtersOpen && (
-                <>
-                  <div
-                    className="fixed inset-0 z-20 bg-black/15 dark:bg-black/40"
-                    aria-hidden
-                    onClick={() => setFiltersOpen(false)}
-                  />
-                  <div
-                    id="insights-filters-panel"
-                    role="dialog"
-                    aria-label="Filters"
-                    className="fixed bottom-0 left-0 right-0 z-30 w-full max-h-[85vh] overflow-auto rounded-t-xl border-2 border-b-0 border-[var(--border-color)] bg-[var(--bg-primary)] shadow-xl p-4 space-y-3 sm:absolute sm:bottom-auto sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[min(360px,calc(100vw-2rem))] sm:max-h-[min(85vh,600px)] sm:rounded-lg sm:border-b"
-                  >
+              {/* Filters panel - shared component, portal-rendered, floats next to button on desktop */}
+              <InsightsPanel
+                open={filtersOpen}
+                onClose={() => setFiltersOpen(false)}
+                anchorRef={filtersButtonRef}
+                ariaLabel="Filters"
+                id="insights-filters-panel"
+                maxWidthPx={360}
+                maxHeightPx={600}
+              >
                     <div>
                       <label className="mb-1.5 block text-xs font-medium text-[var(--text-muted)]">State</label>
                       <select
@@ -1368,23 +1357,18 @@ export default function InsightsClient() {
                         Reset all filters
                       </button>
                     )}
-                  </div>
-                </>
-              )}
+              </InsightsPanel>
 
-              {/* Settings panel - rendered outside hidden div so it is visible on mobile */}
-              {settingsOpen && (
-                <>
-                  <div
-                    className="fixed inset-0 z-20 bg-black/15 dark:bg-black/40"
-                    aria-hidden
-                    onClick={() => setSettingsOpen(false)}
-                  />
-                  <div
-                    role="dialog"
-                    aria-label="Settings"
-                    className="fixed bottom-0 left-0 right-0 z-30 w-full max-h-[85vh] overflow-auto rounded-t-xl border-2 border-b-0 border-[var(--border-color)] bg-[var(--bg-primary)] shadow-xl p-4 space-y-4 sm:absolute sm:bottom-auto sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[min(300px,calc(100vw-2rem))] sm:max-h-[min(85vh,400px)] sm:rounded-lg sm:border-b"
-                  >
+              {/* Settings panel - same shared component as filters */}
+              <InsightsPanel
+                open={settingsOpen}
+                onClose={() => setSettingsOpen(false)}
+                anchorRef={settingsButtonRef}
+                ariaLabel="Settings"
+                maxWidthPx={300}
+                maxHeightPx={400}
+                contentSpacing="md"
+              >
                     <div>
                       <label className="mb-1.5 block text-xs font-medium text-[var(--text-muted)]">
                         Flat band ±%
@@ -1473,9 +1457,7 @@ export default function InsightsClient() {
                     >
                       Restore defaults
                     </button>
-                  </div>
-                </>
-              )}
+              </InsightsPanel>
             </div>
           </div>
 
