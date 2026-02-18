@@ -40,7 +40,7 @@ export default function UsersAdminClient({
   const [createForm, setCreateForm] = useState({
     email: '',
     name: '',
-    tier: 'free',
+    tier: 'free_forever',
     role: 'user',
     password: '',
     sendSetupEmail: true,
@@ -149,7 +149,7 @@ export default function UsersAdminClient({
       setCreateForm({
         email: '',
         name: '',
-        tier: 'free',
+        tier: 'free_forever',
         role: 'user',
         password: '',
         sendSetupEmail: true,
@@ -260,6 +260,7 @@ export default function UsersAdminClient({
                   >
                     <option value="free">Free</option>
                     <option value="paid">Paid</option>
+                    <option value="free_forever">Free Forever</option>
                   </select>
                 </td>
                 <td className="px-4 py-3">
@@ -361,6 +362,7 @@ export default function UsersAdminClient({
                 >
                   <option value="free">Free</option>
                   <option value="paid">Paid</option>
+                  <option value="free_forever">Free Forever</option>
                 </select>
               </div>
 
@@ -405,7 +407,7 @@ export default function UsersAdminClient({
                     setCreateForm({
                       email: '',
                       name: '',
-                      tier: 'free',
+                      tier: 'free_forever',
                       role: 'user',
                       password: '',
                       sendSetupEmail: true,

@@ -427,11 +427,12 @@ export function getUserTierFromToken(token: AuthToken | null): UserTier {
   // Get tier from token, default to 'free' for authenticated users
   const tier = token.tier as string | undefined;
   
-  if (tier === 'paid') {
+  // free_forever is treated as paid (early adopters, no payment required)
+  if (tier === 'paid' || tier === 'free_forever') {
     return 'paid';
   }
   
-  // Any authenticated user without paid tier is 'free'
+  // Any authenticated user without paid/free_forever tier is 'free'
   return 'free';
 }
 

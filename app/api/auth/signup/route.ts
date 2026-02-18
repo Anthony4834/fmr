@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { query, execute } from '@/lib/db';
 import { hashPassword, validatePassword } from '@/lib/auth';
+import { getDefaultSignupTier } from '@/lib/default-signup-tier';
 import { checkSignupAllowed, normalizeResponseTime } from '@/lib/auth-rate-limit';
 import { generateVerificationCode, sendVerificationEmail } from '@/lib/email';
 import { hasGuestHitLimit, recordGuestConversion } from '@/lib/guest-tracking';
@@ -119,11 +120,12 @@ export async function POST(request: Request) {
     let userId: string | null = null;
     if (!userExists) {
       const passwordHash = await hashPassword(password);
+      const defaultTier = getDefaultSignupTier();
       const result = await query<{ id: string }>(
         `INSERT INTO users (email, name, password_hash, tier, signup_method)
-         VALUES (LOWER($1), $2, $3, 'free', 'credentials')
+         VALUES (LOWER($1), $2, $3, $4, 'credentials')
          RETURNING id`,
-        [email, name || null, passwordHash]
+        [email, name || null, passwordHash, defaultTier]
       );
       userId = result[0]?.id || null;
     } else {

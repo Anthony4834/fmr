@@ -2,6 +2,7 @@ import type { Adapter, AdapterUser, AdapterAccount, AdapterSession, Verification
 import { query, execute } from './db';
 import { encryptIfPresent, decryptIfPresent } from './encryption';
 import { createHash } from 'crypto';
+import { getDefaultSignupTier } from './default-signup-tier';
 
 /**
  * Custom NextAuth adapter for Postgres with encrypted OAuth tokens.
@@ -12,11 +13,12 @@ export function PostgresAdapter(): Adapter {
     async createUser(user) {
       // OAuth users are created without password_hash, so set signup_method to 'google'
       // (This will be updated if it's a different provider when account is linked)
-      const result = await query<AdapterUser>(
-        `INSERT INTO users (email, email_verified, name, image, signup_method)
-         VALUES (LOWER($1), $2, $3, $4, 'google')
-         RETURNING id, email, email_verified as "emailVerified", name, image`,
-        [user.email, user.emailVerified, user.name, user.image]
+      const defaultTier = getDefaultSignupTier();
+      const result = await query<AdapterUser & { tier: string }>(
+        `INSERT INTO users (email, email_verified, name, image, signup_method, tier)
+         VALUES (LOWER($1), $2, $3, $4, 'google', $5)
+         RETURNING id, email, email_verified as "emailVerified", name, image, tier`,
+        [user.email, user.emailVerified, user.name, user.image, defaultTier]
       );
       
       // Track guest conversion for OAuth signups (fire-and-forget)

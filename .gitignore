@@ -51,6 +51,9 @@ bun.lockb
 .dev/
 !.dev/README.md
 
+# user backups (restorable via scripts/restore-users.ts)
+/backups/
+
 # temporary data files
 *.csv
 *.txt

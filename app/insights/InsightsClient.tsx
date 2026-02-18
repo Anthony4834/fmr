@@ -1050,236 +1050,6 @@ export default function InsightsClient() {
                   <Filter className="w-3.5 h-3.5" />
                   Filters{activeFiltersCount > 0 ? ` (${activeFiltersCount})` : ''}
                 </button>
-                {filtersOpen && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-20 bg-black/15 dark:bg-black/40"
-                      aria-hidden
-                      onClick={() => setFiltersOpen(false)}
-                    />
-                    <div
-                      id="insights-filters-panel"
-                      role="dialog"
-                      aria-label="Filters"
-                      className="fixed bottom-0 left-0 right-0 z-30 w-full max-h-[85vh] overflow-auto rounded-t-xl border-2 border-b-0 border-[var(--border-color)] bg-[var(--bg-primary)] shadow-xl p-4 space-y-3 sm:absolute sm:bottom-auto sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[min(360px,calc(100vw-2rem))] sm:max-h-[min(85vh,600px)] sm:rounded-lg sm:border-b"
-                    >
-                      <div>
-                        <label className="mb-1.5 block text-xs font-medium text-[var(--text-muted)]">State</label>
-                        <select
-                          value={stateFilter}
-                          onChange={(e) => setStateFilter(e.target.value)}
-                          className="h-9 w-full rounded-md border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 py-1.5 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--primary-blue)]"
-                          aria-label="State filter"
-                        >
-                          <option value="">All states</option>
-                          {STATES.map((s) => (
-                            <option key={s.code} value={s.code}>
-                              {s.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <TrendMultiFilter
-                        label="Home value"
-                        description="Median sale price (YoY)"
-                        icon={Building2}
-                        value={priceDir}
-                        onChange={setPriceDir}
-                      />
-                      <TrendMultiFilter
-                        label="FMR"
-                        description="Fair market rent (YoY)"
-                        icon={DollarSign}
-                        value={fmrDir}
-                        onChange={setFmrDir}
-                      />
-                      <TrendMultiFilter
-                        label="Yield"
-                        description="Cap rate (trend proxy)"
-                        icon={Percent}
-                        value={yieldDir}
-                        onChange={setYieldDir}
-                      />
-                      <Separator />
-                      <div>
-                        <label className="mb-1.5 block text-xs font-medium text-[var(--text-muted)]">
-                          Price range
-                        </label>
-                        <div className="mt-1.5">
-                          <ReactSlider
-                            min={priceRange.sliderMin}
-                            max={priceRange.sliderMax}
-                            step={priceRange.step}
-                            value={
-                              sliderPriceRange ?? [
-                                minPrice.trim()
-                                  ? roundTo1k(
-                                      Math.min(
-                                        Math.max(priceRange.sliderMin, parseFloat(minPrice) || priceRange.sliderMin),
-                                        priceRange.sliderMax
-                                      )
-                                    )
-                                  : priceRange.sliderMin,
-                                maxPrice.trim()
-                                  ? roundTo1k(
-                                      Math.max(
-                                        Math.min(priceRange.sliderMax, parseFloat(maxPrice) || priceRange.sliderMax),
-                                        priceRange.sliderMin
-                                      )
-                                    )
-                                  : priceRange.sliderMax,
-                              ]
-                            }
-                            onChange={(v) => {
-                              const [a, b] = Array.isArray(v) ? v : [v, v];
-                              setSliderPriceRange([roundTo1k(Number(a)), roundTo1k(Number(b))]);
-                            }}
-                            onAfterChange={(v) => {
-                              const [a, b] = Array.isArray(v) ? v : [v, v];
-                              commitPriceRange(Number(a), Number(b));
-                            }}
-                            className="slider w-full h-6 flex items-center"
-                            thumbClassName="insights-slider-thumb w-4 h-4 rounded-full border-2 border-[var(--primary-blue)] bg-[var(--bg-primary)] cursor-grab focus:outline-none focus:ring-2 focus:ring-[var(--primary-blue)]"
-                            trackClassName="h-1 rounded bg-[var(--border-color)]"
-                            renderTrack={(props, state) => (
-                              <div
-                                {...props}
-                                className={`${props.className || ''} h-1 rounded ${state.index === 1 ? 'bg-[var(--primary-blue)]' : 'bg-[var(--border-color)]'}`}
-                              />
-                            )}
-                            ariaLabel={['Minimum home value', 'Maximum home value']}
-                          />
-                        </div>
-                        <div className="mt-2 flex items-center gap-3">
-                          <div className="flex-1 min-w-0">
-                            <label className="sr-only">Min ($)</label>
-                            <Input
-                              type="number"
-                              min={priceRange.sliderMin}
-                              max={priceRange.sliderMax}
-                              step={priceRange.step}
-                              value={
-                                sliderPriceRange != null
-                                  ? String(Math.trunc(sliderPriceRange[0]))
-                                  : minPrice
-                              }
-                              onChange={(e) => {
-                                setSliderPriceRange(null);
-                                const raw = e.target.value;
-                                if (raw === '' || raw === '-') setMinPrice(raw);
-                                else {
-                                  const n = parseFloat(raw);
-                                  setMinPrice(Number.isNaN(n) ? raw : String(Math.trunc(n)));
-                                }
-                              }}
-                              placeholder="Min"
-                              className="h-9 bg-[var(--bg-primary)] text-sm"
-                              aria-label="Min ($)"
-                            />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <label className="sr-only">Max ($)</label>
-                            <Input
-                              type="number"
-                              min={priceRange.sliderMin}
-                              step={priceRange.step}
-                              value={
-                                sliderPriceRange != null
-                                  ? String(roundTo1k(sliderPriceRange[1]))
-                                  : maxPrice
-                              }
-                              onChange={(e) => {
-                                setSliderPriceRange(null);
-                                const raw = e.target.value;
-                                if (raw === '' || raw === '-') setMaxPrice(raw);
-                                else {
-                                  const n = parseFloat(raw);
-                                  setMaxPrice(Number.isNaN(n) ? raw : String(Math.trunc(n)));
-                                }
-                              }}
-                              placeholder="Max"
-                              className="h-9 bg-[var(--bg-primary)] text-sm"
-                              aria-label="Max ($)"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="mb-1.5 block text-xs font-medium text-[var(--text-muted)]">
-                          Min yield (%)
-                        </label>
-                        <div className="mt-1.5">
-                          <ReactSlider
-                            min={0}
-                            max={yieldSliderMax}
-                            step={YIELD_SLIDER_STEP}
-                            value={
-                              sliderYieldPct ??
-                              (minYieldPct.trim()
-                                ? Math.min(
-                                    Math.max(0, parseFloat(minYieldPct) || 0),
-                                    yieldSliderMax
-                                  )
-                                : 0)
-                            }
-                            onChange={(v) => setSliderYieldPct(Number(v))}
-                            onAfterChange={(v) => commitYieldPct(Number(v))}
-                            className="slider w-full h-6 flex items-center"
-                            thumbClassName="insights-slider-thumb w-4 h-4 rounded-full border-2 border-[var(--primary-blue)] bg-[var(--bg-primary)] cursor-grab focus:outline-none focus:ring-2 focus:ring-[var(--primary-blue)]"
-                            trackClassName="h-1 rounded bg-[var(--border-color)]"
-                            renderTrack={(props, state) => (
-                              <div
-                                {...props}
-                                className={`${props.className || ''} h-1 rounded ${state.index === 0 ? 'bg-[var(--primary-blue)]' : 'bg-[var(--border-color)]'}`}
-                              />
-                            )}
-                            ariaLabel="Minimum yield percentage"
-                          />
-                        </div>
-                        <div className="mt-2">
-                          <label className="sr-only">Min yield (%)</label>
-                          <Input
-                            type="number"
-                            min={0}
-                            max={yieldSliderMax}
-                            step={0.5}
-                            value={
-                              sliderYieldPct != null
-                                ? String(Math.round(sliderYieldPct * 10) / 10)
-                                : minYieldPct === ''
-                                  ? ''
-                                  : (() => {
-                                      const n = parseFloat(minYieldPct);
-                                      return Number.isNaN(n) ? minYieldPct : String(Math.round(n * 10) / 10);
-                                    })()
-                            }
-                            onChange={(e) => {
-                              setSliderYieldPct(null);
-                              const raw = e.target.value;
-                              if (raw === '' || raw === '-') setMinYieldPct(raw);
-                              else {
-                                const n = parseFloat(raw);
-                                setMinYieldPct(Number.isNaN(n) ? raw : String(Math.round(n * 10) / 10));
-                              }
-                            }}
-                            placeholder="Any"
-                            className="h-9 w-full max-w-[120px] bg-[var(--bg-primary)] text-sm"
-                            aria-label="Min yield (%)"
-                          />
-                        </div>
-                      </div>
-                      {activeFiltersCount > 0 && (
-                        <button
-                          type="button"
-                          onClick={clearFilters}
-                          className="w-full h-9 px-3 text-sm font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] rounded border border-[var(--border-color)] transition-colors"
-                        >
-                          Reset all filters
-                        </button>
-                      )}
-                    </div>
-                  </>
-                )}
               </div>
               <div ref={settingsButtonRef} className="relative inline-block">
                 <button
@@ -1296,109 +1066,6 @@ export default function InsightsClient() {
                   <Settings className="w-3.5 h-3.5" />
                   Settings
                 </button>
-                {settingsOpen && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-20 bg-black/15 dark:bg-black/40"
-                      aria-hidden
-                      onClick={() => setSettingsOpen(false)}
-                    />
-                    <div
-                      role="dialog"
-                      aria-label="Settings"
-                      className="fixed bottom-0 left-0 right-0 z-30 w-full max-h-[85vh] overflow-auto rounded-t-xl border-2 border-b-0 border-[var(--border-color)] bg-[var(--bg-primary)] shadow-xl p-4 space-y-4 sm:absolute sm:bottom-auto sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[min(300px,calc(100vw-2rem))] sm:max-h-[min(85vh,400px)] sm:rounded-lg sm:border-b"
-                    >
-                      <div>
-                        <label className="mb-1.5 block text-xs font-medium text-[var(--text-muted)]">
-                          Flat band ±%
-                        </label>
-                        <div className="mt-1.5 flex items-center gap-2">
-                          <div className="flex-1 min-w-0">
-                            <ReactSlider
-                              min={0.5}
-                              max={10}
-                              step={0.5}
-                              value={sliderFlatBandPct ?? flatBandPct}
-                              onChange={(v) => setSliderFlatBandPct(Number(v))}
-                              onAfterChange={(v) => commitFlatBandPct(Number(v))}
-                              className="slider w-full h-6 flex items-center"
-                              thumbClassName="insights-slider-thumb w-4 h-4 rounded-full border-2 border-[var(--primary-blue)] bg-[var(--bg-primary)] cursor-grab focus:outline-none focus:ring-2 focus:ring-[var(--primary-blue)]"
-                              trackClassName="h-1 rounded bg-[var(--border-color)]"
-                              renderTrack={(props, state) => (
-                                <div
-                                  {...props}
-                                  className={`${props.className || ''} h-1 rounded ${state.index === 0 ? 'bg-[var(--primary-blue)]' : 'bg-[var(--border-color)]'}`}
-                                />
-                              )}
-                              ariaLabel="Flat band percentage"
-                            />
-                          </div>
-                          <label className="sr-only">Flat within ± (%)</label>
-                          <input
-                            type="text"
-                            inputMode="decimal"
-                            value={
-                              flatBandInputStr !== null
-                                ? flatBandInputStr
-                                : sliderFlatBandPct != null
-                                  ? sliderFlatBandPct.toFixed(2)
-                                  : flatBandPct.toFixed(2)
-                            }
-                            onChange={(e) => {
-                              const raw = e.target.value;
-                              if (raw === '') {
-                                setFlatBandInputStr('');
-                                return;
-                              }
-                              const m = raw.match(/^\d*\.?\d{0,2}$/);
-                              if (m) setFlatBandInputStr(raw);
-                            }}
-                            onBlur={handleFlatBandBlur}
-                            placeholder="3"
-                            className="h-9 w-11 shrink-0 rounded-md border border-[var(--border-color)] bg-[var(--bg-primary)] px-2 text-right text-xs tabular-nums focus:outline-none focus:ring-1 focus:ring-[var(--primary-blue)] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                            aria-label="Flat within ± (%)"
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="mb-1.5 block text-xs font-medium text-[var(--text-muted)]">
-                          Sort by
-                        </label>
-                        <div className="mt-2 inline-flex overflow-hidden rounded-md border border-[var(--border-color)] bg-[var(--bg-primary)]">
-                          <button
-                            type="button"
-                            onClick={() => setSortMode('yoy')}
-                            className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-                              sortMode === 'yoy'
-                                ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
-                                : 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
-                            }`}
-                          >
-                            YoY %
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setSortMode('value')}
-                            className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-                              sortMode === 'value'
-                                ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
-                                : 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
-                            }`}
-                          >
-                            Value
-                          </button>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={restoreSettingsDefaults}
-                        className="w-full py-2 text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] border border-[var(--border-color)] rounded-md hover:bg-[var(--bg-hover)] transition-colors"
-                      >
-                        Restore defaults
-                      </button>
-                    </div>
-                  </>
-                )}
               </div>
               </div>
 
@@ -1472,6 +1139,343 @@ export default function InsightsClient() {
                   </>
                 )}
               </div>
+
+              {/* Filters panel - rendered outside hidden div so it is visible on mobile */}
+              {filtersOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-20 bg-black/15 dark:bg-black/40"
+                    aria-hidden
+                    onClick={() => setFiltersOpen(false)}
+                  />
+                  <div
+                    id="insights-filters-panel"
+                    role="dialog"
+                    aria-label="Filters"
+                    className="fixed bottom-0 left-0 right-0 z-30 w-full max-h-[85vh] overflow-auto rounded-t-xl border-2 border-b-0 border-[var(--border-color)] bg-[var(--bg-primary)] shadow-xl p-4 space-y-3 sm:absolute sm:bottom-auto sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[min(360px,calc(100vw-2rem))] sm:max-h-[min(85vh,600px)] sm:rounded-lg sm:border-b"
+                  >
+                    <div>
+                      <label className="mb-1.5 block text-xs font-medium text-[var(--text-muted)]">State</label>
+                      <select
+                        value={stateFilter}
+                        onChange={(e) => setStateFilter(e.target.value)}
+                        className="h-9 w-full rounded-md border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 py-1.5 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--primary-blue)]"
+                        aria-label="State filter"
+                      >
+                        <option value="">All states</option>
+                        {STATES.map((s) => (
+                          <option key={s.code} value={s.code}>
+                            {s.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <TrendMultiFilter
+                      label="Home value"
+                      description="Median sale price (YoY)"
+                      icon={Building2}
+                      value={priceDir}
+                      onChange={setPriceDir}
+                    />
+                    <TrendMultiFilter
+                      label="FMR"
+                      description="Fair market rent (YoY)"
+                      icon={DollarSign}
+                      value={fmrDir}
+                      onChange={setFmrDir}
+                    />
+                    <TrendMultiFilter
+                      label="Yield"
+                      description="Cap rate (trend proxy)"
+                      icon={Percent}
+                      value={yieldDir}
+                      onChange={setYieldDir}
+                    />
+                    <Separator />
+                    <div>
+                      <label className="mb-1.5 block text-xs font-medium text-[var(--text-muted)]">
+                        Price range
+                      </label>
+                      <div className="mt-1.5">
+                        <ReactSlider
+                          min={priceRange.sliderMin}
+                          max={priceRange.sliderMax}
+                          step={priceRange.step}
+                          value={
+                            sliderPriceRange ?? [
+                              minPrice.trim()
+                                ? roundTo1k(
+                                    Math.min(
+                                      Math.max(priceRange.sliderMin, parseFloat(minPrice) || priceRange.sliderMin),
+                                      priceRange.sliderMax
+                                    )
+                                  )
+                                : priceRange.sliderMin,
+                              maxPrice.trim()
+                                ? roundTo1k(
+                                    Math.max(
+                                      Math.min(priceRange.sliderMax, parseFloat(maxPrice) || priceRange.sliderMax),
+                                      priceRange.sliderMin
+                                    )
+                                  )
+                                : priceRange.sliderMax,
+                            ]
+                          }
+                          onChange={(v) => {
+                            const [a, b] = Array.isArray(v) ? v : [v, v];
+                            setSliderPriceRange([roundTo1k(Number(a)), roundTo1k(Number(b))]);
+                          }}
+                          onAfterChange={(v) => {
+                            const [a, b] = Array.isArray(v) ? v : [v, v];
+                            commitPriceRange(Number(a), Number(b));
+                          }}
+                          className="slider w-full h-6 flex items-center"
+                          thumbClassName="insights-slider-thumb w-4 h-4 rounded-full border-2 border-[var(--primary-blue)] bg-[var(--bg-primary)] cursor-grab focus:outline-none focus:ring-2 focus:ring-[var(--primary-blue)]"
+                          trackClassName="h-1 rounded bg-[var(--border-color)]"
+                          renderTrack={(props, state) => (
+                            <div
+                              {...props}
+                              className={`${props.className || ''} h-1 rounded ${state.index === 1 ? 'bg-[var(--primary-blue)]' : 'bg-[var(--border-color)]'}`}
+                            />
+                          )}
+                          ariaLabel={['Minimum home value', 'Maximum home value']}
+                        />
+                      </div>
+                      <div className="mt-2 flex items-center gap-3">
+                        <div className="flex-1 min-w-0">
+                          <label className="sr-only">Min ($)</label>
+                          <Input
+                            type="number"
+                            min={priceRange.sliderMin}
+                            max={priceRange.sliderMax}
+                            step={priceRange.step}
+                            value={
+                              sliderPriceRange != null
+                                ? String(Math.trunc(sliderPriceRange[0]))
+                                : minPrice
+                            }
+                            onChange={(e) => {
+                              setSliderPriceRange(null);
+                              const raw = e.target.value;
+                              if (raw === '' || raw === '-') setMinPrice(raw);
+                              else {
+                                const n = parseFloat(raw);
+                                setMinPrice(Number.isNaN(n) ? raw : String(Math.trunc(n)));
+                              }
+                            }}
+                            placeholder="Min"
+                            className="h-9 bg-[var(--bg-primary)] text-sm"
+                            aria-label="Min ($)"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <label className="sr-only">Max ($)</label>
+                          <Input
+                            type="number"
+                            min={priceRange.sliderMin}
+                            step={priceRange.step}
+                            value={
+                              sliderPriceRange != null
+                                ? String(roundTo1k(sliderPriceRange[1]))
+                                : maxPrice
+                            }
+                            onChange={(e) => {
+                              setSliderPriceRange(null);
+                              const raw = e.target.value;
+                              if (raw === '' || raw === '-') setMaxPrice(raw);
+                              else {
+                                const n = parseFloat(raw);
+                                setMaxPrice(Number.isNaN(n) ? raw : String(Math.trunc(n)));
+                              }
+                            }}
+                            placeholder="Max"
+                            className="h-9 bg-[var(--bg-primary)] text-sm"
+                            aria-label="Max ($)"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-medium text-[var(--text-muted)]">
+                        Min yield (%)
+                      </label>
+                      <div className="mt-1.5">
+                        <ReactSlider
+                          min={0}
+                          max={yieldSliderMax}
+                          step={YIELD_SLIDER_STEP}
+                          value={
+                            sliderYieldPct ??
+                            (minYieldPct.trim()
+                              ? Math.min(
+                                  Math.max(0, parseFloat(minYieldPct) || 0),
+                                  yieldSliderMax
+                                )
+                              : 0)
+                          }
+                          onChange={(v) => setSliderYieldPct(Number(v))}
+                          onAfterChange={(v) => commitYieldPct(Number(v))}
+                          className="slider w-full h-6 flex items-center"
+                          thumbClassName="insights-slider-thumb w-4 h-4 rounded-full border-2 border-[var(--primary-blue)] bg-[var(--bg-primary)] cursor-grab focus:outline-none focus:ring-2 focus:ring-[var(--primary-blue)]"
+                          trackClassName="h-1 rounded bg-[var(--border-color)]"
+                          renderTrack={(props, state) => (
+                            <div
+                              {...props}
+                              className={`${props.className || ''} h-1 rounded ${state.index === 0 ? 'bg-[var(--primary-blue)]' : 'bg-[var(--border-color)]'}`}
+                            />
+                          )}
+                          ariaLabel="Minimum yield percentage"
+                        />
+                      </div>
+                      <div className="mt-2">
+                        <label className="sr-only">Min yield (%)</label>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={yieldSliderMax}
+                          step={0.5}
+                          value={
+                            sliderYieldPct != null
+                              ? String(Math.round(sliderYieldPct * 10) / 10)
+                              : minYieldPct === ''
+                                ? ''
+                                : (() => {
+                                    const n = parseFloat(minYieldPct);
+                                    return Number.isNaN(n) ? minYieldPct : String(Math.round(n * 10) / 10);
+                                  })()
+                          }
+                          onChange={(e) => {
+                            setSliderYieldPct(null);
+                            const raw = e.target.value;
+                            if (raw === '' || raw === '-') setMinYieldPct(raw);
+                            else {
+                              const n = parseFloat(raw);
+                              setMinYieldPct(Number.isNaN(n) ? raw : String(Math.round(n * 10) / 10));
+                            }
+                          }}
+                          placeholder="Any"
+                          className="h-9 w-full max-w-[120px] bg-[var(--bg-primary)] text-sm"
+                          aria-label="Min yield (%)"
+                        />
+                      </div>
+                    </div>
+                    {activeFiltersCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={clearFilters}
+                        className="w-full h-9 px-3 text-sm font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] rounded border border-[var(--border-color)] transition-colors"
+                      >
+                        Reset all filters
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {/* Settings panel - rendered outside hidden div so it is visible on mobile */}
+              {settingsOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-20 bg-black/15 dark:bg-black/40"
+                    aria-hidden
+                    onClick={() => setSettingsOpen(false)}
+                  />
+                  <div
+                    role="dialog"
+                    aria-label="Settings"
+                    className="fixed bottom-0 left-0 right-0 z-30 w-full max-h-[85vh] overflow-auto rounded-t-xl border-2 border-b-0 border-[var(--border-color)] bg-[var(--bg-primary)] shadow-xl p-4 space-y-4 sm:absolute sm:bottom-auto sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[min(300px,calc(100vw-2rem))] sm:max-h-[min(85vh,400px)] sm:rounded-lg sm:border-b"
+                  >
+                    <div>
+                      <label className="mb-1.5 block text-xs font-medium text-[var(--text-muted)]">
+                        Flat band ±%
+                      </label>
+                      <div className="mt-1.5 flex items-center gap-2">
+                        <div className="flex-1 min-w-0">
+                          <ReactSlider
+                            min={0.5}
+                            max={10}
+                            step={0.5}
+                            value={sliderFlatBandPct ?? flatBandPct}
+                            onChange={(v) => setSliderFlatBandPct(Number(v))}
+                            onAfterChange={(v) => commitFlatBandPct(Number(v))}
+                            className="slider w-full h-6 flex items-center"
+                            thumbClassName="insights-slider-thumb w-4 h-4 rounded-full border-2 border-[var(--primary-blue)] bg-[var(--bg-primary)] cursor-grab focus:outline-none focus:ring-2 focus:ring-[var(--primary-blue)]"
+                            trackClassName="h-1 rounded bg-[var(--border-color)]"
+                            renderTrack={(props, state) => (
+                              <div
+                                {...props}
+                                className={`${props.className || ''} h-1 rounded ${state.index === 0 ? 'bg-[var(--primary-blue)]' : 'bg-[var(--border-color)]'}`}
+                              />
+                            )}
+                            ariaLabel="Flat band percentage"
+                          />
+                        </div>
+                        <label className="sr-only">Flat within ± (%)</label>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={
+                            flatBandInputStr !== null
+                              ? flatBandInputStr
+                              : sliderFlatBandPct != null
+                                ? sliderFlatBandPct.toFixed(2)
+                                : flatBandPct.toFixed(2)
+                          }
+                          onChange={(e) => {
+                            const raw = e.target.value;
+                            if (raw === '') {
+                              setFlatBandInputStr('');
+                              return;
+                            }
+                            const m = raw.match(/^\d*\.?\d{0,2}$/);
+                            if (m) setFlatBandInputStr(raw);
+                          }}
+                          onBlur={handleFlatBandBlur}
+                          placeholder="3"
+                          className="h-9 w-11 shrink-0 rounded-md border border-[var(--border-color)] bg-[var(--bg-primary)] px-2 text-right text-xs tabular-nums focus:outline-none focus:ring-1 focus:ring-[var(--primary-blue)] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          aria-label="Flat within ± (%)"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-medium text-[var(--text-muted)]">
+                        Sort by
+                      </label>
+                      <div className="mt-2 inline-flex overflow-hidden rounded-md border border-[var(--border-color)] bg-[var(--bg-primary)]">
+                        <button
+                          type="button"
+                          onClick={() => setSortMode('yoy')}
+                          className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                            sortMode === 'yoy'
+                              ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
+                              : 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
+                          }`}
+                        >
+                          YoY %
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSortMode('value')}
+                          className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                            sortMode === 'value'
+                              ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
+                              : 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
+                          }`}
+                        >
+                          Value
+                        </button>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={restoreSettingsDefaults}
+                      className="w-full py-2 text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] border border-[var(--border-color)] rounded-md hover:bg-[var(--bg-hover)] transition-colors"
+                    >
+                      Restore defaults
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 

@@ -24,9 +24,9 @@ export async function PATCH(
     const body = await request.json();
     const { tier } = body;
 
-    if (!tier || !['free', 'paid'].includes(tier)) {
+    if (!tier || !['free', 'paid', 'free_forever'].includes(tier)) {
       return NextResponse.json(
-        { error: 'Invalid tier. Must be "free" or "paid"' },
+        { error: 'Invalid tier. Must be "free", "paid", or "free_forever"' },
         { status: 400 }
       );
     }

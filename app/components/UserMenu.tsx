@@ -270,8 +270,18 @@ export default function UserMenu({ onSignInClick }: UserMenuProps) {
     ? session.user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
     : session.user?.email?.[0]?.toUpperCase() || '?';
 
-  const tierLabel = session.user?.tier === 'paid' ? 'Pro' : 'Free';
-  const tierColor = session.user?.tier === 'paid' ? 'hsl(45 93% 47%)' : primaryColor;
+  const tierLabel =
+    session.user?.tier === 'paid'
+      ? 'Pro'
+      : session.user?.tier === 'free_forever'
+        ? 'Free Forever'
+        : 'Free';
+  const tierColor =
+    session.user?.tier === 'paid' || session.user?.tier === 'free_forever'
+      ? 'hsl(45 93% 47%)'
+      : primaryColor;
+  const freeForeverTooltip =
+    'Thank you for being an early member. You have permanent access to Pro features at no charge.';
 
   return (
     <div className="relative flex-shrink-0" ref={menuRef}>
@@ -355,12 +365,13 @@ export default function UserMenu({ onSignInClick }: UserMenuProps) {
             </div>
             
             {/* Tier badge */}
-            <div 
+            <div
               className="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium"
-              style={{ 
+              style={{
                 backgroundColor: `${tierColor}15`,
                 color: tierColor,
               }}
+              title={session.user?.tier === 'free_forever' ? freeForeverTooltip : undefined}
             >
               <SparklesIcon className="w-3.5 h-3.5 flex-shrink-0" />
               {tierLabel} Plan

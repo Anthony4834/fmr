@@ -738,7 +738,7 @@ export async function createSchema() {
       name TEXT,
       image TEXT,
       password_hash TEXT,  -- bcrypt hash, null for OAuth-only users
-      tier VARCHAR(20) NOT NULL DEFAULT 'free' CHECK (tier IN ('free', 'paid')),
+      tier VARCHAR(20) NOT NULL DEFAULT 'free' CHECK (tier IN ('free', 'paid', 'free_forever')),
       role VARCHAR(20) DEFAULT 'user' CHECK (role IN ('user', 'admin')),
       signup_method VARCHAR(20) CHECK (signup_method IN ('credentials', 'google', 'admin_created')),
       locked_until TIMESTAMPTZ,  -- account lockout timestamp
