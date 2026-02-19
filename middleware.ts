@@ -90,6 +90,50 @@ function isBotRequest(request: NextRequest): boolean {
   return false;
 }
 
+/** Allowed CORS origins: site origin + optional env list + any chrome-extension:// */
+function getAllowedCorsOrigins(): string[] {
+  const list: string[] = [];
+  try {
+    const url = process.env.NEXTAUTH_URL || process.env.VERCEL_URL;
+    if (url) {
+      const origin = new URL(url.startsWith('http') ? url : `https://${url}`).origin;
+      list.push(origin);
+    }
+  } catch {
+    // ignore
+  }
+  const extra = process.env.CORS_ALLOWED_ORIGINS;
+  if (extra) {
+    list.push(...extra.split(',').map((s) => s.trim()).filter(Boolean));
+  }
+  return list;
+}
+
+let cachedCorsOrigins: string[] | null = null;
+function getCorsOrigins(): string[] {
+  if (cachedCorsOrigins === null) {
+    cachedCorsOrigins = getAllowedCorsOrigins();
+  }
+  return cachedCorsOrigins;
+}
+
+/** Return Access-Control-Allow-Origin value if request origin is allowed, else null */
+function getCorsAllowOrigin(request: NextRequest): string | null {
+  const origin = request.headers.get('origin');
+  if (!origin) return null;
+  if (origin.startsWith('chrome-extension://')) return origin;
+  return getCorsOrigins().includes(origin) ? origin : null;
+}
+
+function setCorsHeaders(response: NextResponse, request: NextRequest): void {
+  const allowOrigin = getCorsAllowOrigin(request);
+  if (allowOrigin) {
+    response.headers.set('Access-Control-Allow-Origin', allowOrigin);
+  }
+  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+}
+
 /**
  * Get or create guest_id cookie
  * Returns the guest_id and whether it was newly created
@@ -153,54 +197,41 @@ function getOrCreateGuestId(request: NextRequest, response: NextResponse): { gue
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Handle CORS for API routes (allow Chrome extension requests)
+  // Handle CORS for API routes (allowlist: site origin + chrome-extension + CORS_ALLOWED_ORIGINS)
   if (pathname.startsWith('/api/')) {
     // Handle preflight requests
     if (request.method === 'OPTIONS') {
-      return new NextResponse(null, {
-        status: 200,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-          'Access-Control-Max-Age': '86400',
-        },
-      });
+      const res = new NextResponse(null, { status: 200 });
+      setCorsHeaders(res, request);
+      res.headers.set('Access-Control-Max-Age', '86400');
+      return res;
     }
 
     // Skip rate limiting for cron endpoints
     if (pathname.startsWith('/api/cron/')) {
       const response = NextResponse.next();
-      response.headers.set('Access-Control-Allow-Origin', '*');
-      response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-      response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      setCorsHeaders(response, request);
       return response;
     }
 
     // Skip rate limiting for auth endpoints (they have their own rate limiting)
     if (pathname.startsWith('/api/auth/')) {
       const response = NextResponse.next();
-      response.headers.set('Access-Control-Allow-Origin', '*');
-      response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-      response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      setCorsHeaders(response, request);
       return response;
     }
 
     // Skip rate limiting for contact endpoint (it has its own separate rate limiting)
     if (pathname === '/api/contact') {
       const response = NextResponse.next();
-      response.headers.set('Access-Control-Allow-Origin', '*');
-      response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-      response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      setCorsHeaders(response, request);
       return response;
     }
 
     // Skip rate limiting for track endpoints (fire-and-forget analytics); still set guest_id for logged-out users
     if (pathname.startsWith('/api/track/')) {
       const response = NextResponse.next();
-      response.headers.set('Access-Control-Allow-Origin', '*');
-      response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-      response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      setCorsHeaders(response, request);
 
       let token: AuthToken | null = await validateExtensionToken(request.headers.get('authorization'));
       if (!token) {
@@ -288,40 +319,54 @@ export async function middleware(request: NextRequest) {
  */
 async function validateExtensionToken(authHeader: string | null): Promise<AuthToken | null> {
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    console.log('[Middleware] No Bearer token in auth header');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Middleware] No Bearer token in auth header');
+    }
     return null;
   }
 
   const token = authHeader.slice('Bearer '.length).trim();
   if (!token) {
-    console.log('[Middleware] Empty token after Bearer');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Middleware] Empty token after Bearer');
+    }
     return null;
   }
 
   try {
     const secret = process.env.NEXTAUTH_SECRET;
     if (!secret) {
-      console.log('[Middleware] NEXTAUTH_SECRET not configured');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Middleware] NEXTAUTH_SECRET not configured');
+      }
       return null;
     }
 
-    console.log('[Middleware] Attempting to verify JWT token with jose...');
-    
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Middleware] Attempting to verify JWT token with jose...');
+    }
+
     // Create secret key for jose
     const secretKey = new TextEncoder().encode(secret);
     
     // Verify the token
     const { payload } = await jose.jwtVerify(token, secretKey);
-    
-    console.log('[Middleware] JWT decoded successfully:', { type: payload.type, tier: payload.tier, sub: payload.sub });
-    
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Middleware] JWT decoded successfully:', { type: payload.type, tier: payload.tier, sub: payload.sub });
+    }
+
     // Check if this is an extension token
     if (payload.type !== 'extension_access') {
-      console.log('[Middleware] Token type is not extension_access:', payload.type);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Middleware] Token type is not extension_access:', payload.type);
+      }
       return null;
     }
 
-    console.log('[Middleware] Extension token validated, tier:', payload.tier);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Middleware] Extension token validated, tier:', payload.tier);
+    }
     return {
       id: payload.sub as string,
       email: payload.email as string,
@@ -330,7 +375,9 @@ async function validateExtensionToken(authHeader: string | null): Promise<AuthTo
     };
   } catch (error) {
     // Token invalid or expired
-    console.log('[Middleware] JWT verification failed:', error instanceof Error ? error.message : error);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Middleware] JWT verification failed:', error instanceof Error ? error.message : error);
+    }
     return null;
   }
 }
@@ -344,11 +391,8 @@ async function handleRateLimit(request: NextRequest): Promise<NextResponse> {
     // We want search engines to index our pages without hitting rate limits
     if (isBotRequest(request)) {
       const response = NextResponse.next();
-      const isApiRoute = request.nextUrl.pathname.startsWith('/api/');
-      if (isApiRoute) {
-        response.headers.set('Access-Control-Allow-Origin', '*');
-        response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-        response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      if (request.nextUrl.pathname.startsWith('/api/')) {
+        setCorsHeaders(response, request);
       }
       // No rate limit headers, no guest tracking for bots
       return response;
@@ -359,12 +403,16 @@ async function handleRateLimit(request: NextRequest): Promise<NextResponse> {
     
     // First check for extension Bearer token
     const authHeader = request.headers.get('authorization');
-    console.log('[Middleware] Auth header present:', !!authHeader);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Middleware] Auth header present:', !!authHeader);
+    }
     let token: AuthToken | null = await validateExtensionToken(authHeader);
 
     // If no extension token, try NextAuth session token
     if (!token) {
-      console.log('[Middleware] No extension token, trying NextAuth session');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Middleware] No extension token, trying NextAuth session');
+      }
       try {
         // NextAuth v5 uses 'authjs' cookie prefix, try both v5 and v4 cookie names
         // The secureCookie option matches what NextAuth uses in production (HTTPS)
@@ -386,29 +434,33 @@ async function handleRateLimit(request: NextRequest): Promise<NextResponse> {
           }) as AuthToken | null;
         }
         
-        if (token) {
+        if (token && process.env.NODE_ENV === 'development') {
           console.log('[Middleware] NextAuth session found:', { tier: token.tier, role: token.role, id: token.id });
         }
       } catch (tokenError) {
         // If token extraction fails, treat as logged-out user
-        console.warn('Failed to extract auth token:', tokenError);
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('Failed to extract auth token:', tokenError);
+        }
       }
     }
 
     // Get user tier and ID from token
     const tier = getUserTierFromToken(token);
     const userId = getUserIdFromToken(token);
-    console.log('[Middleware] Final tier:', tier, 'userId:', userId);
-    
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Middleware] Final tier:', tier, 'userId:', userId);
+    }
+
     // Get or create guest_id cookie (for logged-out users)
     // Create a temporary response to set cookies
     const tempResponse = NextResponse.next();
     let guestId: string | undefined;
-    
+
     if (tier === 'logged-out') {
       const { guestId: id, isNew } = getOrCreateGuestId(request, tempResponse);
       guestId = id;
-      if (isNew) {
+      if (isNew && process.env.NODE_ENV === 'development') {
         console.log('[Middleware] Created new guest_id:', guestId);
       }
     }
@@ -468,9 +520,7 @@ async function handleRateLimit(request: NextRequest): Promise<NextResponse> {
 
     // Add CORS headers for API routes
     if (isApiRoute) {
-      response.headers.set('Access-Control-Allow-Origin', '*');
-      response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-      response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      setCorsHeaders(response, request);
     }
 
     // Add rate limit headers
@@ -489,11 +539,8 @@ async function handleRateLimit(request: NextRequest): Promise<NextResponse> {
     // If rate limiting fails, fail open (allow request) but log error
     console.error('Rate limiting error:', error);
     const response = NextResponse.next();
-    const isApiRoute = request.nextUrl.pathname.startsWith('/api/');
-    if (isApiRoute) {
-      response.headers.set('Access-Control-Allow-Origin', '*');
-      response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-      response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    if (request.nextUrl.pathname.startsWith('/api/')) {
+      setCorsHeaders(response, request);
     }
     return response;
   }

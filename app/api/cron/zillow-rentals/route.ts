@@ -38,9 +38,15 @@ function isAuthorized(req: NextRequest) {
   if (auth.startsWith('Bearer ')) {
     return auth.slice('Bearer '.length).trim() === secret;
   }
+  return false;
+}
 
-  const q = req.nextUrl.searchParams.get('secret');
-  return q === secret;
+const ZORI_URL_ALLOWLIST = 'https://files.zillowstatic.com/research/public_csvs/zori';
+const ZORDI_URL_ALLOWLIST = 'https://files.zillowstatic.com/research/public_csvs/zordi';
+
+function isAllowedZillowUrl(url: string, allowlist: string): boolean {
+  const normalized = url.trim().replace(/\/+$/, '');
+  return normalized === allowlist || normalized.startsWith(allowlist + '/');
 }
 
 // ============================================================================
@@ -432,8 +438,16 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const zoriBase = req.nextUrl.searchParams.get('zoriBase') || 'https://files.zillowstatic.com/research/public_csvs/zori';
-    const zordiBase = req.nextUrl.searchParams.get('zordiBase') || 'https://files.zillowstatic.com/research/public_csvs/zordi';
+    const zoriBaseParam = req.nextUrl.searchParams.get('zoriBase')?.trim()?.replace(/\/+$/, '') || ZORI_URL_ALLOWLIST;
+    const zordiBaseParam = req.nextUrl.searchParams.get('zordiBase')?.trim()?.replace(/\/+$/, '') || ZORDI_URL_ALLOWLIST;
+    if (!isAllowedZillowUrl(zoriBaseParam, ZORI_URL_ALLOWLIST)) {
+      return NextResponse.json({ error: 'Invalid zoriBase parameter' }, { status: 400 });
+    }
+    if (!isAllowedZillowUrl(zordiBaseParam, ZORDI_URL_ALLOWLIST)) {
+      return NextResponse.json({ error: 'Invalid zordiBase parameter' }, { status: 400 });
+    }
+    const zoriBase = zoriBaseParam;
+    const zordiBase = zordiBaseParam;
     const skipZori = req.nextUrl.searchParams.get('skipZori') === '1';
     const skipZordi = req.nextUrl.searchParams.get('skipZordi') === '1';
     const skipCbsa = req.nextUrl.searchParams.get('skipCbsa') === '1';

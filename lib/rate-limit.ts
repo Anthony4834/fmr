@@ -94,24 +94,22 @@ function getRateLimiter(tier: UserTier): Ratelimit | null {
 }
 
 /**
- * Extract IP address from request headers
- * Handles Vercel's proxy headers (x-forwarded-for, x-real-ip)
+ * Extract IP address from request headers.
+ * Prefers platform-set headers (X-Real-IP, CF-Connecting-IP) over X-Forwarded-For
+ * to avoid IP spoofing when deployed behind Vercel/Cloudflare.
  */
 export function getClientIP(request: Request): string {
-  const headers = {
-    'x-forwarded-for': request.headers.get('x-forwarded-for'),
-    'x-real-ip': request.headers.get('x-real-ip'),
-    'cf-connecting-ip': request.headers.get('cf-connecting-ip'),
-  };
+  const xRealIp = request.headers.get('x-real-ip');
+  const cfConnectingIp = request.headers.get('cf-connecting-ip');
+  const forwardedFor = request.headers.get('x-forwarded-for');
 
-  // x-forwarded-for can contain multiple IPs, take the first one
-  if (headers['x-forwarded-for']) {
-    const ips = headers['x-forwarded-for'].split(',').map(ip => ip.trim());
+  if (xRealIp) return xRealIp.trim();
+  if (cfConnectingIp) return cfConnectingIp.trim();
+  if (forwardedFor) {
+    const ips = forwardedFor.split(',').map((ip) => ip.trim());
     return ips[0] || 'unknown';
   }
-
-  // Fallback to other headers
-  return headers['x-real-ip'] || headers['cf-connecting-ip'] || 'unknown';
+  return 'unknown';
 }
 
 /**

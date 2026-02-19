@@ -16,10 +16,10 @@ function isAuthorized(req: NextRequest): boolean {
   if (auth.startsWith('Bearer ')) {
     return auth.slice('Bearer '.length).trim() === secret;
   }
-
-  const q = req.nextUrl.searchParams.get('secret');
-  return q === secret;
+  return false;
 }
+
+const DIGITS_ONLY = /^\d+$/;
 
 export async function GET(req: NextRequest): Promise<Response> {
   try {
@@ -27,33 +27,44 @@ export async function GET(req: NextRequest): Promise<Response> {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get optional parameters
     const limitParam = req.nextUrl.searchParams.get('limit');
     const bedroomParam = req.nextUrl.searchParams.get('bedroom');
     const resetParam = req.nextUrl.searchParams.get('reset');
 
-    // Build command arguments
     const args: string[] = [];
-    if (limitParam) {
+    if (limitParam != null && limitParam !== '') {
+      if (!DIGITS_ONLY.test(limitParam)) {
+        return NextResponse.json({ error: 'Invalid limit parameter' }, { status: 400 });
+      }
       args.push('--limit', limitParam);
     }
-    if (bedroomParam) {
+    if (bedroomParam != null && bedroomParam !== '') {
+      if (!DIGITS_ONLY.test(bedroomParam)) {
+        return NextResponse.json({ error: 'Invalid bedroom parameter' }, { status: 400 });
+      }
       args.push('--bedroom', bedroomParam);
     }
     if (resetParam === 'true') {
       args.push('--reset');
     }
 
-    // Use dynamic import for child_process (Node.js built-in)
-    const { exec } = await import('child_process');
-    const { promisify } = await import('util');
-    const execAsync = promisify(exec);
-
-    const command = `bun scripts/rentcast-local-scraper.ts ${args.join(' ')}`;
-    const { stdout, stderr } = await execAsync(command, {
-      env: { ...process.env, POSTGRES_URL: process.env.POSTGRES_URL },
-      maxBuffer: 10 * 1024 * 1024, // 10MB buffer
+    const { spawn } = await import('child_process');
+    const proc = spawn('bun', ['scripts/rentcast-local-scraper.ts', ...args], {
+      env: { ...process.env, POSTGRES_URL: process.env.POSTGRES_URL || '' },
+      stdio: ['ignore', 'pipe', 'pipe'],
     });
+
+    const chunks: Buffer[] = [];
+    const errChunks: Buffer[] = [];
+    proc.stdout?.on('data', (c: Buffer) => chunks.push(c));
+    proc.stderr?.on('data', (c: Buffer) => errChunks.push(c));
+
+    await new Promise<void>((resolve, reject) => {
+      proc.on('close', (code) => (code === 0 ? resolve() : reject(new Error(`Process exited with code ${code}`))));
+    });
+
+    const stdout = Buffer.concat(chunks).toString('utf8');
+    const stderr = Buffer.concat(errChunks).toString('utf8');
 
     return NextResponse.json({
       ok: true,
@@ -61,15 +72,9 @@ export async function GET(req: NextRequest): Promise<Response> {
       output: stdout,
       warnings: stderr,
     });
-  } catch (e: any) {
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : 'Unknown error';
     console.error('[rentcast cron] Error:', e);
-    return NextResponse.json(
-      { 
-        error: String(e?.message || e),
-        stderr: e?.stderr,
-        stdout: e?.stdout,
-      }, 
-      { status: 500 }
-    );
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

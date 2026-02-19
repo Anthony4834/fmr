@@ -254,9 +254,14 @@ function isAuthorized(req: NextRequest) {
   if (auth.startsWith('Bearer ')) {
     return auth.slice('Bearer '.length).trim() === secret;
   }
+  return false;
+}
 
-  const q = req.nextUrl.searchParams.get('secret');
-  return q === secret;
+const ZHVI_URL_ALLOWLIST = 'https://files.zillowstatic.com/research/public_csvs/zhvi';
+
+function isAllowedZhviUrl(url: string): boolean {
+  const normalized = url.trim().replace(/\/+$/, '');
+  return normalized === ZHVI_URL_ALLOWLIST || normalized.startsWith(ZHVI_URL_ALLOWLIST + '/');
 }
 
 export async function GET(req: NextRequest) {
@@ -266,9 +271,11 @@ export async function GET(req: NextRequest) {
     }
 
     const bedroom = Math.max(1, Math.min(5, parseInt(req.nextUrl.searchParams.get('bedroom') || '1', 10) || 1));
-    const urlBase = (req.nextUrl.searchParams.get('urlBase') || 'https://files.zillowstatic.com/research/public_csvs/zhvi')
-      .trim()
-      .replace(/\/+$/, '');
+    const urlBaseParam = req.nextUrl.searchParams.get('urlBase')?.trim()?.replace(/\/+$/, '') || ZHVI_URL_ALLOWLIST;
+    if (!isAllowedZhviUrl(urlBaseParam)) {
+      return NextResponse.json({ error: 'Invalid urlBase parameter' }, { status: 400 });
+    }
+    const urlBase = urlBaseParam;
     const urlCandidates = getZhviZipBedroomUrlCandidates(urlBase, bedroom);
 
     // Fetch (try candidates)

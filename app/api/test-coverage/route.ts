@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@vercel/postgres';
 import { getLatestFMRYear } from '@/lib/queries';
+import { auth } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
+  const session = await auth();
+  if (!session?.user || session.user.role !== 'admin') {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const searchParams = request.nextUrl.searchParams;
     const type = searchParams.get('type') || 'summary'; // summary, cities, zips, counties
@@ -1183,14 +1189,10 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({ error: 'Invalid type' }, { status: 400 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Test coverage error:', error);
     return NextResponse.json(
-      { 
-        error: 'Failed to fetch test coverage data',
-        details: error?.message || String(error),
-        hint: 'This endpoint computes coverage from base tables. Ensure DB tables are populated (FMR/SAFMR/ZIP-county mapping) and try again.'
-      },
+      { error: 'Failed to fetch test coverage data' },
       { status: 500 }
     );
   }

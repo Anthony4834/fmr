@@ -847,10 +847,10 @@ export async function GET(req: NextRequest) {
         'Content-Disposition': `attachment; filename="${filename}"`,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Export API error:', error);
     return NextResponse.json(
-      { error: 'Failed to generate export', details: error?.message },
+      { error: 'Failed to generate export' },
       { status: 500 }
     );
   }

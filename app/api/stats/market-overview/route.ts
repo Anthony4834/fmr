@@ -242,10 +242,10 @@ export async function GET(req: NextRequest) {
       bestStartersScore: mapResults(bestStartersScoreResult.rows),
       bestValue: mapResults(bestValueResult.rows),
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Market overview API error:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch market overview data', details: error?.message },
+      { error: 'Failed to fetch market overview data' },
       { status: 500 }
     );
   }

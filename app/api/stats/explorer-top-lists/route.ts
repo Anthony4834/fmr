@@ -300,10 +300,10 @@ export async function GET(req: NextRequest) {
       yieldYoy,
       priceJump,
     } as ExplorerTopListsResponse);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Explorer top lists API error:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch explorer top lists', details: error?.message },
+      { error: 'Failed to fetch explorer top lists' },
       { status: 500 }
     );
   }

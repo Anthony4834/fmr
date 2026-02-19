@@ -5,6 +5,20 @@ const nextConfig = {
   // (including route handlers like `/api/*` and metadata routes like `/sitemap.xml`).
   output: 'standalone',
 
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+        ],
+      },
+    ];
+  },
+
   async rewrites() {
     return [
       // Keep pretty *.xml URLs while using supported dynamic segments in the App Router.

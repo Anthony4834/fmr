@@ -17,8 +17,7 @@ function isAuthorized(req: NextRequest) {
   if (auth.startsWith('Bearer ')) {
     return auth.slice('Bearer '.length).trim() === secret;
   }
-  const q = req.nextUrl.searchParams.get('secret');
-  return q === secret;
+  return false;
 }
 
 async function ensureTable() {
