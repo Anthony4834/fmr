@@ -241,12 +241,29 @@ export default function VirtualizedRankingList({
     };
     
     return (
-      <div className="hidden sm:grid grid-cols-[50px_1fr_80px_70px_80px_110px] gap-3 px-4 py-2 bg-[var(--bg-tertiary)] text-xs text-[var(--text-muted)] font-medium">
+      <div className="hidden sm:grid grid-cols-[50px_1fr_80px_70px_70px_70px_110px] gap-3 px-4 py-2 bg-[var(--bg-tertiary)] text-xs text-[var(--text-muted)] font-medium">
         <div>Rank</div>
         <div>Location</div>
         {renderHeaderButton('score', 'Score', "A standardized benchmark used to compare rental investment potential across U.S. locations, combining cash-flow yield with market demand.")}
         {renderHeaderButton('yield', 'Yield', 'Net yield percentage: (Annual Rent - Annual Property Taxes) / Median Property Value. Represents the annual return on investment after accounting for property taxes, before financing costs.')}
-        {renderHeaderButton('fmr', 'FMR')}
+        {renderHeaderButton('fmr', 'FMR', 'HUD Fair Market Rent — the published benchmark rent for this area.')}
+        <div className="text-right flex items-center justify-end gap-1">
+          <span>Eff. Rent</span>
+          <Tooltip content="Effective Rent = min(FMR, market rent). Under HUD rent reasonableness, Section 8 payments may be capped at local market rates." side="bottom" align="end">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              className="w-3 h-3 text-[var(--text-tertiary)] cursor-help ml-0.5"
+            >
+              <path
+                fillRule="evenodd"
+                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </Tooltip>
+        </div>
         {renderHeaderButton('cashFlow', 'Cash Flow', 'Monthly cash flow estimate based on: 20% down payment, current mortgage rates, 8% vacancy/maintenance allowance, and local property tax rates. Uses FMR rent data and Zillow property values.')}
       </div>
     );
@@ -296,7 +313,7 @@ export default function VirtualizedRankingList({
               </div>
             </div>
             {/* Desktop: Grid skeleton */}
-            <div className="hidden sm:grid grid-cols-[50px_1fr_80px_70px_80px_110px] gap-3 items-center">
+            <div className="hidden sm:grid grid-cols-[50px_1fr_80px_70px_70px_70px_110px] gap-3 items-center">
               <div className="h-4 bg-[var(--border-color)] rounded w-8 animate-pulse"></div>
               <div className="min-w-0">
                 <div className="h-4 bg-[var(--border-color)] rounded w-32 mb-1.5 animate-pulse"></div>
@@ -304,7 +321,8 @@ export default function VirtualizedRankingList({
               </div>
               <div className="h-4 bg-[var(--border-color)] rounded w-12 animate-pulse"></div>
               <div className="h-4 bg-[var(--border-color)] rounded w-10 animate-pulse"></div>
-              <div className="h-4 bg-[var(--border-color)] rounded w-14 animate-pulse"></div>
+              <div className="h-4 bg-[var(--border-color)] rounded w-10 animate-pulse"></div>
+              <div className="h-4 bg-[var(--border-color)] rounded w-10 animate-pulse"></div>
               <div className="h-4 bg-[var(--border-color)] rounded w-20 animate-pulse"></div>
             </div>
           </div>
@@ -405,15 +423,23 @@ export default function VirtualizedRankingList({
                       </span>
                     </div>
 
-                    {/* Effective Rent / FMR */}
+                    {/* FMR */}
                     <div className="flex flex-col items-center min-w-0 flex-1">
                       <span className="tabular-nums text-[12px] text-[var(--text-primary)] font-normal leading-none truncate w-full text-center">
-                        {(item.medianEffectiveRent ?? item.medianFMR) !== null && (item.medianEffectiveRent ?? item.medianFMR) !== undefined
-                          ? formatCurrency(item.medianEffectiveRent ?? item.medianFMR)
-                          : '—'}
+                        {item.medianFMR != null ? formatCurrency(item.medianFMR) : '—'}
                       </span>
                       <span className="text-[8px] text-[var(--text-muted)] leading-tight mt-0.5 whitespace-nowrap" style={{ opacity: 0.75 }}>
-                        {item.medianEffectiveRent != null ? 'Eff. Rent' : 'FMR'}
+                        FMR
+                      </span>
+                    </div>
+
+                    {/* Effective Rent */}
+                    <div className="flex flex-col items-center min-w-0 flex-1">
+                      <span className="tabular-nums text-[12px] text-[var(--text-primary)] font-normal leading-none truncate w-full text-center">
+                        {item.medianEffectiveRent != null ? formatCurrency(item.medianEffectiveRent) : '—'}
+                      </span>
+                      <span className="text-[8px] text-[var(--text-muted)] leading-tight mt-0.5 whitespace-nowrap" style={{ opacity: 0.75 }}>
+                        Eff. Rent
                       </span>
                     </div>
 
@@ -465,7 +491,7 @@ export default function VirtualizedRankingList({
               </div>
 
               {/* Desktop: Grid layout */}
-              <div className="hidden sm:grid grid-cols-[50px_1fr_80px_70px_80px_110px] gap-3 items-center">
+              <div className="hidden sm:grid grid-cols-[50px_1fr_80px_70px_70px_70px_110px] gap-3 items-center">
                 {/* Rank */}
                 <span className="text-[11px] text-[var(--text-muted)] font-medium tabular-nums">
                   #{item.rank}
@@ -526,16 +552,18 @@ export default function VirtualizedRankingList({
                   </span>
                 </div>
 
-                {/* Effective Rent / FMR */}
+                {/* FMR */}
                 <div className="text-right">
                   <span className="text-[11px] sm:text-sm tabular-nums text-[var(--text-secondary)]">
-                    {(item.medianEffectiveRent ?? item.medianFMR) !== null && (item.medianEffectiveRent ?? item.medianFMR) !== undefined
-                      ? formatCurrency(item.medianEffectiveRent ?? item.medianFMR)
-                      : '—'}
+                    {item.medianFMR != null ? formatCurrency(item.medianFMR) : '—'}
                   </span>
-                  {item.rentConstrainedPct != null && item.rentConstrainedPct > 0 && (
-                    <span className="block text-[10px] text-amber-600 dark:text-amber-400">Constrained</span>
-                  )}
+                </div>
+
+                {/* Effective Rent */}
+                <div className="text-right">
+                  <span className="text-[11px] sm:text-sm tabular-nums text-[var(--text-secondary)]">
+                    {item.medianEffectiveRent != null ? formatCurrency(item.medianEffectiveRent) : '—'}
+                  </span>
                 </div>
 
                 {/* Cash Flow - emphasized */}
