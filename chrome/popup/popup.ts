@@ -28,6 +28,8 @@ async function init() {
   // Populate form fields
   (document.getElementById('display-mode') as HTMLSelectElement).value = 
     prefs.mode || 'cashFlow';
+  (document.getElementById('rent-source') as HTMLSelectElement).value = 
+    prefs.rentSource || 'effective';
   (document.getElementById('down-payment-percent') as HTMLInputElement).value = 
     String(prefs.downPaymentPercent);
   (document.getElementById('insurance-monthly') as HTMLInputElement).value = 
@@ -144,6 +146,7 @@ function updateConditionalFields() {
 async function saveFormData() {
   const prefs: Partial<ExtensionPreferences> = {
     mode: (document.getElementById('display-mode') as HTMLSelectElement).value as 'cashFlow' | 'fmr',
+    rentSource: (document.getElementById('rent-source') as HTMLSelectElement).value as 'effective' | 'fmr',
     downPaymentPercent: parseFloat((document.getElementById('down-payment-percent') as HTMLInputElement).value) || DEFAULT_PREFERENCES.downPaymentPercent,
     insuranceMonthly: parseFloat((document.getElementById('insurance-monthly') as HTMLInputElement).value) || DEFAULT_PREFERENCES.insuranceMonthly,
     propertyManagementMode: (document.getElementById('pm-mode') as HTMLSelectElement).value as 'percent' | 'amount',
@@ -249,8 +252,10 @@ async function initAccountSection() {
       loggedOutDiv.style.display = 'none';
       loggedInDiv.style.display = 'block';
       userEmail.textContent = user.email;
-      const tierCapitalized = user.tier.charAt(0).toUpperCase() + user.tier.slice(1);
-      userTier.textContent = `${tierCapitalized}${user.role === 'admin' ? ' • Admin' : ''}`;
+      const tierDisplay = user.tier
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+      userTier.textContent = `${tierDisplay}${user.role === 'admin' ? ' • Admin' : ''}`;
       
       // Set avatar initials
       if (accountAvatar) {

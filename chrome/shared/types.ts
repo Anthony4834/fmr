@@ -15,6 +15,9 @@ export interface ExtensionPreferences {
   // - fmr: show FMR rent only (no cash flow calculation)
   mode: 'cashFlow' | 'fmr';
 
+  // Rent source for badge and calculator: effective = min(FMR, market), fmr = HUD FMR only
+  rentSource: 'effective' | 'fmr';
+
   // Auto-detection overrides (used if detection fails or user prefers manual)
   bedrooms: number | null;                    // Default: null (auto-detect), fallback: 3
   purchasePrice: number | null;               // Default: null (auto-detect)
@@ -61,6 +64,7 @@ export interface MarketParams {
 
 export const DEFAULT_PREFERENCES: ExtensionPreferences = {
   mode: 'cashFlow',
+  rentSource: 'effective',
   bedrooms: null,
   purchasePrice: null,
   downPaymentMode: 'percent',

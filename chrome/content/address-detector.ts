@@ -46,6 +46,8 @@ export function extractAddress(): string | null {
       ];
     } else {
       selectors = [
+        '[data-testid="property-card"] address',
+        '[data-testid="property-card-data"] address',
         '.property-card-data address',
         '[data-testid="address"]',
         '.list-card-addr',

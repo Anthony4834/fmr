@@ -200,7 +200,7 @@ export default function InvestorScoreModal({ isOpen, onClose }: InvestorScoreMod
               <div className="rounded-lg border p-2.5" style={{ borderColor: 'var(--modal-border)', backgroundColor: 'var(--modal-input-bg)' }}>
                 <div className="font-medium mb-1" style={{ color: 'var(--modal-text)' }}>1. Base Score (Net Yield)</div>
                 <p className="text-xs leading-relaxed" style={{ color: 'var(--modal-text-muted)' }}>
-                  Calculates how much rent you keep after property taxes, relative to home price. Uses <strong style={{ color: 'var(--modal-text)' }}>HUD Fair Market Rent</strong>, <strong style={{ color: 'var(--modal-text)' }}>Zillow ZHVI</strong>, and <strong style={{ color: 'var(--modal-text)' }}>ACS tax rates</strong>.
+                  Calculates how much rent you keep after property taxes, relative to home price. Uses <strong style={{ color: 'var(--modal-text)' }}>Effective Rent</strong> (min of FMR and market rent, per HUD rent reasonableness; FMR used where market rent is unavailable), <strong style={{ color: 'var(--modal-text)' }}>Zillow ZHVI</strong>, and <strong style={{ color: 'var(--modal-text)' }}>ACS tax rates</strong>.
                 </p>
               </div>
               <div className="rounded-lg border p-2.5" style={{ borderColor: 'var(--modal-border)', backgroundColor: 'var(--modal-input-bg)' }}>
@@ -219,6 +219,10 @@ export default function InvestorScoreModal({ isOpen, onClose }: InvestorScoreMod
               <div className="rounded border p-2" style={{ borderColor: 'var(--modal-border)', backgroundColor: 'var(--modal-input-bg)' }}>
                 <div className="font-medium" style={{ color: 'var(--modal-text)' }}>Rent</div>
                 <div style={{ color: 'var(--modal-text-muted)' }}>HUD FMR/SAFMR</div>
+              </div>
+              <div className="rounded border p-2" style={{ borderColor: 'var(--modal-border)', backgroundColor: 'var(--modal-input-bg)' }}>
+                <div className="font-medium" style={{ color: 'var(--modal-text)' }}>Market Rent</div>
+                <div style={{ color: 'var(--modal-text-muted)' }}>RentCast</div>
               </div>
               <div className="rounded border p-2" style={{ borderColor: 'var(--modal-border)', backgroundColor: 'var(--modal-input-bg)' }}>
                 <div className="font-medium" style={{ color: 'var(--modal-text)' }}>Home Value</div>
@@ -267,7 +271,8 @@ export default function InvestorScoreModal({ isOpen, onClose }: InvestorScoreMod
               <div className="rounded border p-3" style={{ borderColor: 'var(--modal-border)', backgroundColor: 'var(--modal-input-bg)' }}>
                 <div className="font-semibold mb-2" style={{ color: 'var(--modal-text)' }}>Net Yield Calculation</div>
                 <div className="space-y-1 font-mono text-[11px] p-2 rounded border" style={{ backgroundColor: 'var(--modal-bg)', borderColor: 'var(--modal-border)', color: 'var(--modal-text-muted)' }}>
-                  <div>Annual Rent = FMR × 12</div>
+                  <div>Annual Rent = Effective Rent × 12</div>
+                  <div className="text-[10px] opacity-90">(effective = min(FMR, market rent))</div>
                   <div>Annual Taxes = Property Value × Tax Rate</div>
                   <div>Net Yield = (Rent - Taxes) / Value</div>
                   <div className="pt-1 border-t mt-1" style={{ borderColor: 'var(--modal-border)' }}>Base Score = (Net Yield / Median) × 100</div>
@@ -281,6 +286,15 @@ export default function InvestorScoreModal({ isOpen, onClose }: InvestorScoreMod
                   <div><strong style={{ color: 'var(--modal-text)' }}>50%</strong> Demand Level — ZORDI percentile rank</div>
                   <div><strong style={{ color: 'var(--modal-text)' }}>30%</strong> Demand Momentum — ZORDI 3-month change</div>
                   <div><strong style={{ color: 'var(--modal-text)' }}>20%</strong> Rent Pressure — ZORI year-over-year growth</div>
+                </div>
+              </div>
+
+              {/* Confidence Score */}
+              <div className="rounded border p-3" style={{ borderColor: 'var(--modal-border)', backgroundColor: 'var(--modal-input-bg)' }}>
+                <div className="font-semibold mb-2" style={{ color: 'var(--modal-text)' }}>Confidence Score (0–100)</div>
+                <div className="space-y-1">
+                  <div>Reflects data completeness. Base 40 pts (FMR + ZHVI + ACS); +30 for market rent (RentCast); +20 for ZORDI demand; +10 for county ZHVI median.</div>
+                  <div><strong style={{ color: 'var(--modal-text)' }}>Scores below 90% confidence</strong> are capped at 129 — only high-confidence ZIPs can reach the blue tier (130+).</div>
                 </div>
               </div>
 
@@ -302,7 +316,7 @@ export default function InvestorScoreModal({ isOpen, onClose }: InvestorScoreMod
                   <li>Price floor: minimum $100k property value</li>
                   <li>Rent cap: max 18% rent-to-price ratio</li>
                   <li>County blending: blend with county median if ZIP value &lt;$150k</li>
-                  <li>Score cap: maximum 300</li>
+                  <li>Score cap: maximum 300 (scores &lt;90% confidence capped at 129)</li>
                   <li>Bedroom priority: 3BR → 2BR → 4BR</li>
                 </ul>
               </div>

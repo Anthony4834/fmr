@@ -440,7 +440,7 @@ export default function MapShowcase({ onReady }: MapShowcaseProps) {
               <ScoreFactorCompact
                 icon={<PlusIcon className="w-5 h-5" />}
                 title="And More"
-                description="Our Investment Score continues to evolve as we incorporate new data sources and refine our methodology"
+                description="Effective rent, confidence score, and more — our Investment Score continues to evolve as we incorporate new data sources and refine our methodology"
                 span2={true}
               />
             </div>

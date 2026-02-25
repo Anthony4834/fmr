@@ -43,15 +43,15 @@ const faqs = [
     questions: [
       {
         q: 'What is the Investment Score?',
-        a: 'The Investment Score is a proprietary metric that helps identify markets with strong potential for Section 8 rental investing. It combines multiple data points to give you a quick assessment of a market\'s investment potential, with higher scores indicating better opportunities.',
+        a: 'The Investment Score is a proprietary metric that helps identify markets with strong potential for Section 8 rental investing. It combines effective rent (min of FMR and market rent), property values, tax rates, demand indicators, and a confidence score reflecting data completeness. Higher scores indicate better opportunities; scores 130+ require high confidence (90%+).',
       },
       {
         q: 'How is the Investment Score calculated?',
-        a: 'The Investment Score factors in four key components: (1) Fair Market Rent relative to property values, measuring potential rental yield; (2) Zillow Home Value Index (ZHVI) data to understand property costs; (3) Local property tax rates that affect operating expenses; and (4) Rental demand indicators showing tenant availability. These factors are weighted and normalized to produce a score typically ranging from 50 to 150+.',
+        a: 'The Investment Score uses effective rent (min of FMR and market rent, per HUD rent reasonableness; FMR used where market rent is unavailable), Zillow ZHVI for property values, ACS tax rates, and rental demand indicators. A confidence score (0–100) reflects data completeness. Scores below 90% confidence are capped at 129.',
       },
       {
         q: 'What do the score ranges mean?',
-        a: 'Scores of 130+ indicate excellent investment potential with strong rent-to-value ratios. Scores between 100-129 represent good markets with solid fundamentals. Scores below 95 suggest below-average returns, often due to high property values relative to achievable rents.',
+        a: 'Scores of 130+ indicate excellent investment potential with strong rent-to-value ratios — these require high confidence (90%+). Scores between 100-129 represent good markets with solid fundamentals. Scores below 95 suggest below-average returns, often due to high property values relative to achievable rents.',
       },
       {
         q: 'Should I base my investment decisions solely on the score?',

@@ -176,9 +176,9 @@ export default function IncompleteGeosPage() {
         <div className="mt-6 p-4 bg-[#f5f5f5] rounded-lg">
           <h3 className="text-sm font-semibold text-[#525252] mb-1">Why are these incomplete?</h3>
           <p className="text-xs text-[#737373]">
-            These locations exist in our investment score database (based on ZHVI property values and estimated rents)
-            but don&apos;t have a proper mapping to HUD&apos;s FMR data. This usually happens when the city/county naming
-            differs between data sources, or when the location is a smaller area not directly tracked by HUD.
+            These locations exist in our investment score database (based on ZHVI property values and estimated rents,
+            including effective rent where market data exists) but don&apos;t have a proper mapping to HUD&apos;s FMR data.
+            This usually happens when the city/county naming differs between data sources, or when the location is a smaller area not directly tracked by HUD.
           </p>
         </div>
       </div>

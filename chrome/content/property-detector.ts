@@ -577,8 +577,9 @@ export function extractBedroomsFromZillowCard(cardElement: HTMLElement): number 
  * Extract price from a Zillow card element
  */
 export function extractPriceFromZillowCard(cardElement: HTMLElement): number | null {
-  // Try the price element with data-test attribute
-  const priceElement = cardElement.querySelector('[data-test="property-card-price"]');
+  // Try the price element (data-test or data-testid for new c11n layout)
+  const priceElement = cardElement.querySelector('[data-test="property-card-price"]') ||
+    cardElement.querySelector('[data-testid="property-card-price"]');
   if (priceElement) {
     const text = priceElement.textContent || '';
     const price = parsePrice(text);

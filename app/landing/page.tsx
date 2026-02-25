@@ -392,7 +392,7 @@ function LandingStructuredData() {
         name: 'How does the investment score work?',
         acceptedAnswer: {
           '@type': 'Answer',
-          text: 'Investment score evaluates markets based on net yield (annual rent minus taxes divided by property value), rental demand indicators, and market conditions. Higher scores indicate better cash flow potential and investment opportunities.',
+          text: 'Investment score uses effective rent (min of FMR and market rent per HUD rent reasonableness), net yield (annual rent minus taxes divided by property value), rental demand indicators, and a confidence score (0–100) reflecting data completeness. Scores below 90% confidence are capped at 129. Higher scores indicate better cash flow potential.',
         },
       },
       {
@@ -400,7 +400,7 @@ function LandingStructuredData() {
         name: 'What data sources does fmr.fyi use?',
         acceptedAnswer: {
           '@type': 'Answer',
-          text: 'We use official HUD FMR and SAFMR data, Zillow Home Value Index (ZHVI) for property values, U.S. Census Bureau ACS data for property tax rates, and Zillow rental demand metrics. All data is updated regularly to ensure accuracy.',
+          text: 'We use official HUD FMR and SAFMR data, RentCast for market rent, Zillow Home Value Index (ZHVI) for property values, U.S. Census Bureau ACS data for property tax rates, and Zillow rental demand metrics. All data is updated regularly to ensure accuracy.',
         },
       },
       {
@@ -438,7 +438,7 @@ function LandingStructuredData() {
         '@type': 'HowToStep',
         position: 2,
         name: 'Review Investment Metrics',
-        text: 'Check the investment score, which combines net yield, rental demand, and market conditions. Higher scores indicate better cash flow potential.',
+        text: 'Check the investment score, which combines effective rent, net yield, rental demand, and a confidence score. Higher scores indicate better cash flow potential; scores 130+ require high confidence (90%+).',
       },
       {
         '@type': 'HowToStep',

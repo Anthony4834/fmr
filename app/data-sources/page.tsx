@@ -5,7 +5,7 @@ export const revalidate = 86400;
 export const metadata: Metadata = {
   title: 'Data Sources | fmr.fyi',
   description:
-    'Data sources and methodology for fmr.fyi, including HUD Fair Market Rent, Zillow Home Value Index, property tax rates, and mortgage rates.',
+    'Data sources and methodology for fmr.fyi, including HUD Fair Market Rent, RentCast market rent, Zillow Home Value Index, property tax rates, investment score methodology with effective rent and confidence score, and mortgage rates.',
   alternates: { canonical: 'https://fmr.fyi/data-sources' },
 };
 
@@ -36,6 +36,15 @@ const dataSources = [
     coverage: 'National, state, metro, county, city, and ZIP code levels',
     updateFrequency: 'Monthly',
     url: 'https://www.zillow.com/research/data/',
+  },
+  {
+    name: 'Market Rent (RentCast)',
+    provider: 'RentCast',
+    description:
+      'Estimated market rent from RentCast for ZIP code and bedroom count. Used to compute effective rent = min(FMR, market rent) per HUD rent reasonableness — Section 8 payments are capped at local market rates. FMR is used as fallback where market rent is unavailable.',
+    coverage: 'ZIP code level where available',
+    updateFrequency: 'Regular updates',
+    url: null,
   },
   {
     name: 'Property Tax Rates',
@@ -127,8 +136,12 @@ export default function DataSourcesPage() {
           </p>
           <ul className="mt-4 space-y-2 text-base text-[var(--text-secondary)] leading-relaxed list-disc pl-6">
             <li>
-              <span className="font-medium text-[var(--text-primary)]">Rent-to-Value Ratio:</span> FMR divided
-              by median property value, measuring potential gross yield
+              <span className="font-medium text-[var(--text-primary)]">Effective Rent:</span> Income basis is
+              min(FMR, market rent) per HUD rent reasonableness; FMR used where market rent is unavailable
+            </li>
+            <li>
+              <span className="font-medium text-[var(--text-primary)]">Rent-to-Value Ratio:</span> Effective rent
+              divided by median property value, measuring potential gross yield
             </li>
             <li>
               <span className="font-medium text-[var(--text-primary)]">Tax Impact:</span> Effective property
@@ -139,8 +152,8 @@ export default function DataSourcesPage() {
               indicators suggesting tenant availability
             </li>
             <li>
-              <span className="font-medium text-[var(--text-primary)]">Price Accessibility:</span> Property
-              values relative to regional and national medians
+              <span className="font-medium text-[var(--text-primary)]">Confidence Score:</span> 0–100 scale
+              reflecting data completeness; scores below 90% are capped at 129 (blue tier requires high confidence)
             </li>
           </ul>
         </div>

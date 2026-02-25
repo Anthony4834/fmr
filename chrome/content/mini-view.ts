@@ -6,6 +6,7 @@ import { ExtensionPreferences } from '../shared/types';
 export interface MiniViewProps {
   address: string;
   zipCode: string;
+  apiBaseUrl: string; // Base URL for the app (respects popup config)
   preferences: ExtensionPreferences;
   purchasePrice: number | null;
   bedrooms: number | null;
@@ -286,6 +287,7 @@ export function createMiniViewElement(props: MiniViewProps): HTMLElement {
     customLineItems: props.preferences.customLineItems || [],
     purchasePrice: props.purchasePrice,
     bedrooms: props.bedrooms,
+    rentSource: props.preferences.rentSource || 'effective',
   };
 
   // Serialize config to base64 to avoid URL encoding issues
@@ -300,7 +302,8 @@ export function createMiniViewElement(props: MiniViewProps): HTMLElement {
     urlParams.set('source', props.sourceSite);
   }
 
-  iframe.src = `https://fmr.fyi/zip/${props.zipCode}?${urlParams.toString()}`;
+  const base = props.apiBaseUrl.replace(/\/$/, '');
+  iframe.src = `${base}/zip/${props.zipCode}?${urlParams.toString()}`;
   // Set referrer policy to ensure referrer header is sent (for Vercel analytics)
   // 'origin' sends the origin (e.g., https://zillow.com) as the referrer
   iframe.setAttribute('referrerpolicy', 'origin');

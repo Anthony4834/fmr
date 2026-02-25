@@ -253,6 +253,7 @@ type ExtensionConfig = {
   customLineItems: CustomLineItem[];
   purchasePrice: number | null;
   bedrooms: number | null;
+  rentSource?: 'fmr' | 'effective';
 };
 
 export default function IdealPurchasePriceCard({ 
@@ -291,7 +292,7 @@ export default function IdealPurchasePriceCard({
         purchasePrice: purchasePriceStr,
         desiredCashFlow: '200',
         bedrooms: extensionConfig.bedrooms !== null ? extensionConfig.bedrooms : 2,
-        rentSource: 'fmr',
+        rentSource: extensionConfig.rentSource === 'fmr' || extensionConfig.rentSource === 'effective' ? extensionConfig.rentSource : 'effective',
         paymentStandardPct: '100',
         cashOnCashAnnualPct: '10',
         downPaymentMode: extensionConfig.downPaymentMode,
@@ -495,8 +496,8 @@ export default function IdealPurchasePriceCard({
         </div>
       )}
 
-      {/* Rent source - hidden when extension config is present */}
-      {!extensionConfig && data && (
+      {/* Rent source - always shown so user can tweak in mini view or standalone */}
+      {data && (
         <div className="mb-4 space-y-2">
           <label className="block">
             <div className="text-xs font-semibold text-[var(--text-primary)] mb-1">Rent source</div>

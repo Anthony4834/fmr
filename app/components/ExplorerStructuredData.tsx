@@ -224,7 +224,7 @@ export default function ExplorerStructuredData({ type, topItems = [] }: Explorer
         name: 'What is Investment Score?',
         acceptedAnswer: {
           '@type': 'Answer',
-          text: 'Investment Score is a comprehensive metric that evaluates Section 8 rental markets based on net yield (annual rent minus taxes divided by property value), rental demand, and market conditions. Higher scores indicate better investment opportunities with stronger cash flow potential.',
+          text: 'Investment Score uses effective rent (min of FMR and market rent per HUD rent reasonableness), net yield (annual rent minus taxes divided by property value), rental demand, and a confidence score (0–100) reflecting data completeness. Scores below 90% confidence are capped at 129. Higher scores indicate better investment opportunities with stronger cash flow potential.',
         },
       },
       {

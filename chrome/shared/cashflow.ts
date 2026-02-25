@@ -152,14 +152,15 @@ type FmrDataLike = {
 
 /**
  * Get rent for a specific number of bedrooms from FMR data.
- * Prefers effective rent (min of HUD FMR and market) when available.
+ * @param rentSource - 'effective' = min(FMR, market), 'fmr' = HUD FMR only. Default 'effective'.
  */
-export function getRentForBedrooms(data: FmrDataLike, bedrooms: number): number | null {
+export function getRentForBedrooms(data: FmrDataLike, bedrooms: number, rentSource: 'effective' | 'fmr' = 'effective'): number | null {
   const b = Math.max(0, Math.min(8, Math.round(bedrooms)));
   const getBr = (d: FmrDataLike['zipFMRData'] extends (infer Z)[] ? Z : FmrDataLike, br: number): number | null => {
     const eff = d.effectiveRent;
     const raw = br === 0 ? d.bedroom0 : br === 1 ? d.bedroom1 : br === 2 ? d.bedroom2 : br === 3 ? d.bedroom3 : d.bedroom4;
-    const v = (eff && (br === 0 ? eff.bedroom0 : br === 1 ? eff.bedroom1 : br === 2 ? eff.bedroom2 : br === 3 ? eff.bedroom3 : eff.bedroom4)) ?? raw;
+    const effVal = eff ? (br === 0 ? eff.bedroom0 : br === 1 ? eff.bedroom1 : br === 2 ? eff.bedroom2 : br === 3 ? eff.bedroom3 : eff.bedroom4) : null;
+    const v = rentSource === 'fmr' ? raw : (effVal ?? raw);
     return v !== null && v !== undefined ? v : null;
   };
 

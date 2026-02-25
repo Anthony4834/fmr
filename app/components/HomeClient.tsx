@@ -215,6 +215,8 @@ export default function HomeClient(props: {
           })) : [],
           purchasePrice: typeof config.purchasePrice === 'number' && config.purchasePrice > 0 ? config.purchasePrice : null,
           bedrooms: typeof config.bedrooms === 'number' && config.bedrooms >= 0 && config.bedrooms <= 8 ? config.bedrooms : null,
+          // Default to effective rent when extension config present (until extension sends rentSource)
+          rentSource: config.rentSource === 'fmr' || config.rentSource === 'effective' ? config.rentSource : 'effective',
         };
 
         setParsedExtensionConfig(validatedConfig);

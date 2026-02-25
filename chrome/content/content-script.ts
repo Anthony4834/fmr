@@ -8,6 +8,7 @@ import { DEFAULT_PREFERENCES, ExtensionPreferences } from '../shared/types';
 import { createBadgeElement } from './badge';
 import { createMiniViewElement } from './mini-view';
 import { isLoggedIn } from '../shared/auth';
+import { getApiBaseUrl } from '../shared/config';
 
 // Rate limit marker - returned when API returns 429
 const RATE_LIMITED = 'RATE_LIMITED' as const;
@@ -25,6 +26,14 @@ const cardBadges = new Map<HTMLElement, HTMLElement>();
 const CARD_KEY_DATASET_FIELD = 'fmrKey';
 const HOA_PENDING_DATASET_FIELD = 'fmrHoaPending';
 
+// Zillow card selectors: property-card (new c11n layout), property-card-data (legacy)
+const ZILLOW_CARD_SELECTOR = '[data-testid="property-card"], [data-testid="property-card-data"]';
+
+function isZillowListOrMapCard(el: HTMLElement): boolean {
+  const tid = el.getAttribute('data-testid');
+  return tid === 'property-card' || tid === 'property-card-data';
+}
+
 type BadgeMode = 'cashFlow' | 'fmr';
 
 // We keep a lightweight, live view of the current mode so we can
@@ -39,7 +48,7 @@ function isElementWithinZillowCardOrExpandedView(target: Node | null): boolean {
   if (!target) return false;
   const el = (target.nodeType === Node.ELEMENT_NODE ? (target as Element) : (target.parentElement as Element | null));
   if (!el) return false;
-  return !!el.closest?.('[data-testid="property-card-data"], [data-testid="fs-chip-container"]');
+  return !!el.closest?.(`${ZILLOW_CARD_SELECTOR}, [data-testid="fs-chip-container"]`);
 }
 
 function startZillowCardKeyPolling(): void {
@@ -54,9 +63,9 @@ function startZillowCardKeyPolling(): void {
 
       // Limit work: only check a small number of visible cards that already have badges
       const badgedCards = Array.from(
-        document.querySelectorAll('[data-testid="property-card-data"] .fmr-badge')
+        document.querySelectorAll(`${ZILLOW_CARD_SELECTOR} .fmr-badge`)
       )
-        .map((b) => (b as HTMLElement).closest('[data-testid="property-card-data"]') as HTMLElement | null)
+        .map((b) => (b as HTMLElement).closest(ZILLOW_CARD_SELECTOR) as HTMLElement | null)
         .filter(Boolean) as HTMLElement[];
 
       const seen = new Set<HTMLElement>();
@@ -277,8 +286,9 @@ async function loadInitialBadgeMode(): Promise<void> {
   }
 }
 
-async function refreshBadgesForModeChange(): Promise<void> {
+async function refreshBadgesForModeChange(options?: { forceReprocess?: boolean }): Promise<void> {
   const site = window.location.hostname.toLowerCase();
+  const forceReprocess = options?.forceReprocess ?? false;
 
   // Only refresh if this site is enabled.
   const siteEnabled = await isSiteEnabled(site);
@@ -293,14 +303,23 @@ async function refreshBadgesForModeChange(): Promise<void> {
   const isRedfinDetail = site.includes('redfin.com') && window.location.pathname.toLowerCase().includes('/home/');
   const isZillowDetail = site.includes('zillow.com') && window.location.pathname.toLowerCase().includes('/homedetails/');
 
-  // List/map pages: re-run card processing (processCard/processCards will reprocess if mode changed).
+  // List/map pages: re-run card processing.
+  // When forceReprocess (e.g. rent source change), remove badges first so processCards reprocesses all.
   if (site.includes('redfin.com') && !isRedfinDetail) {
+    if (forceReprocess) {
+      document.querySelectorAll('.fmr-badge').forEach((b) => b.remove());
+      cardBadges.clear();
+    }
     await processCards('list', 'redfin');
     await processCards('map', 'redfin');
     return;
   }
 
   if (site.includes('zillow.com') && !isZillowDetail) {
+    if (forceReprocess) {
+      document.querySelectorAll('.fmr-badge').forEach((b) => b.remove());
+      cardBadges.clear();
+    }
     const expandedView = document.querySelector('[data-testid="fs-chip-container"]');
     if (expandedView) {
       processCard(expandedView as HTMLElement, 'map', 'zillow').catch(() => {});
@@ -334,7 +353,17 @@ function setupModeChangeListener(): void {
           refreshBadgesForModeChange().catch(() => {});
         }
       }
-      
+
+      // Handle rent source changes (effective vs FMR) - affects both FMR display and cash flow calc
+      if (changes.rentSource) {
+        const next = changes.rentSource.newValue as string | undefined;
+        const prev = changes.rentSource.oldValue as string | undefined;
+        if (next !== prev && (next === 'effective' || next === 'fmr')) {
+          cashFlowCache.clear(); // Cached cash flow was computed with old rentSource
+          refreshBadgesForModeChange({ forceReprocess: true }).catch(() => {});
+        }
+      }
+
       // Handle auth state changes (user logged in/out)
       if (changes.fmr_extension_auth) {
         console.log('[FMR Content] Auth state changed, clearing cache and refreshing badges');
@@ -447,8 +476,8 @@ async function calculateCashFlow(
       return null;
     }
     
-    // Get rent for bedrooms
-    const rentMonthly = getRentForBedrooms(fmrData, bedrooms);
+    // Get rent for bedrooms (use rentSource preference: effective or fmr)
+    const rentMonthly = getRentForBedrooms(fmrData, bedrooms, preferences.rentSource || 'effective');
     if (rentMonthly === null) {
       trackMissingData({
         zipCode,
@@ -539,7 +568,8 @@ async function calculateCashFlow(
  */
 async function calculateFmrMonthly(
   address: string,
-  detectedBedrooms: number | null
+  detectedBedrooms: number | null,
+  rentSource: 'effective' | 'fmr' = 'effective'
 ): Promise<number | null | RateLimitMarker> {
   try {
     const zipCode = extractZipFromAddress(address);
@@ -587,7 +617,7 @@ async function calculateFmrMonthly(
       setCachedFmrOnlyZipData(zipCode, fmrData);
     }
 
-    const rentMonthly = getRentForBedrooms(fmrData, detectedBedrooms);
+    const rentMonthly = getRentForBedrooms(fmrData, detectedBedrooms, rentSource);
     if (rentMonthly === null) {
       trackMissingData({
         zipCode,
@@ -658,7 +688,8 @@ async function injectBadge(
         missingMarketRent = !!rc.missingMarketRent;
       }
       if (currentBadgeMode === 'fmr' && !isLoading && !insufficientInfo && propertyData && propertyData.bedrooms !== null) {
-        fmrMonthly = getRentForBedrooms(fmrData, propertyData.bedrooms);
+        const prefs = await getPreferences();
+        fmrMonthly = getRentForBedrooms(fmrData, propertyData.bedrooms, prefs.rentSource || 'effective');
       }
     }
   }
@@ -711,7 +742,7 @@ async function injectBadge(
   
   // Inject near the address
   // For Zillow cards, the address is inside a link, so we need to inject after the link
-  if (cardElement && cardElement.getAttribute('data-testid') === 'property-card-data') {
+  if (cardElement && isZillowListOrMapCard(cardElement)) {
     // Zillow card: inject after the address link
     const addressLink = addressElement.closest('a');
     if (addressLink && addressLink.parentElement) {
@@ -859,8 +890,10 @@ async function processCard(cardElement: HTMLElement, viewType: 'list' | 'map', s
     } else {
       // Regular card
       cardData = extractPropertyDataFromZillowCard(cardElement);
-      // Address element is the <address> tag inside .property-card-link
-      const addressLink = cardElement.querySelector('.property-card-link') || cardElement.querySelector('a[data-test="property-card-link"]');
+      // Address element is the <address> tag inside the address link
+      const addressLink = cardElement.querySelector('.property-card-link') ||
+        cardElement.querySelector('a[data-test="property-card-link"]') ||
+        cardElement.querySelector('a[data-testid="property-card-address-link"]');
       addressElement = addressLink?.querySelector('address') as HTMLElement;
     }
   }
@@ -954,7 +987,7 @@ async function processCard(cardElement: HTMLElement, viewType: 'list' | 'map', s
   currentBadgeMode = normalizeBadgeMode((preferences as any).mode);
 
   if (currentBadgeMode === 'fmr') {
-    const fmrMonthly: number | null | RateLimitMarker = await calculateFmrMonthly(cardData.address, cardData.bedrooms);
+    const fmrMonthly: number | null | RateLimitMarker = await calculateFmrMonthly(cardData.address, cardData.bedrooms, preferences.rentSource || 'effective');
 
     // Update badge with actual data (FMR-only mode)
     const badge = cardBadges.get(cardElement);
@@ -1019,8 +1052,8 @@ async function processCards(viewType: 'list' | 'map', site: 'redfin' | 'zillow')
     // Redfin uses .bp-Homecard__Content for card content
     cards = document.querySelectorAll('.bp-Homecard__Content');
   } else {
-    // Zillow uses [data-testid="property-card-data"] for card content
-    cards = document.querySelectorAll('[data-testid="property-card-data"]');
+    // Zillow: property-card (new c11n layout), property-card-data (legacy)
+    cards = document.querySelectorAll(ZILLOW_CARD_SELECTOR);
   }
   const processPromises: Promise<void>[] = [];
   
@@ -1389,8 +1422,8 @@ async function processPage(options?: { skipWait?: boolean }) {
           if (node.nodeType === Node.ELEMENT_NODE) {
             const element = node as HTMLElement;
             // Check if it's a card or contains cards
-            if (element.getAttribute?.('data-testid') === 'property-card-data' ||
-                element.querySelector?.('[data-testid="property-card-data"]') ||
+            if (element.matches?.(ZILLOW_CARD_SELECTOR) ||
+                element.querySelector?.(ZILLOW_CARD_SELECTOR) ||
                 element.getAttribute?.('data-testid') === 'fs-chip-container' ||
                 element.querySelector?.('[data-testid="fs-chip-container"]')) {
               hasChanges = true;
@@ -1403,8 +1436,8 @@ async function processPage(options?: { skipWait?: boolean }) {
           if (node.nodeType === Node.ELEMENT_NODE) {
             const element = node as HTMLElement;
             // If a card was removed, we need to reprocess
-            if (element.getAttribute?.('data-testid') === 'property-card-data' ||
-                element.querySelector?.('[data-testid="property-card-data"]') ||
+            if (element.matches?.(ZILLOW_CARD_SELECTOR) ||
+                element.querySelector?.(ZILLOW_CARD_SELECTOR) ||
                 element.getAttribute?.('data-testid') === 'fs-chip-container' ||
                 element.querySelector?.('[data-testid="fs-chip-container"]')) {
               hasChanges = true;
@@ -1677,7 +1710,7 @@ async function processPage(options?: { skipWait?: boolean }) {
           const cachedFmrOnly = getCachedFmrOnlyZipData(zipCode);
           const fmrData = cachedZip?.fmrData ?? cachedFmrOnly;
           if (fmrData) {
-            cachedFmrMonthly = getRentForBedrooms(fmrData, propertyData.bedrooms);
+            cachedFmrMonthly = getRentForBedrooms(fmrData, propertyData.bedrooms, preferences.rentSource || 'effective');
           }
         }
       }
@@ -1695,7 +1728,7 @@ async function processPage(options?: { skipWait?: boolean }) {
 
       // Calculate and display FMR (if not already cached)
       if (cachedFmrMonthly === null) {
-        const fmrMonthly: number | null | RateLimitMarker = await calculateFmrMonthly(address, propertyData.bedrooms);
+        const fmrMonthly: number | null | RateLimitMarker = await calculateFmrMonthly(address, propertyData.bedrooms, preferences.rentSource || 'effective');
         
         // Update badge with FMR data
         if (badgeElement && (badgeElement as any).updateFmrContent) {
@@ -1807,7 +1840,7 @@ function updateCardBadgesForProperty(address: string, price: number, bedrooms: n
     
     try {
       // Check if it's a Zillow card
-      if (cardElement.getAttribute('data-testid') === 'property-card-data') {
+      if (isZillowListOrMapCard(cardElement)) {
         cardData = extractPropertyDataFromZillowCard(cardElement);
       } else if (cardElement.classList?.contains('bp-Homecard__Content')) {
         // Redfin card
@@ -1857,7 +1890,7 @@ function updateCardBadgesForProperty(address: string, price: number, bedrooms: n
     }
     
     // Find the card element that contains this badge
-    const cardElement = badge.closest('[data-testid="property-card-data"]') || 
+    const cardElement = badge.closest(ZILLOW_CARD_SELECTOR) ||
                        badge.closest('.bp-Homecard__Content') ||
                        badge.closest('[data-testid="fs-chip-container"]');
     
@@ -1879,7 +1912,7 @@ function updateCardBadgesForProperty(address: string, price: number, bedrooms: n
     let cardData: { address: string | null; price: number | null; bedrooms: number | null } | null = null;
     
     try {
-      if ((cardElement as HTMLElement).getAttribute('data-testid') === 'property-card-data') {
+      if (isZillowListOrMapCard(cardElement as HTMLElement)) {
         cardData = extractPropertyDataFromZillowCard(cardElement as HTMLElement);
       } else if ((cardElement as HTMLElement).classList?.contains('bp-Homecard__Content')) {
         cardData = extractPropertyDataFromCard(cardElement as HTMLElement);
@@ -1912,7 +1945,7 @@ function updateCardBadgesForProperty(address: string, price: number, bedrooms: n
   // This ensures newly rendered cards get the HOA-aware value
   const site = window.location.hostname.toLowerCase();
   if (site.includes('zillow.com')) {
-    const allCards = document.querySelectorAll('[data-testid="property-card-data"]');
+    const allCards = document.querySelectorAll(ZILLOW_CARD_SELECTOR);
     for (const card of Array.from(allCards)) {
       const cardElement = card as HTMLElement;
       if (updatedCards.has(cardElement)) {
@@ -1984,8 +2017,8 @@ async function openMiniView(address: string, zipCode: string, purchasePrice: num
     existingOverlay.remove();
   }
 
-  // Get user preferences to pass to the main app
-  const preferences = await getPreferences();
+  // Get user preferences and API base URL (respects popup config)
+  const [preferences, apiBaseUrl] = await Promise.all([getPreferences(), getApiBaseUrl()]);
 
   // Detect source site from hostname
   const hostname = window.location.hostname.toLowerCase();
@@ -2017,6 +2050,7 @@ async function openMiniView(address: string, zipCode: string, purchasePrice: num
   miniViewContainer = createMiniViewElement({
     address,
     zipCode,
+    apiBaseUrl,
     preferences,
     purchasePrice,
     bedrooms,

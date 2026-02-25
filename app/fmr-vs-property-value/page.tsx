@@ -40,8 +40,8 @@ export default function FMRVsPropertyValuePage() {
         </h1>
         <p className="mt-3 text-base text-[#525252] max-w-3xl">
           Compare Fair Market Rent (FMR) to property values and analyze the true cost of ownership for 
-          Section 8 housing investments. Our investment score combines FMR data, property values from 
-          Zillow, and effective tax rates to help you evaluate investment opportunities.
+          Section 8 housing investments. Our investment score combines effective rent (min of FMR and market rent), 
+          property values from Zillow, effective tax rates, and a confidence score reflecting data completeness to help you evaluate investment opportunities.
         </p>
 
         <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -102,10 +102,11 @@ export default function FMRVsPropertyValuePage() {
                 Investment scores combine multiple factors to evaluate Section 8 investment potential:
               </p>
               <ul className="list-disc list-inside space-y-1 ml-4">
-                <li><strong>Rent:</strong> Section 8 Fair Market Rent (FMR) from HUD</li>
+                <li><strong>Rent:</strong> Effective rent = min(FMR, market rent) per HUD rent reasonableness; FMR from HUD, market rent from RentCast where available</li>
                 <li><strong>Property Value:</strong> Zillow Home Value Index (ZHVI) for comparable units</li>
                 <li><strong>Taxes:</strong> Effective property tax rates from American Community Survey (ACS)</li>
                 <li><strong>Net Yield:</strong> (Annual Rent − Annual Taxes) ÷ Property Value</li>
+                <li><strong>Confidence Score:</strong> 0–100 reflecting data completeness; scores below 90% capped at 129</li>
               </ul>
             </div>
             <div>
@@ -115,7 +116,7 @@ export default function FMRVsPropertyValuePage() {
                 comparison across different markets:
               </p>
               <ul className="list-disc list-inside space-y-1 ml-4">
-                <li><strong>≥ 130:</strong> Excellent investment potential (top tier)</li>
+                <li><strong>≥ 130:</strong> Excellent investment potential (top tier; requires 90%+ confidence)</li>
                 <li><strong>100-129:</strong> Above average investment potential</li>
                 <li><strong>95-99:</strong> Average investment potential</li>
                 <li><strong>&lt; 95:</strong> Below average investment potential</li>
@@ -130,6 +131,7 @@ export default function FMRVsPropertyValuePage() {
                 <li><strong>Price Floor:</strong> Minimum property value of $100,000</li>
                 <li><strong>Rent Cap:</strong> Maximum rent-to-price ratio of 18%</li>
                 <li><strong>County Blending:</strong> 60% ZIP value + 40% county median for low-value areas</li>
+                <li><strong>Confidence Cap:</strong> Scores below 90% confidence capped at 129</li>
               </ul>
             </div>
           </div>
