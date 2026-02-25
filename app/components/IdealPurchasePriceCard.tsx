@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { FMRResult } from '@/lib/types';
 import { computeIdealPurchasePrice, computeCashFlow, computeMaxPriceForCashFlow, type DownPaymentInput, type CustomLineItem } from '@/lib/investment';
+import RentConstraintIndicator from '@/app/components/RentConstraintIndicator';
 import type { IdealPurchasePriceResult } from '@/lib/investment';
 
 type MarketParams = {
@@ -13,11 +14,15 @@ type MarketParams = {
   fetchedAt: string;
 };
 
+type RentSource = 'fmr' | 'effective';
+
 type PersistedPrefs = {
   mode: 'cashflow' | 'maxprice';
   purchasePrice: string; // For cash flow mode
   desiredCashFlow: string; // For max price mode
   bedrooms: number;
+  rentSource: RentSource;
+  paymentStandardPct: string; // e.g. "100" for 100% of FMR
   cashOnCashAnnualPct: string;
   downPaymentMode: 'percent' | 'amount';
   downPaymentPercent: string;
@@ -41,6 +46,8 @@ const DEFAULT_PREFS: PersistedPrefs = {
   purchasePrice: '200000',
   desiredCashFlow: '200',
   bedrooms: 2,
+  rentSource: 'fmr',
+  paymentStandardPct: '100',
   cashOnCashAnnualPct: '10',
   downPaymentMode: 'percent',
   downPaymentPercent: '20',
@@ -80,6 +87,10 @@ function safeParsePrefs(): PersistedPrefs {
     merged.propertyManagementMode = merged.propertyManagementMode === 'amount' || merged.propertyManagementMode === 'percent' ? merged.propertyManagementMode : DEFAULT_PREFS.propertyManagementMode;
     merged.propertyManagementPercent = toStr(merged.propertyManagementPercent, DEFAULT_PREFS.propertyManagementPercent);
     merged.propertyManagementAmount = toStr(merged.propertyManagementAmount, DEFAULT_PREFS.propertyManagementAmount);
+    // Migrate legacy values to new options
+    if (merged.rentSource === 'section8' || merged.rentSource === 'market') merged.rentSource = 'fmr';
+    merged.rentSource = merged.rentSource === 'fmr' || merged.rentSource === 'effective' ? merged.rentSource : DEFAULT_PREFS.rentSource;
+    merged.paymentStandardPct = toStr(merged.paymentStandardPct, DEFAULT_PREFS.paymentStandardPct);
     return merged as PersistedPrefs;
   } catch {
     return DEFAULT_PREFS;
@@ -128,39 +139,73 @@ function parseNumberOrZero(raw: string) {
   return Number.isFinite(n) ? n : 0;
 }
 
-function getRentForBedrooms(data: FMRResult, bedrooms: number): number | null {
+function getFmrForBedrooms(data: FMRResult, bedrooms: number): number | null {
   const b = Math.max(0, Math.min(8, Math.round(bedrooms)));
-  
-  // If SAFMR with exactly one ZIP in zipFMRData, use that ZIP's values
+  const getBr = (src: { bedroom0?: number; bedroom1?: number; bedroom2?: number; bedroom3?: number; bedroom4?: number }) => {
+    const v = b === 0 ? src.bedroom0 : b === 1 ? src.bedroom1 : b === 2 ? src.bedroom2 : b === 3 ? src.bedroom3 : b === 4 ? src.bedroom4 : undefined;
+    return v !== undefined && v !== null ? v : null;
+  };
   if (data.source === 'safmr' && data.zipFMRData && data.zipFMRData.length === 1) {
     const zipData = data.zipFMRData[0];
-    const base =
-      b === 0 ? zipData.bedroom0 :
-      b === 1 ? zipData.bedroom1 :
-      b === 2 ? zipData.bedroom2 :
-      b === 3 ? zipData.bedroom3 :
-      b === 4 ? zipData.bedroom4 :
-      undefined;
-    if (base !== undefined && base !== null) return base;
-    if (b > 4 && zipData.bedroom4) {
-      return Math.round(zipData.bedroom4 * Math.pow(1.15, b - 4));
+    if (b <= 4) {
+      const base = getBr(zipData);
+      if (base !== null) return base;
     }
+    const base4 = zipData.bedroom4;
+    if (b > 4 && base4) return Math.round(base4 * Math.pow(1.15, b - 4));
     return null;
   }
-  
-  // Otherwise use top-level data
-  const base =
-    b === 0 ? data.bedroom0 :
-    b === 1 ? data.bedroom1 :
-    b === 2 ? data.bedroom2 :
-    b === 3 ? data.bedroom3 :
-    b === 4 ? data.bedroom4 :
-    undefined;
-  if (base !== undefined && base !== null) return base;
-  if (b > 4 && data.bedroom4) {
-    return Math.round(data.bedroom4 * Math.pow(1.15, b - 4));
+  if (b <= 4) {
+    const base = getBr(data);
+    if (base !== null) return base;
   }
+  const base4 = data.bedroom4;
+  if (b > 4 && base4) return Math.round(base4 * Math.pow(1.15, b - 4));
   return null;
+}
+
+function getAmrForBedrooms(data: FMRResult, bedrooms: number): number | null {
+  const b = Math.max(0, Math.min(8, Math.round(bedrooms)));
+  const getBr = (src: { bedroom0?: number | null; bedroom1?: number | null; bedroom2?: number | null; bedroom3?: number | null; bedroom4?: number | null }) => {
+    const v = b === 0 ? src.bedroom0 : b === 1 ? src.bedroom1 : b === 2 ? src.bedroom2 : b === 3 ? src.bedroom3 : b === 4 ? src.bedroom4 : undefined;
+    return v !== undefined && v !== null ? v : null;
+  };
+  let amr4: number | null = null;
+  if (data.source === 'safmr' && data.zipFMRData && data.zipFMRData.length === 1) {
+    const zipData = data.zipFMRData[0];
+    if (b <= 4) {
+      const base = getBr(zipData.marketRent ?? {});
+      if (base !== null) return base;
+    }
+    amr4 = zipData.marketRent?.bedroom4 ?? null;
+  } else {
+    if (b <= 4) {
+      const base = getBr(data.marketRent ?? {});
+      if (base !== null) return base;
+    }
+    amr4 = data.marketRent?.bedroom4 ?? null;
+  }
+  if (b > 4 && amr4 != null) return Math.round(amr4 * Math.pow(1.15, b - 4));
+  return null;
+}
+
+/** Rent based on rentSource: section8 = min(AMR, Payment Standard), market = AMR, fmr = FMR. */
+function getRentForBedroomsWithSource(
+  data: FMRResult,
+  bedrooms: number,
+  rentSource: RentSource,
+  paymentStandardPct: number
+): number | null {
+  const fmr = getFmrForBedrooms(data, bedrooms);
+  const amr = getAmrForBedrooms(data, bedrooms);
+  if (rentSource === 'fmr') return fmr;
+  // effective = min(FMR, AMR), fallback to FMR if AMR missing
+  if (rentSource === 'effective') return amr != null && fmr != null ? Math.min(fmr, amr) : fmr ?? amr ?? null;
+  return null;
+}
+
+function getRentForBedrooms(data: FMRResult, bedrooms: number): number | null {
+  return getRentForBedroomsWithSource(data, bedrooms, 'fmr', 100);
 }
 
 function canRenderForData(data: FMRResult | null): boolean {
@@ -246,6 +291,8 @@ export default function IdealPurchasePriceCard({
         purchasePrice: purchasePriceStr,
         desiredCashFlow: '200',
         bedrooms: extensionConfig.bedrooms !== null ? extensionConfig.bedrooms : 2,
+        rentSource: 'fmr',
+        paymentStandardPct: '100',
         cashOnCashAnnualPct: '10',
         downPaymentMode: extensionConfig.downPaymentMode,
         downPaymentPercent: downPaymentPercentStr,
@@ -331,7 +378,18 @@ export default function IdealPurchasePriceCard({
     }
   }, [detailsExpanded]);
 
-  const rentMonthlyRaw = useMemo(() => (data ? getRentForBedrooms(data, prefs.bedrooms) : null), [data, prefs.bedrooms]);
+  const rentMonthlyRaw = useMemo(
+    () =>
+      data
+        ? getRentForBedroomsWithSource(
+            data,
+            prefs.bedrooms,
+            prefs.rentSource,
+            Math.max(90, Math.min(120, parseNumberOrZero(prefs.paymentStandardPct) || 100))
+          )
+        : null,
+    [data, prefs.bedrooms, prefs.rentSource, prefs.paymentStandardPct]
+  );
   
   // Calculate property management cost (not subtracted from rent, but added to expenses)
   const propertyManagementCost = useMemo(() => {
@@ -418,7 +476,6 @@ export default function IdealPurchasePriceCard({
     <div className="w-full bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] p-4 sm:p-6 md:p-8">
       <div className="mb-4">
         <h3 className="text-base sm:text-lg font-semibold text-[var(--text-primary)] mb-1">Purchase Price Calculator</h3>
-        <p className="text-xs text-[var(--text-tertiary)]">Based on HUD rent + your assumptions</p>
       </div>
 
       {/* Mode selector - hidden when extension config is present */}
@@ -433,6 +490,23 @@ export default function IdealPurchasePriceCard({
             >
               <option value="cashflow">Calculate Cash Flow</option>
               <option value="maxprice">Calculate Max Price</option>
+            </select>
+          </label>
+        </div>
+      )}
+
+      {/* Rent source - hidden when extension config is present */}
+      {!extensionConfig && data && (
+        <div className="mb-4 space-y-2">
+          <label className="block">
+            <div className="text-xs font-semibold text-[var(--text-primary)] mb-1">Rent source</div>
+            <select
+              value={prefs.rentSource}
+              onChange={(e) => setPrefs((p) => ({ ...p, rentSource: e.target.value as RentSource }))}
+              className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--text-primary)] focus:ring-opacity-20 focus:border-[var(--border-secondary)] transition-colors"
+            >
+              <option value="fmr">HUD FMR</option>
+              <option value="effective">Effective Rent</option>
             </select>
           </label>
         </div>

@@ -642,16 +642,22 @@ async function injectBadge(
     badgeElement = null;
   }
   
-  // Get FMR data if in FMR mode
+  // Get FMR data if in FMR mode (and rent constraint flags for tooltip when available)
   let fmrMonthly: number | null | RateLimitMarker = null;
-  if (currentBadgeMode === 'fmr' && !isLoading && !insufficientInfo && propertyData && propertyData.bedrooms !== null) {
-    // Try to get FMR synchronously from cache if available
-    const zipCode = extractZipFromAddress(address);
-    if (zipCode) {
-      const cachedZip = getCachedZipData(zipCode);
-      const cachedFmrOnly = getCachedFmrOnlyZipData(zipCode);
-      const fmrData = cachedZip?.fmrData ?? cachedFmrOnly;
-      if (fmrData && propertyData.bedrooms !== null) {
+  let rentConstrained = false;
+  let missingMarketRent = false;
+  const zipCode = extractZipFromAddress(address);
+  if (zipCode) {
+    const cachedZip = getCachedZipData(zipCode);
+    const cachedFmrOnly = getCachedFmrOnlyZipData(zipCode);
+    const fmrData = cachedZip?.fmrData ?? cachedFmrOnly ?? null;
+    if (fmrData) {
+      const rc = fmrData.rentConstraint;
+      if (rc) {
+        rentConstrained = !!rc.isConstrained;
+        missingMarketRent = !!rc.missingMarketRent;
+      }
+      if (currentBadgeMode === 'fmr' && !isLoading && !insufficientInfo && propertyData && propertyData.bedrooms !== null) {
         fmrMonthly = getRentForBedrooms(fmrData, propertyData.bedrooms);
       }
     }
@@ -667,6 +673,8 @@ async function injectBadge(
     nonInteractive,
     hoaUnavailable,
     rateLimited,
+    rentConstrained,
+    missingMarketRent,
     onClick: async () => {
       // Check if user is logged in
       const loggedIn = await isLoggedIn();

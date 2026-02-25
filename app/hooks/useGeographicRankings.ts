@@ -22,6 +22,9 @@ interface RankingItem {
   netYield?: number | null;
   grossYield?: number | null;
   medianFMR?: number | null;
+  medianEffectiveRent?: number | null;
+  medianMarketRent?: number | null;
+  rentConstrainedPct?: number | null;
   medianPropertyValue?: number | null;
   medianTaxRate?: number | null;
   cashFlowEstimate?: number | null;
@@ -160,6 +163,9 @@ export function useGeographicRankings({
           netYield: item.netYield,
           grossYield: item.grossYield,
           medianFMR: item.medianFMR,
+          medianEffectiveRent: item.medianEffectiveRent,
+          medianMarketRent: item.medianMarketRent,
+          rentConstrainedPct: item.rentConstrainedPct,
           medianPropertyValue: item.medianPropertyValue,
           medianTaxRate: item.medianTaxRate,
           cashFlowEstimate: item.cashFlowEstimate,

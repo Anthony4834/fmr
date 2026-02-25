@@ -14,6 +14,32 @@ async function loadAuthHeaders(): Promise<Record<string, string>> {
   return getAuthHeaders();
 }
 
+/** Per-bedroom market rent (0-4 BR). */
+export interface MarketRentByBR {
+  bedroom0?: number | null;
+  bedroom1?: number | null;
+  bedroom2?: number | null;
+  bedroom3?: number | null;
+  bedroom4?: number | null;
+}
+
+/** Effective rent = min(FMR, market rent) per BR. */
+export interface EffectiveRentByBR {
+  bedroom0?: number | null;
+  bedroom1?: number | null;
+  bedroom2?: number | null;
+  bedroom3?: number | null;
+  bedroom4?: number | null;
+}
+
+/** Rent constraint flags. */
+export interface RentConstraint {
+  isConstrained?: boolean;
+  missingMarketRent?: boolean;
+  gapAmount?: number | null;
+  gapPct?: number | null;
+}
+
 export interface FMRDataResponse {
   data: {
     source: 'safmr' | 'fmr';
@@ -31,6 +57,9 @@ export interface FMRDataResponse {
     bedroom4?: number;
     queriedLocation?: string;
     queriedType?: 'zip' | 'city' | 'county' | 'address';
+    marketRent?: MarketRentByBR;
+    effectiveRent?: EffectiveRentByBR;
+    rentConstraint?: RentConstraint;
   };
   error?: string;
   rateLimited?: boolean;

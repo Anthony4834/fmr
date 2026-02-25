@@ -30,10 +30,10 @@ export async function GET(req: NextRequest) {
             city_name,
             state_code,
             county_name,
-            COALESCE(score_with_demand, score) as score
+            adjusted_score as score
           FROM investment_score
           WHERE fmr_year = $1
-            AND data_sufficient = true
+            AND bedroom_count = 3
             AND city_name IS NOT NULL
             AND state_code IS NOT NULL
             AND state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS')
@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
           SELECT DISTINCT city_name, state_code
           FROM investment_score
           WHERE fmr_year = $1
-            AND data_sufficient = true
+            AND bedroom_count = 3
             AND city_name IS NOT NULL
             AND state_code IS NOT NULL
             AND state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS')
@@ -108,10 +108,10 @@ export async function GET(req: NextRequest) {
             county_name,
             county_fips,
             state_code,
-            COALESCE(score_with_demand, score) as score
+            adjusted_score as score
           FROM investment_score
           WHERE fmr_year = $1
-            AND data_sufficient = true
+            AND bedroom_count = 3
             AND county_name IS NOT NULL
             AND state_code IS NOT NULL
             AND state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS')
@@ -153,7 +153,7 @@ export async function GET(req: NextRequest) {
           SELECT DISTINCT county_name, state_code
           FROM investment_score
           WHERE fmr_year = $1
-            AND data_sufficient = true
+            AND bedroom_count = 3
             AND county_name IS NOT NULL
             AND state_code IS NOT NULL
             AND state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS')

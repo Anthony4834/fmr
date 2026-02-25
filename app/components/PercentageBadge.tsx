@@ -7,8 +7,9 @@ export default function PercentageBadge(props: {
   value: number;
   className?: string;
   showSign?: boolean; // If true, shows + for positive values (default: false, uses ▲/▼)
+  iconOnly?: boolean; // If true, show only the arrow/icon, no percentage value
 }) {
-  const { value, className = '', showSign = false } = props;
+  const { value, className = '', showSign = false, iconOnly = false } = props;
   const isPositive = value > 0.0001;
   const isNegative = value < -0.0001;
   const isZero = !isPositive && !isNegative;
@@ -25,7 +26,7 @@ export default function PercentageBadge(props: {
   return (
     <span className={`inline-flex items-center gap-0.5 tabular-nums font-semibold ${colorClass} ${className}`}>
       {icon && <span className={isZero ? 'inline-block' : ''}>{icon}</span>}
-      <span>{Math.abs(value).toFixed(1)}%</span>
+      {!iconOnly && <span>{Math.abs(value).toFixed(1)}%</span>}
     </span>
   );
 }

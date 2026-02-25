@@ -20,6 +20,9 @@ interface RankingItem {
   // New V2 fields
   netYield?: number | null;
   medianFMR?: number | null;
+  medianEffectiveRent?: number | null;
+  medianMarketRent?: number | null;
+  rentConstrainedPct?: number | null;
   medianPropertyValue?: number | null;
   medianTaxRate?: number | null;
   cashFlowEstimate?: number | null;
@@ -402,15 +405,15 @@ export default function VirtualizedRankingList({
                       </span>
                     </div>
 
-                    {/* FMR */}
+                    {/* Effective Rent / FMR */}
                     <div className="flex flex-col items-center min-w-0 flex-1">
                       <span className="tabular-nums text-[12px] text-[var(--text-primary)] font-normal leading-none truncate w-full text-center">
-                        {item.medianFMR !== null && item.medianFMR !== undefined
-                          ? formatCurrency(item.medianFMR)
+                        {(item.medianEffectiveRent ?? item.medianFMR) !== null && (item.medianEffectiveRent ?? item.medianFMR) !== undefined
+                          ? formatCurrency(item.medianEffectiveRent ?? item.medianFMR)
                           : '—'}
                       </span>
                       <span className="text-[8px] text-[var(--text-muted)] leading-tight mt-0.5 whitespace-nowrap" style={{ opacity: 0.75 }}>
-                        FMR
+                        {item.medianEffectiveRent != null ? 'Eff. Rent' : 'FMR'}
                       </span>
                     </div>
 
@@ -523,13 +526,16 @@ export default function VirtualizedRankingList({
                   </span>
                 </div>
 
-                {/* FMR */}
+                {/* Effective Rent / FMR */}
                 <div className="text-right">
                   <span className="text-[11px] sm:text-sm tabular-nums text-[var(--text-secondary)]">
-                    {item.medianFMR !== null && item.medianFMR !== undefined
-                      ? formatCurrency(item.medianFMR)
+                    {(item.medianEffectiveRent ?? item.medianFMR) !== null && (item.medianEffectiveRent ?? item.medianFMR) !== undefined
+                      ? formatCurrency(item.medianEffectiveRent ?? item.medianFMR)
                       : '—'}
                   </span>
+                  {item.rentConstrainedPct != null && item.rentConstrainedPct > 0 && (
+                    <span className="block text-[10px] text-amber-600 dark:text-amber-400">Constrained</span>
+                  )}
                 </div>
 
                 {/* Cash Flow - emphasized */}

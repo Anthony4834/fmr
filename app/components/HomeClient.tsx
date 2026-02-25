@@ -122,6 +122,46 @@ function computeZipScoreRankings(
   return { rankings, medianScore };
 }
 
+/**
+ * Merge zipFMRData (canonical ZIP list from chart) with investment scores from API.
+ * Ensures panel shows same ZIPs as alignment chart; scores shown where available.
+ */
+function mergeZipFMRDataWithScores(
+  zipFMRData: { zipCode: string }[],
+  apiZipScores: ZipScoreData[]
+): ZipRanking[] {
+  if (!zipFMRData || zipFMRData.length === 0) return [];
+
+  const scoreMap = new Map<string, ZipScoreData>();
+  for (const z of apiZipScores || []) {
+    scoreMap.set(z.zipCode, z);
+  }
+
+  const scoresWithValues = apiZipScores
+    ?.map(z => z.medianScore ?? z.avgScore)
+    .filter((s): s is number => s != null) ?? [];
+  const sorted = [...scoresWithValues].sort((a, b) => a - b);
+  const medianIndex = Math.floor(sorted.length / 2);
+  const medianScore = sorted.length > 0
+    ? (sorted.length % 2 === 0) ? (sorted[medianIndex - 1] + sorted[medianIndex]) / 2 : sorted[medianIndex]
+    : null;
+
+  const rankings: ZipRanking[] = zipFMRData.map((z) => {
+    const scoreData = scoreMap.get(z.zipCode);
+    const score = scoreData ? (scoreData.medianScore ?? scoreData.avgScore ?? null) : null;
+    const percentDiff = medianScore != null && score != null
+      ? ((score - medianScore) / medianScore) * 100
+      : 0;
+    return { zipCode: z.zipCode, score, percentDiff };
+  });
+
+  return rankings.sort((a, b) => {
+    const scoreA = a.score ?? -1;
+    const scoreB = b.score ?? -1;
+    return scoreB - scoreA;
+  });
+}
+
 export default function HomeClient(props: {
   initialQuery?: string | null;
   initialType?: 'zip' | 'city' | 'county' | 'address' | 'state' | null;
@@ -409,16 +449,20 @@ export default function HomeClient(props: {
     }
     if (viewFmrData.year) params.set('year', String(viewFmrData.year));
 
+    const zipFMRData = viewFmrData.zipFMRData ?? [];
     fetch(`/api/investment/zip-scores?${params.toString()}`)
       .then(res => res.json())
       .then(result => {
-        if (result.found && result.zipScores && result.zipScores.length > 0) {
+        if (zipFMRData.length > 0) {
+          const merged = mergeZipFMRDataWithScores(zipFMRData, result?.zipScores ?? []);
+          setZipRankings(merged.length > 0 ? merged : null);
+        } else if (result.found && result.zipScores && result.zipScores.length > 0) {
           const computed = computeZipScoreRankings(result.zipScores);
           setZipRankings(computed?.rankings || null);
-          setZipMedianAvgFMR(null); // Not used for score-based rankings
         } else {
           setZipRankings(null);
         }
+        setZipMedianAvgFMR(null); // Not used for score-based rankings
         setZipScoresLoading(false);
       })
       .catch((err) => {
@@ -874,6 +918,8 @@ export default function HomeClient(props: {
                                       </span>
                                       <PercentageBadge value={zip.percentDiff} className="text-xs shrink-0" />
                                     </div>
+                                  ) : isScoreBased && zip.score === null ? (
+                                    <span className="text-xs text-[var(--text-muted)]" title="Insufficient data to compute investment score">Insufficient data</span>
                                   ) : (
                                     <PercentageBadge value={zip.percentDiff} className="text-xs sm:text-sm shrink-0" />
                                   )}

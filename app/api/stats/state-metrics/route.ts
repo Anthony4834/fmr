@@ -98,6 +98,18 @@ export async function GET(request: NextRequest) {
           PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY c3) FILTER (WHERE c3 IS NOT NULL AND c3 > 0) AS median_fmr_3,
           PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY c4) FILTER (WHERE c4 IS NOT NULL AND c4 > 0) AS median_fmr_4,
 
+          -- current min/max
+          MIN(c0) FILTER (WHERE c0 IS NOT NULL AND c0 > 0) AS min_fmr_0,
+          MAX(c0) FILTER (WHERE c0 IS NOT NULL AND c0 > 0) AS max_fmr_0,
+          MIN(c1) FILTER (WHERE c1 IS NOT NULL AND c1 > 0) AS min_fmr_1,
+          MAX(c1) FILTER (WHERE c1 IS NOT NULL AND c1 > 0) AS max_fmr_1,
+          MIN(c2) FILTER (WHERE c2 IS NOT NULL AND c2 > 0) AS min_fmr_2,
+          MAX(c2) FILTER (WHERE c2 IS NOT NULL AND c2 > 0) AS max_fmr_2,
+          MIN(c3) FILTER (WHERE c3 IS NOT NULL AND c3 > 0) AS min_fmr_3,
+          MAX(c3) FILTER (WHERE c3 IS NOT NULL AND c3 > 0) AS max_fmr_3,
+          MIN(c4) FILTER (WHERE c4 IS NOT NULL AND c4 > 0) AS min_fmr_4,
+          MAX(c4) FILTER (WHERE c4 IS NOT NULL AND c4 > 0) AS max_fmr_4,
+
           -- rent curve (median of per-ZIP deltas / ratios)
           PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY (c2 - c1)) FILTER (WHERE c1 IS NOT NULL AND c2 IS NOT NULL AND c1 > 0 AND c2 > 0) AS median_inc_1_to_2,
           PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY (c3 - c2)) FILTER (WHERE c2 IS NOT NULL AND c3 IS NOT NULL AND c2 > 0 AND c3 > 0) AS median_inc_2_to_3,
@@ -146,6 +158,8 @@ export async function GET(request: NextRequest) {
     const byBedroom = [0, 1, 2, 3, 4].map((br) => ({
       br,
       medianFMR: toNum(row[`median_fmr_${br}`]),
+      minFMR: toNum(row[`min_fmr_${br}`]),
+      maxFMR: toNum(row[`max_fmr_${br}`]),
       medianYoY: toNum(row[`median_yoy_${br}`]),
       medianCAGR3: toNum(row[`median_cagr3_${br}`]),
       pctPositiveYoY: toNum(row[`pct_pos_yoy_${br}`]),

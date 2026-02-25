@@ -40,12 +40,30 @@ export async function ensureInsightsIndexTable() {
   await sql`
     CREATE INDEX IF NOT EXISTS idx_insights_index_geo_state ON insights_index(geo_type, state_code);
   `;
+  await sql`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'insights_index' AND column_name = 'market_rent_curr') THEN
+        ALTER TABLE insights_index ADD COLUMN market_rent_curr NUMERIC(10, 2);
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'insights_index' AND column_name = 'effective_rent_curr') THEN
+        ALTER TABLE insights_index ADD COLUMN effective_rent_curr NUMERIC(10, 2);
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'insights_index' AND column_name = 'rent_limited_by_market') THEN
+        ALTER TABLE insights_index ADD COLUMN rent_limited_by_market BOOLEAN DEFAULT false;
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'insights_index' AND column_name = 'market_rent_missing') THEN
+        ALTER TABLE insights_index ADD COLUMN market_rent_missing BOOLEAN DEFAULT true;
+      END IF;
+    END $$;
+  `;
 }
 
 const INSIGHTS_INDEX_COLUMNS = [
   'geo_type', 'geo_key', 'state_code', 'zip_code', 'city_name', 'area_name', 'county_name',
   'fmr_curr', 'fmr_yoy', 'zhvi_curr', 'zhvi_yoy', 'yield_curr', 'yield_delta_pp', 'divergence_pp',
   'zip_count', 'zhvi_as_of_month', 'fmr_year', 'indexed_at',
+  'market_rent_curr', 'effective_rent_curr', 'rent_limited_by_market', 'market_rent_missing',
 ] as const;
 
 type InsightsIndexRow = {
@@ -67,11 +85,15 @@ type InsightsIndexRow = {
   zhvi_as_of_month: string;
   fmr_year: number;
   indexed_at: string;
+  market_rent_curr?: number | null;
+  effective_rent_curr?: number | null;
+  rent_limited_by_market?: boolean | null;
+  market_rent_missing?: boolean | null;
 };
 
 function rowToInsightsIndexRow(
   geoType: YieldMoversGeoType,
-  row: YieldMoverBaseRow,
+  row: YieldMoverBaseRow & { marketRentCurr?: number | null; effectiveRentCurr?: number | null; rentLimitedByMarket?: boolean | null; marketRentMissing?: boolean | null },
   zhviAsOfMonth: string,
   fmrYear: number,
   indexedAt: string
@@ -95,6 +117,10 @@ function rowToInsightsIndexRow(
     zhvi_as_of_month: zhviAsOfMonth,
     fmr_year: fmrYear,
     indexed_at: indexedAt,
+    market_rent_curr: row.marketRentCurr ?? null,
+    effective_rent_curr: row.effectiveRentCurr ?? null,
+    rent_limited_by_market: row.rentLimitedByMarket ?? null,
+    market_rent_missing: row.marketRentMissing ?? null,
   };
 }
 
@@ -135,12 +161,17 @@ async function bulkInsertInsightsIndex(batch: InsightsIndexRow[]): Promise<void>
         escapeLiteral(r.zhvi_as_of_month),
         String(r.fmr_year),
         escapeLiteral(r.indexed_at),
+        numLiteral(r.market_rent_curr ?? null),
+        numLiteral(r.effective_rent_curr ?? null),
+        r.rent_limited_by_market === true ? 'true' : (r.rent_limited_by_market === false ? 'false' : 'NULL'),
+        r.market_rent_missing === true ? 'true' : (r.market_rent_missing === false ? 'false' : 'NULL'),
       ].join(',')})`
   );
   const insertSql = `INSERT INTO insights_index (
     geo_type, geo_key, state_code, zip_code, city_name, area_name, county_name,
     fmr_curr, fmr_yoy, zhvi_curr, zhvi_yoy, yield_curr, yield_delta_pp, divergence_pp,
-    zip_count, zhvi_as_of_month, fmr_year, indexed_at
+    zip_count, zhvi_as_of_month, fmr_year, indexed_at,
+    market_rent_curr, effective_rent_curr, rent_limited_by_market, market_rent_missing
   ) VALUES ${rows.join(', ')}
   ON CONFLICT (geo_type, geo_key) DO UPDATE SET
     state_code = EXCLUDED.state_code,
@@ -158,7 +189,11 @@ async function bulkInsertInsightsIndex(batch: InsightsIndexRow[]): Promise<void>
     zip_count = EXCLUDED.zip_count,
     zhvi_as_of_month = EXCLUDED.zhvi_as_of_month,
     fmr_year = EXCLUDED.fmr_year,
-    indexed_at = EXCLUDED.indexed_at`;
+    indexed_at = EXCLUDED.indexed_at,
+    market_rent_curr = EXCLUDED.market_rent_curr,
+    effective_rent_curr = EXCLUDED.effective_rent_curr,
+    rent_limited_by_market = EXCLUDED.rent_limited_by_market,
+    market_rent_missing = EXCLUDED.market_rent_missing`;
   await sql.query(insertSql, []);
 }
 

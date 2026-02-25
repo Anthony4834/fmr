@@ -22,7 +22,7 @@ type FMRTableProps = {
   prevYear?: number;
   prev3Year?: number;
   currentYear?: number;
-  showExtendedBR?: boolean; // Show 5-8 BR rows (requires 4BR base)
+  showExtendedBR?: boolean;
 };
 
 function formatCurrency(value: number) {
@@ -38,6 +38,12 @@ function formatBRLabel(br: number): string {
   return `${br} BR`;
 }
 
+function yoyTooltip(pct: number): string {
+  const abs = Math.abs(pct);
+  if (abs < 0.001) return 'FMR unchanged YoY';
+  return pct > 0 ? `FMR increased ${abs.toFixed(1)}% YoY` : `FMR decreased ${abs.toFixed(1)}% YoY`;
+}
+
 export default function FMRTable({
   data,
   loading = false,
@@ -49,7 +55,7 @@ export default function FMRTable({
   if (loading) {
     return (
       <div className="overflow-x-auto overflow-y-visible -mx-1 sm:mx-0">
-        <div className="max-h-[240px] overflow-y-auto overflow-x-visible custom-scrollbar">
+        <div className="overflow-x-visible">
           <table className="w-full border-collapse">
             <thead>
               <tr className="border-b border-[var(--border-color)]">
@@ -59,27 +65,8 @@ export default function FMRTable({
                 <th className="text-right py-2 px-2 sm:px-3 font-medium text-[var(--text-tertiary)] text-xs uppercase tracking-wider">
                   Rent
                 </th>
-                <th className="text-right py-2 px-2 sm:px-3 font-medium text-[var(--text-tertiary)] text-xs uppercase tracking-wider">
-                  YoY
-                </th>
-                <th className="text-right py-2 px-2 sm:px-3 font-medium text-[var(--text-tertiary)] text-xs uppercase tracking-wider overflow-visible">
-                  <div className="flex items-center justify-end gap-1">
-                    3Y CAGR
-                    <Tooltip content="Compound Annual Growth Rate over 3 years" side="bottom" align="end">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
-                        className="w-3.5 h-3.5 text-[var(--text-tertiary)] cursor-help"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    </Tooltip>
-                  </div>
+                <th className="hidden sm:table-cell text-right py-2 px-2 sm:px-3 font-medium text-[var(--text-tertiary)] text-xs uppercase tracking-wider overflow-visible">
+                  3Y CAGR
                 </th>
               </tr>
             </thead>
@@ -92,10 +79,7 @@ export default function FMRTable({
                   <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
                     <div className="h-4 bg-[var(--border-color)] rounded w-24 animate-pulse inline-block" />
                   </td>
-                  <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
-                    <div className="h-4 bg-[var(--border-color)] rounded w-16 animate-pulse inline-block ml-auto" />
-                  </td>
-                  <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">
+                  <td className="hidden sm:table-cell py-2.5 sm:py-2 px-2 sm:px-3 text-right">
                     <div className="h-4 bg-[var(--border-color)] rounded w-16 animate-pulse inline-block ml-auto" />
                   </td>
                 </tr>
@@ -108,6 +92,8 @@ export default function FMRTable({
   }
 
   const renderRentCell = (bedroom: BedroomData): ReactNode => {
+    const hasYoY = bedroom.yoy !== null && bedroom.yoy !== undefined;
+
     if (bedroom.rent === null) {
       return <span className="text-[var(--text-muted)]">—</span>;
     }
@@ -115,12 +101,32 @@ export default function FMRTable({
     if (bedroom.rentRange) {
       const { min, max, median } = bedroom.rentRange;
       if (min === max) {
-        return <span>{formatCurrency(min)}</span>;
+        return (
+          <span className="inline-flex items-center justify-end gap-2">
+            <span>{formatCurrency(min)}</span>
+            {hasYoY && (
+            <Tooltip content={yoyTooltip(bedroom.yoy!)} side="bottom" align="end">
+              <span className="inline-flex">
+                <PercentageBadge value={bedroom.yoy!} iconOnly className="text-xs tabular-nums font-normal" />
+              </span>
+            </Tooltip>
+          )}
+          </span>
+        );
       }
       return (
         <span className="flex flex-col items-end gap-0.5">
-          <span className="text-[var(--text-primary)]">
-            {formatCurrency(min)} - {formatCurrency(max)}
+          <span className="inline-flex items-center gap-2">
+            <span className="text-[var(--text-primary)]">
+              {formatCurrency(min)} - {formatCurrency(max)}
+            </span>
+            {hasYoY && (
+            <Tooltip content={yoyTooltip(bedroom.yoy!)} side="bottom" align="end">
+              <span className="inline-flex">
+                <PercentageBadge value={bedroom.yoy!} iconOnly className="text-xs tabular-nums font-normal" />
+              </span>
+            </Tooltip>
+          )}
           </span>
           <span className="text-xs text-[var(--text-tertiary)] font-normal font-sans">
             Median: {formatCurrency(median)}
@@ -129,14 +135,18 @@ export default function FMRTable({
       );
     }
 
-    return <span>{formatCurrency(bedroom.rent)}</span>;
-  };
-
-  const renderYoYCell = (bedroom: BedroomData): ReactNode => {
-    if (bedroom.yoy === null || bedroom.yoy === undefined) {
-      return <span className="text-xs text-[var(--text-muted)]">—</span>;
-    }
-    return <PercentageBadge value={bedroom.yoy} className="text-[11px]" />;
+    return (
+      <span className="inline-flex items-center justify-end gap-2">
+        <span>{formatCurrency(bedroom.rent)}</span>
+        {hasYoY && (
+            <Tooltip content={yoyTooltip(bedroom.yoy!)} side="bottom" align="end">
+              <span className="inline-flex">
+                <PercentageBadge value={bedroom.yoy!} iconOnly className="text-xs tabular-nums font-normal" />
+              </span>
+            </Tooltip>
+          )}
+      </span>
+    );
   };
 
   const renderCAGRCell = (bedroom: BedroomData): ReactNode => {
@@ -154,28 +164,27 @@ export default function FMRTable({
   const extendedRows: ReactNode[] = [];
 
   if (showExtendedBR && base4BR && base4BR.rent !== null && base4BR.rent > 0) {
-    // Calculate extended BR rows (5-8) based on 4BR
     for (const bedrooms of [5, 6, 7, 8]) {
       const multiplier = Math.pow(1.15, bedrooms - 4);
       const rate = Math.round(base4BR.rent * multiplier);
 
-      // Calculate YoY if we have previous year data
-      let yoyBadge: ReactNode = <span className="text-xs text-[var(--text-muted)]">—</span>;
-      if (base4BR.yoy !== null && base4BR.yoy !== undefined && prevYear && currentYear) {
-        // Approximate YoY for extended BRs based on 4BR YoY
-        yoyBadge = <PercentageBadge value={base4BR.yoy} className="text-[11px]" />;
-      }
+      const yoyBadge =
+        base4BR.yoy !== null && base4BR.yoy !== undefined && prevYear && currentYear ? (
+          <Tooltip content={yoyTooltip(base4BR.yoy)} side="bottom" align="end">
+            <span className="inline-flex">
+              <PercentageBadge value={base4BR.yoy} iconOnly className="text-xs tabular-nums font-normal" />
+            </span>
+          </Tooltip>
+        ) : null;
 
-      // Calculate 3Y CAGR if we have 3-year data
-      let cagrCell: ReactNode = '—';
-      if (base4BR.cagr3 !== null && base4BR.cagr3 !== undefined) {
-        // Approximate CAGR for extended BRs based on 4BR CAGR
-        cagrCell = (
+      const cagrCell =
+        base4BR.cagr3 !== null && base4BR.cagr3 !== undefined ? (
           <span className="text-xs tabular-nums text-[var(--text-primary)]">
             {base4BR.cagr3.toFixed(1)}%
           </span>
+        ) : (
+          <span className="text-xs text-[var(--text-muted)]">—</span>
         );
-      }
 
       extendedRows.push(
         <tr
@@ -186,10 +195,14 @@ export default function FMRTable({
             {formatBRLabel(bedrooms)}
           </td>
           <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[var(--text-primary)] font-semibold tabular-nums">
-            {formatCurrency(rate)}
+            <span className="inline-flex items-center justify-end gap-2">
+              <span>{formatCurrency(rate)}</span>
+              {yoyBadge}
+            </span>
           </td>
-          <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">{yoyBadge}</td>
-          <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">{cagrCell}</td>
+          <td className="hidden sm:table-cell py-2.5 sm:py-2 px-2 sm:px-3 text-right">
+            {cagrCell}
+          </td>
         </tr>
       );
     }
@@ -197,7 +210,7 @@ export default function FMRTable({
 
   return (
     <div className="overflow-x-auto overflow-y-visible -mx-1 sm:mx-0">
-      <div className="max-h-[240px] overflow-y-auto overflow-x-visible custom-scrollbar">
+      <div className={showExtendedBR ? 'max-h-[360px] overflow-y-auto overflow-x-visible custom-scrollbar' : 'overflow-x-visible'}>
         <table className="w-full border-collapse">
           <thead>
             <tr className="border-b border-[var(--border-color)]">
@@ -207,10 +220,7 @@ export default function FMRTable({
               <th className="text-right py-2 px-2 sm:px-3 font-medium text-[var(--text-tertiary)] text-xs uppercase tracking-wider">
                 Rent
               </th>
-              <th className="text-right py-2 px-2 sm:px-3 font-medium text-[var(--text-tertiary)] text-xs uppercase tracking-wider">
-                YoY
-              </th>
-              <th className="text-right py-2 px-2 sm:px-3 font-medium text-[var(--text-tertiary)] text-xs uppercase tracking-wider overflow-visible">
+              <th className="hidden sm:table-cell text-right py-2 px-2 sm:px-3 font-medium text-[var(--text-tertiary)] text-xs uppercase tracking-wider overflow-visible">
                 <div className="flex items-center justify-end gap-1">
                   3Y CAGR
                   <Tooltip
@@ -251,8 +261,9 @@ export default function FMRTable({
                 <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right font-mono text-sm sm:text-base text-[var(--text-primary)] font-semibold tabular-nums">
                   {renderRentCell(bedroom)}
                 </td>
-                <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">{renderYoYCell(bedroom)}</td>
-                <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right">{renderCAGRCell(bedroom)}</td>
+                <td className="hidden sm:table-cell py-2.5 sm:py-2 px-2 sm:px-3 text-right">
+                  {renderCAGRCell(bedroom)}
+                </td>
               </tr>
             ))}
             {extendedRows}
@@ -262,4 +273,3 @@ export default function FMRTable({
     </div>
   );
 }
-

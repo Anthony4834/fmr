@@ -157,7 +157,7 @@ export default function HistoricalFMRChart({
     <div className="mt-4 sm:mt-5 border border-[var(--border-color)] rounded-xl bg-[var(--bg-secondary)] p-3 sm:p-4">
       <div className="mb-3">
         <div className="text-sm font-semibold text-[var(--text-primary)]">Historical</div>
-        <div className="text-xs text-[var(--text-tertiary)]">See FMR trends since FY2022</div>
+        <div className="text-xs text-[var(--text-tertiary)]">See FMR progression in recent years</div>
       </div>
 
       <div className="relative w-full h-[260px]">

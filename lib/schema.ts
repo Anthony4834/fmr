@@ -494,8 +494,7 @@ export async function createSchema() {
       county_blending_applied BOOLEAN DEFAULT false,
       raw_rent_to_price_ratio NUMERIC(10, 6),
       computed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      -- Include zhvi_month and acs_vintage in unique constraint to preserve historical versions
-      UNIQUE(geo_type, geo_key, bedroom_count, fmr_year, zhvi_month, acs_vintage)
+      UNIQUE(geo_type, geo_key, bedroom_count, fmr_year)
     );
   `);
 
@@ -587,18 +586,55 @@ export async function createSchema() {
         ALTER TABLE investment_score ADD COLUMN zori_yoy NUMERIC(10, 6);
       END IF;
 
-      -- Update unique constraint to include zhvi_month and acs_vintage if the old constraint exists
-      -- This allows preserving historical versions when data sources change
+      -- Rent audit columns: effective rent = min(FMR, market rent)
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                     WHERE table_name='investment_score' AND column_name='fmr_monthly_rent') THEN
+        ALTER TABLE investment_score ADD COLUMN fmr_monthly_rent NUMERIC(10, 2);
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                     WHERE table_name='investment_score' AND column_name='market_monthly_rent') THEN
+        ALTER TABLE investment_score ADD COLUMN market_monthly_rent NUMERIC(10, 2);
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                     WHERE table_name='investment_score' AND column_name='effective_monthly_rent') THEN
+        ALTER TABLE investment_score ADD COLUMN effective_monthly_rent NUMERIC(10, 2);
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                     WHERE table_name='investment_score' AND column_name='rent_limited_by_market') THEN
+        ALTER TABLE investment_score ADD COLUMN rent_limited_by_market BOOLEAN DEFAULT false;
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                     WHERE table_name='investment_score' AND column_name='market_rent_missing') THEN
+        ALTER TABLE investment_score ADD COLUMN market_rent_missing BOOLEAN DEFAULT true;
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                     WHERE table_name='investment_score' AND column_name='amr_adjustment_factor') THEN
+        ALTER TABLE investment_score ADD COLUMN amr_adjustment_factor NUMERIC(10, 4);
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                     WHERE table_name='investment_score' AND column_name='adjusted_score') THEN
+        ALTER TABLE investment_score ADD COLUMN adjusted_score NUMERIC(10, 2);
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                     WHERE table_name='investment_score' AND column_name='confidence_score') THEN
+        ALTER TABLE investment_score ADD COLUMN confidence_score NUMERIC(5, 2);
+      END IF;
+
+      -- Migrate from old constraint (with zhvi_month/acs_vintage) to new simpler one if needed
       IF EXISTS (
         SELECT 1 FROM pg_constraint 
-        WHERE conname = 'investment_score_geo_type_geo_key_bedroom_count_fmr_year_key'
+        WHERE conname = 'investment_score_geo_type_geo_key_bedroom_count_fmr_year_zhvi_month_acs_vintage_key'
         AND conrelid = 'investment_score'::regclass
       ) THEN
-        -- Drop old constraint
-        ALTER TABLE investment_score DROP CONSTRAINT investment_score_geo_type_geo_key_bedroom_count_fmr_year_key;
-        -- Add new constraint with historical tracking
-        ALTER TABLE investment_score ADD CONSTRAINT investment_score_geo_type_geo_key_bedroom_count_fmr_year_zhvi_month_acs_vintage_key 
-          UNIQUE(geo_type, geo_key, bedroom_count, fmr_year, zhvi_month, acs_vintage);
+        ALTER TABLE investment_score DROP CONSTRAINT investment_score_geo_type_geo_key_bedroom_count_fmr_year_zhvi_month_acs_vintage_key;
+      END IF;
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'investment_score_unique_per_year'
+        AND conrelid = 'investment_score'::regclass
+      ) THEN
+        ALTER TABLE investment_score ADD CONSTRAINT investment_score_unique_per_year
+          UNIQUE(geo_type, geo_key, bedroom_count, fmr_year);
       END IF;
     END $$;
   `);
@@ -918,6 +954,17 @@ export async function createSchema() {
   await execute(
     "CREATE INDEX IF NOT EXISTS idx_guests_last_seen ON guests(last_seen DESC);"
   );
+
+  // ============================================
+  // User Preferences Table
+  // ============================================
+  await execute(`
+    CREATE TABLE IF NOT EXISTS user_preferences (
+      user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      rent_display_mode VARCHAR(20) NOT NULL DEFAULT 'effective' CHECK (rent_display_mode IN ('effective', 'fmr')),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
 
   console.log("Schema created successfully!");
 }

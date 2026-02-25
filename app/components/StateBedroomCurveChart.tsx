@@ -135,7 +135,7 @@ function StateBedroomCurveChart(props: { rows: Row[] }) {
                 const v = ctx.parsed?.y;
                 if (v === null || v === undefined || Number.isNaN(v)) return `${ctx.dataset.label}: —`;
                 if (ctx.dataset.yAxisID === 'yRent') return `${ctx.dataset.label}: ${formatCurrencyShort(v)}`;
-                return `${ctx.dataset.label}: ${v.toFixed(1)}%`;
+                return `${ctx.dataset.label}: ${v.toFixed(2)}%`;
               },
             },
           },
@@ -166,7 +166,7 @@ function StateBedroomCurveChart(props: { rows: Row[] }) {
               callback: (value) => {
                 const n = Number(value);
                 if (!Number.isFinite(n)) return '';
-                return `${n}%`;
+                return `${n.toFixed(2)}%`;
               },
             },
           },

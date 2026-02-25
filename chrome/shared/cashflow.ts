@@ -133,76 +133,51 @@ export function computeCashFlow(input: CashFlowInputs): CashFlowResult | null {
   };
 }
 
-/**
- * Get rent for a specific number of bedrooms from FMR data
- */
-export function getRentForBedrooms(
-  data: {
+type FmrDataLike = {
+  bedroom0?: number;
+  bedroom1?: number;
+  bedroom2?: number;
+  bedroom3?: number;
+  bedroom4?: number;
+  effectiveRent?: { bedroom0?: number | null; bedroom1?: number | null; bedroom2?: number | null; bedroom3?: number | null; bedroom4?: number | null };
+  zipFMRData?: Array<{
     bedroom0?: number;
     bedroom1?: number;
     bedroom2?: number;
     bedroom3?: number;
     bedroom4?: number;
-    zipFMRData?: Array<{
-      bedroom0?: number;
-      bedroom1?: number;
-      bedroom2?: number;
-      bedroom3?: number;
-      bedroom4?: number;
-    }>;
-  },
-  bedrooms: number
-): number | null {
+    effectiveRent?: { bedroom0?: number | null; bedroom1?: number | null; bedroom2?: number | null; bedroom3?: number | null; bedroom4?: number | null };
+  }>;
+};
+
+/**
+ * Get rent for a specific number of bedrooms from FMR data.
+ * Prefers effective rent (min of HUD FMR and market) when available.
+ */
+export function getRentForBedrooms(data: FmrDataLike, bedrooms: number): number | null {
   const b = Math.max(0, Math.min(8, Math.round(bedrooms)));
-  
-  // If SAFMR with exactly one ZIP in zipFMRData, use that ZIP's values
+  const getBr = (d: FmrDataLike['zipFMRData'] extends (infer Z)[] ? Z : FmrDataLike, br: number): number | null => {
+    const eff = d.effectiveRent;
+    const raw = br === 0 ? d.bedroom0 : br === 1 ? d.bedroom1 : br === 2 ? d.bedroom2 : br === 3 ? d.bedroom3 : d.bedroom4;
+    const v = (eff && (br === 0 ? eff.bedroom0 : br === 1 ? eff.bedroom1 : br === 2 ? eff.bedroom2 : br === 3 ? eff.bedroom3 : eff.bedroom4)) ?? raw;
+    return v !== null && v !== undefined ? v : null;
+  };
+
   if (data.zipFMRData && data.zipFMRData.length === 1) {
     const zipData = data.zipFMRData[0];
-    
-    // For 5+ bedrooms, use bedroom4 as base and scale
     if (b > 4) {
-      const base = zipData.bedroom4;
-      if (base !== null && base !== undefined) {
-        return Math.round(base * Math.pow(1.15, b - 4));
-      }
+      const base = getBr(zipData, 4);
+      if (base !== null) return Math.round(base * Math.pow(1.15, b - 4));
       return null;
     }
-    
-    // For 0-4 bedrooms, get exact match
-    const base =
-      b === 0 ? zipData.bedroom0 :
-      b === 1 ? zipData.bedroom1 :
-      b === 2 ? zipData.bedroom2 :
-      b === 3 ? zipData.bedroom3 :
-      b === 4 ? zipData.bedroom4 :
-      null;
-    
-    if (base !== null && base !== undefined) {
-      return base;
-    }
+    return getBr(zipData, b);
   }
-  
-  // Otherwise use the main data
-  // For 5+ bedrooms, use bedroom4 as base and scale
+
   if (b > 4) {
-    const base = data.bedroom4;
-    if (base !== null && base !== undefined) {
-      return Math.round(base * Math.pow(1.15, b - 4));
-    }
+    const base = getBr(data, 4);
+    if (base !== null) return Math.round(base * Math.pow(1.15, b - 4));
     return null;
   }
-  
-  // For 0-4 bedrooms, get exact match
-  const base =
-    b === 0 ? data.bedroom0 :
-    b === 1 ? data.bedroom1 :
-    b === 2 ? data.bedroom2 :
-    b === 3 ? data.bedroom3 :
-    b === 4 ? data.bedroom4 :
-    null;
-  
-  if (base === null || base === undefined) return null;
-  
-  return base;
+  return getBr(data, b);
 }
 

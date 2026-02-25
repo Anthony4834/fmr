@@ -43,21 +43,6 @@ export default function ContactModal({ isOpen, onClose }: ContactModalProps) {
   const [success, setSuccess] = useState(false);
   const [referenceId, setReferenceId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isDark, setIsDark] = useState(false);
-
-  // Check theme
-  useEffect(() => {
-    const checkTheme = () => {
-      const theme = document.documentElement.getAttribute('data-theme');
-      setIsDark(theme === 'dark');
-    };
-    
-    checkTheme();
-    const observer = new MutationObserver(checkTheme);
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
-    
-    return () => observer.disconnect();
-  }, []);
 
   // Reset form when modal opens/closes
   useEffect(() => {
@@ -72,18 +57,6 @@ export default function ContactModal({ isOpen, onClose }: ContactModalProps) {
     }
   }, [isOpen, session?.user?.email]);
 
-  // Theme colors
-  const cardBg = isDark ? 'hsl(220 15% 12%)' : '#ffffff';
-  const borderColor = isDark ? 'hsl(0 0% 20%)' : 'hsl(220 15% 88%)';
-  const textForeground = isDark ? 'hsl(0 0% 98%)' : 'hsl(220 30% 12%)';
-  const textMuted = isDark ? 'hsl(0 0% 60%)' : 'hsl(220 15% 45%)';
-  const primaryColor = isDark ? 'hsl(192 85% 52%)' : 'hsl(192 85% 42%)';
-  const inputBg = isDark ? 'hsl(220 15% 15%)' : 'hsl(220 15% 98%)';
-  const inputBorder = isDark ? 'hsl(0 0% 25%)' : 'hsl(220 15% 85%)';
-  const destructiveColor = isDark ? 'hsl(0 70% 60%)' : 'hsl(0 65% 50%)';
-  const destructiveBg = isDark ? 'hsl(0 70% 60% / 0.15)' : 'hsl(0 65% 50% / 0.05)';
-  const successColor = isDark ? 'hsl(142 70% 50%)' : 'hsl(142 70% 40%)';
-  const successBg = isDark ? 'hsl(142 70% 50% / 0.15)' : 'hsl(142 70% 40% / 0.1)';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,25 +96,25 @@ export default function ContactModal({ isOpen, onClose }: ContactModalProps) {
         {/* Header */}
         <div 
           className="border-b p-6 relative"
-          style={{ borderColor: borderColor }}
+          style={{ borderColor: 'var(--modal-border)' }}
         >
           <button
             onClick={onClose}
             className="absolute right-4 top-4 p-1 rounded-md transition-colors hover:bg-black/5 dark:hover:bg-white/10"
             aria-label="Close"
           >
-            <XIcon className="w-5 h-5" style={{ color: textMuted }} />
+            <XIcon className="w-5 h-5" style={{ color: 'var(--modal-text-muted)' }} />
           </button>
           
           <h2 
             className="text-xl font-display font-bold"
-            style={{ color: textForeground }}
+            style={{ color: 'var(--modal-text)' }}
           >
             Contact Us
           </h2>
           <p 
             className="text-sm mt-1"
-            style={{ color: textMuted }}
+            style={{ color: 'var(--modal-text-muted)' }}
           >
             Send us feedback, report issues, or ask questions
           </p>
@@ -153,38 +126,38 @@ export default function ContactModal({ isOpen, onClose }: ContactModalProps) {
             <div 
               className="p-6 rounded-lg border"
               style={{ 
-                backgroundColor: cardBg,
-                borderColor: isDark ? 'hsl(142 70% 30%)' : 'hsl(142 70% 40%)',
+                backgroundColor: 'var(--modal-bg)',
+                borderColor: 'var(--success)',
               }}
             >
               <div className="flex items-start gap-3">
                 <div className="flex-shrink-0 mt-0.5">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: isDark ? 'hsl(142 70% 50%)' : 'hsl(142 70% 40%)' }}>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: 'var(--success)' }}>
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold mb-2" style={{ color: textForeground }}>
+                  <p className="font-semibold mb-2" style={{ color: 'var(--modal-text)' }}>
                     Message sent successfully
                   </p>
                   {referenceId && (
                     <div className="mb-3">
-                      <p className="text-xs mb-1.5" style={{ color: textMuted }}>
+                      <p className="text-xs mb-1.5" style={{ color: 'var(--modal-text-muted)' }}>
                         Reference ID:
                       </p>
                       <code 
                         className="block px-3 py-2 rounded border text-sm font-mono"
                         style={{ 
-                          backgroundColor: inputBg,
-                          borderColor: inputBorder,
-                          color: textForeground,
+                          backgroundColor: 'var(--modal-input-bg)',
+                          borderColor: 'var(--modal-input-border)',
+                          color: 'var(--modal-text)',
                         }}
                       >
                         {referenceId}
                       </code>
                     </div>
                   )}
-                  <p className="text-sm leading-relaxed" style={{ color: textMuted }}>
+                  <p className="text-sm leading-relaxed" style={{ color: 'var(--modal-text-muted)' }}>
                     We've received your message and will get back to you soon. Please save your reference ID for your records.
                   </p>
                 </div>
@@ -196,14 +169,14 @@ export default function ContactModal({ isOpen, onClose }: ContactModalProps) {
                 <label 
                   htmlFor="contact-email" 
                   className="text-sm font-medium"
-                  style={{ color: textForeground }}
+                  style={{ color: 'var(--modal-text)' }}
                 >
                   Your Email
                 </label>
                 <div className="relative">
                   <MailIcon 
                     className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" 
-                    style={{ color: textMuted }}
+                    style={{ color: 'var(--modal-text-muted)' }}
                   />
                   <input
                     id="contact-email"
@@ -214,9 +187,9 @@ export default function ContactModal({ isOpen, onClose }: ContactModalProps) {
                     required
                     className="w-full pl-10 pr-4 py-2.5 rounded-lg border text-sm transition-colors focus:outline-none focus:ring-2"
                     style={{ 
-                      backgroundColor: inputBg,
-                      borderColor: inputBorder,
-                      color: textForeground,
+                      backgroundColor: 'var(--modal-input-bg)',
+                      borderColor: 'var(--modal-input-border)',
+                      color: 'var(--modal-text)',
                     }}
                     autoComplete="email"
                   />
@@ -227,7 +200,7 @@ export default function ContactModal({ isOpen, onClose }: ContactModalProps) {
                 <label 
                   htmlFor="contact-subject" 
                   className="text-sm font-medium"
-                  style={{ color: textForeground }}
+                  style={{ color: 'var(--modal-text)' }}
                 >
                   Subject
                 </label>
@@ -241,9 +214,9 @@ export default function ContactModal({ isOpen, onClose }: ContactModalProps) {
                   maxLength={200}
                   className="w-full px-4 py-2.5 rounded-lg border text-sm transition-colors focus:outline-none focus:ring-2"
                   style={{ 
-                    backgroundColor: inputBg,
-                    borderColor: inputBorder,
-                    color: textForeground,
+                    backgroundColor: 'var(--modal-input-bg)',
+                    borderColor: 'var(--modal-input-border)',
+                    color: 'var(--modal-text)',
                   }}
                 />
               </div>
@@ -252,7 +225,7 @@ export default function ContactModal({ isOpen, onClose }: ContactModalProps) {
                 <label 
                   htmlFor="contact-message" 
                   className="text-sm font-medium"
-                  style={{ color: textForeground }}
+                  style={{ color: 'var(--modal-text)' }}
                 >
                   Message
                 </label>
@@ -266,12 +239,12 @@ export default function ContactModal({ isOpen, onClose }: ContactModalProps) {
                   maxLength={2000}
                   className="w-full px-4 py-2.5 rounded-lg border text-sm transition-colors focus:outline-none focus:ring-2 resize-none"
                   style={{ 
-                    backgroundColor: inputBg,
-                    borderColor: inputBorder,
-                    color: textForeground,
+                    backgroundColor: 'var(--modal-input-bg)',
+                    borderColor: 'var(--modal-input-border)',
+                    color: 'var(--modal-text)',
                   }}
                 />
-                <p className="text-xs" style={{ color: textMuted }}>
+                <p className="text-xs" style={{ color: 'var(--modal-text-muted)' }}>
                   {message.length} / 2000 characters
                 </p>
               </div>
@@ -280,8 +253,8 @@ export default function ContactModal({ isOpen, onClose }: ContactModalProps) {
                 <div 
                   className="text-sm p-3 rounded-lg"
                   style={{ 
-                    color: destructiveColor,
-                    backgroundColor: destructiveBg,
+                    color: 'var(--destructive)',
+                    backgroundColor: 'var(--destructive-muted)',
                   }}
                 >
                   {error}
@@ -292,10 +265,7 @@ export default function ContactModal({ isOpen, onClose }: ContactModalProps) {
                 type="submit"
                 disabled={isLoading}
                 className="w-full px-4 py-2.5 rounded-lg font-semibold transition-all duration-200 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                style={{
-                  backgroundColor: primaryColor,
-                  color: '#ffffff',
-                }}
+                style={{ backgroundColor: 'var(--primary-blue)', color: '#ffffff' }}
               >
                 {isLoading ? (
                   <>

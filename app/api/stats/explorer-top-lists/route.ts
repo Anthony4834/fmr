@@ -203,19 +203,12 @@ export async function GET(req: NextRequest) {
     if (stateFilter) fmrJumpParams.push(stateFilter);
 
     const fmrJumpQuery = `
-      WITH latest_versions AS (
-        SELECT MAX(zhvi_month) as latest_zhvi_month, MAX(acs_vintage) as latest_acs_vintage
-        FROM investment_score WHERE fmr_year = $1 AND data_sufficient = true
-      ),
-      base_zip_3br AS (
+      WITH base_zip_3br AS (
         SELECT isc.zip_code, isc.city_name, isc.county_name, isc.state_code
         FROM investment_score isc
-        CROSS JOIN latest_versions lv
-        WHERE isc.fmr_year = $1 AND isc.data_sufficient = true AND isc.geo_type = 'zip'
+        WHERE isc.fmr_year = $1 AND isc.geo_type = 'zip'
           AND isc.zip_code IS NOT NULL AND isc.state_code IS NOT NULL AND isc.bedroom_count = 3
           AND isc.property_value >= $2
-          AND ( (lv.latest_zhvi_month IS NULL AND isc.zhvi_month IS NULL) OR (lv.latest_zhvi_month IS NOT NULL AND isc.zhvi_month = lv.latest_zhvi_month) )
-          AND ( (lv.latest_acs_vintage IS NULL AND isc.acs_vintage IS NULL) OR (lv.latest_acs_vintage IS NOT NULL AND isc.acs_vintage = lv.latest_acs_vintage) )
           ${stateFilter ? ' AND isc.state_code = $3' : " AND isc.state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS')"}
       ),
       zip_fmr_data AS (

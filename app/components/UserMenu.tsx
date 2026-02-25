@@ -5,7 +5,6 @@ import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
 import { ThemeContext } from '@/app/contexts/ThemeContext';
 import Tooltip from '@/app/components/Tooltip';
-
 interface UserMenuProps {
   onSignInClick: () => void;
 }
@@ -109,7 +108,6 @@ const InfoIcon = ({ className, style }: IconProps) => (
 export default function UserMenu({ onSignInClick }: UserMenuProps) {
   const { data: session, status } = useSession();
   const [isOpen, setIsOpen] = useState(false);
-  const [isDark, setIsDark] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -120,20 +118,6 @@ export default function UserMenu({ onSignInClick }: UserMenuProps) {
   const themeContext = useContext(ThemeContext);
   const theme = themeContext?.theme ?? 'system';
   const setTheme = themeContext?.setTheme ?? (() => {});
-
-  // Check theme
-  useEffect(() => {
-    const checkTheme = () => {
-      const theme = document.documentElement.getAttribute('data-theme');
-      setIsDark(theme === 'dark');
-    };
-    
-    checkTheme();
-    const observer = new MutationObserver(checkTheme);
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
-    
-    return () => observer.disconnect();
-  }, []);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -153,20 +137,24 @@ export default function UserMenu({ onSignInClick }: UserMenuProps) {
     setImageError(false);
   }, [session?.user?.image]);
 
-  // Theme colors
-  const textForeground = isDark ? 'hsl(0 0% 98%)' : 'hsl(220 30% 12%)';
-  const textMuted = isDark ? 'hsl(0 0% 60%)' : 'hsl(220 15% 45%)';
-  const primaryColor = 'hsl(192 85% 42%)';
-  const cardBg = isDark ? 'hsl(220 15% 15%)' : '#ffffff';
-  const borderColor = isDark ? 'hsl(0 0% 20%)' : 'hsl(220 15% 88%)';
-  const hoverBg = isDark ? 'hsl(220 15% 20%)' : 'hsl(220 15% 95%)';
+  // CSS var references — all theming via globals.css
+  const C = {
+    bg:          'var(--modal-bg)',
+    border:      'var(--modal-border)',
+    hover:       'var(--modal-hover)',
+    overlay:     'var(--modal-overlay)',
+    text:        'var(--modal-text)',
+    textMuted:   'var(--modal-text-muted)',
+    primary:     'var(--primary-blue)',
+    destructive: 'var(--destructive)',
+  } as const;
 
   // Loading state
   if (status === 'loading') {
     return (
       <div 
         className="w-9 h-9 rounded-full animate-pulse flex-shrink-0"
-        style={{ backgroundColor: hoverBg }}
+        style={{ backgroundColor: C.hover }}
       />
     );
   }
@@ -182,10 +170,12 @@ export default function UserMenu({ onSignInClick }: UserMenuProps) {
           aria-label="Theme options"
           aria-expanded={isOpen}
         >
-          {isDark ? (
+          {theme === 'dark' ? (
             <MoonIcon className="w-4 h-4" />
-          ) : (
+          ) : theme === 'light' ? (
             <SunIcon className="w-4 h-4" />
+          ) : (
+            <MonitorIcon className="w-4 h-4" />
           )}
         </button>
         
@@ -193,10 +183,7 @@ export default function UserMenu({ onSignInClick }: UserMenuProps) {
         <button
           onClick={onSignInClick}
           className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 h-9 rounded-lg font-medium transition-all duration-200 text-xs sm:text-sm whitespace-nowrap flex-shrink-0"
-          style={{
-            backgroundColor: primaryColor,
-            color: '#ffffff',
-          }}
+          style={{ backgroundColor: C.primary, color: '#ffffff' }}
         >
           <UserIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
           <span className="hidden sm:inline">Sign in</span>
@@ -205,65 +192,36 @@ export default function UserMenu({ onSignInClick }: UserMenuProps) {
         {/* Theme dropdown for logged-out users */}
         {isOpen && (
           <div 
-            className="absolute right-0 top-full mt-2 w-48 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg shadow-lg z-50"
+            className="absolute right-0 top-full mt-2 w-48 border rounded-lg shadow-lg z-50"
+            style={{ backgroundColor: C.bg, borderColor: C.border }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-2">
-              <div className="text-xs font-semibold uppercase tracking-wide px-2 py-1.5 text-[var(--text-tertiary)]">
+              <div className="text-xs font-semibold uppercase tracking-wide px-2 py-1.5" style={{ color: C.textMuted }}>
                 Theme
               </div>
               <div className="space-y-0.5">
-                <button
-                  onClick={() => {
-                    setTheme('light');
-                    setIsOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded text-sm transition-colors ${
-                    theme === 'light'
-                      ? 'bg-[var(--bg-hover)] text-[var(--text-primary)]'
-                      : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
-                  }`}
-                >
-                  <SunIcon className="w-4 h-4 flex-shrink-0" />
-                  <span className="flex-1 text-left">Light</span>
-                  {theme === 'light' && (
-                    <CheckIcon className="w-4 h-4 flex-shrink-0" style={{ color: primaryColor }} />
-                  )}
-                </button>
-                <button
-                  onClick={() => {
-                    setTheme('dark');
-                    setIsOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded text-sm transition-colors ${
-                    theme === 'dark'
-                      ? 'bg-[var(--bg-hover)] text-[var(--text-primary)]'
-                      : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
-                  }`}
-                >
-                  <MoonIcon className="w-4 h-4 flex-shrink-0" />
-                  <span className="flex-1 text-left">Dark</span>
-                  {theme === 'dark' && (
-                    <CheckIcon className="w-4 h-4 flex-shrink-0" style={{ color: primaryColor }} />
-                  )}
-                </button>
-                <button
-                  onClick={() => {
-                    setTheme('system');
-                    setIsOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded text-sm transition-colors ${
-                    theme === 'system'
-                      ? 'bg-[var(--bg-hover)] text-[var(--text-primary)]'
-                      : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
-                  }`}
-                >
-                  <MonitorIcon className="w-4 h-4 flex-shrink-0" />
-                  <span className="flex-1 text-left">System</span>
-                  {theme === 'system' && (
-                    <CheckIcon className="w-4 h-4 flex-shrink-0" style={{ color: primaryColor }} />
-                  )}
-                </button>
+                {([
+                  { t: 'light',  Icon: SunIcon },
+                  { t: 'dark',   Icon: MoonIcon },
+                  { t: 'system', Icon: MonitorIcon },
+                ] as const).map(({ t, Icon }) => (
+                  <button
+                    key={t}
+                    onClick={() => { setTheme(t); setIsOpen(false); }}
+                    className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded text-sm transition-colors"
+                    style={{
+                      backgroundColor: theme === t ? C.hover : undefined,
+                      color: C.text,
+                    }}
+                    onMouseEnter={e => { if (theme !== t) (e.currentTarget as HTMLElement).style.backgroundColor = C.hover; }}
+                    onMouseLeave={e => { if (theme !== t) (e.currentTarget as HTMLElement).style.backgroundColor = ''; }}
+                  >
+                    <Icon className="w-4 h-4 flex-shrink-0" style={{ color: C.textMuted }} />
+                    <span className="flex-1 text-left capitalize">{t}</span>
+                    {theme === t && <CheckIcon className="w-4 h-4 flex-shrink-0" style={{ color: C.primary }} />}
+                  </button>
+                ))}
               </div>
             </div>
           </div>
@@ -286,7 +244,7 @@ export default function UserMenu({ onSignInClick }: UserMenuProps) {
   const tierColor =
     session.user?.tier === 'paid' || session.user?.tier === 'free_forever'
       ? 'hsl(45 93% 47%)'
-      : primaryColor;
+      : C.primary;
   const freeForeverTooltip =
     'Thank you for being an early member. You have permanent access to Pro features at no charge.';
 
@@ -308,17 +266,14 @@ export default function UserMenu({ onSignInClick }: UserMenuProps) {
         ) : (
           <div 
             className="w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-medium flex-shrink-0"
-            style={{ 
-              backgroundColor: primaryColor,
-              color: '#ffffff',
-            }}
+            style={{ backgroundColor: C.primary, color: '#ffffff' }}
           >
             {userInitials}
           </div>
         )}
         <ChevronDownIcon 
           className={`w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`}
-          style={{ color: textMuted }}
+          style={{ color: C.textMuted }}
         />
       </button>
 
@@ -326,15 +281,12 @@ export default function UserMenu({ onSignInClick }: UserMenuProps) {
       {isOpen && (
         <div 
           className="absolute right-0 mt-2 w-64 rounded-lg border shadow-lg z-50"
-          style={{ 
-            backgroundColor: cardBg,
-            borderColor: borderColor,
-          }}
+          style={{ backgroundColor: C.bg, borderColor: C.border }}
         >
           {/* User info header */}
           <div 
             className="p-4 border-b"
-            style={{ borderColor: borderColor }}
+            style={{ borderColor: C.border }}
           >
             <div className="flex items-center gap-3">
               {session.user?.image && !imageError ? (
@@ -347,10 +299,7 @@ export default function UserMenu({ onSignInClick }: UserMenuProps) {
               ) : (
                 <div 
                   className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-medium flex-shrink-0"
-                  style={{ 
-                    backgroundColor: primaryColor,
-                    color: '#ffffff',
-                  }}
+                  style={{ backgroundColor: C.primary, color: '#ffffff' }}
                 >
                   {userInitials}
                 </div>
@@ -358,13 +307,13 @@ export default function UserMenu({ onSignInClick }: UserMenuProps) {
               <div className="flex-1 min-w-0">
                 <div 
                   className="font-medium truncate text-sm"
-                  style={{ color: textForeground }}
+                  style={{ color: C.text }}
                 >
                   {session.user?.name || 'User'}
                 </div>
                 <div 
                   className="text-xs truncate mt-0.5"
-                  style={{ color: textMuted }}
+                  style={{ color: C.textMuted }}
                 >
                   {session.user?.email}
                 </div>
@@ -400,59 +349,32 @@ export default function UserMenu({ onSignInClick }: UserMenuProps) {
           {/* Menu items */}
           <div className="py-1">
             {/* Theme switcher section */}
-            <div className="p-2 border-b border-[var(--border-color)]">
-              <div className="text-xs font-semibold uppercase tracking-wide px-2 py-1.5 text-[var(--text-tertiary)]">
+            <div className="p-2 border-b" style={{ borderColor: C.border }}>
+              <div className="text-xs font-semibold uppercase tracking-wide px-2 py-1.5" style={{ color: C.textMuted }}>
                 Theme
               </div>
               <div className="space-y-0.5">
-                <button
-                  onClick={() => {
-                    setTheme('light');
-                  }}
-                  className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded text-sm transition-colors ${
-                    theme === 'light'
-                      ? 'bg-[var(--bg-hover)] text-[var(--text-primary)]'
-                      : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
-                  }`}
-                >
-                  <SunIcon className="w-4 h-4 flex-shrink-0" />
-                  <span className="flex-1 text-left">Light</span>
-                  {theme === 'light' && (
-                    <CheckIcon className="w-4 h-4 flex-shrink-0" style={{ color: primaryColor }} />
-                  )}
-                </button>
-                <button
-                  onClick={() => {
-                    setTheme('dark');
-                  }}
-                  className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded text-sm transition-colors ${
-                    theme === 'dark'
-                      ? 'bg-[var(--bg-hover)] text-[var(--text-primary)]'
-                      : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
-                  }`}
-                >
-                  <MoonIcon className="w-4 h-4 flex-shrink-0" />
-                  <span className="flex-1 text-left">Dark</span>
-                  {theme === 'dark' && (
-                    <CheckIcon className="w-4 h-4 flex-shrink-0" style={{ color: primaryColor }} />
-                  )}
-                </button>
-                <button
-                  onClick={() => {
-                    setTheme('system');
-                  }}
-                  className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded text-sm transition-colors ${
-                    theme === 'system'
-                      ? 'bg-[var(--bg-hover)] text-[var(--text-primary)]'
-                      : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
-                  }`}
-                >
-                  <MonitorIcon className="w-4 h-4 flex-shrink-0" />
-                  <span className="flex-1 text-left">System</span>
-                  {theme === 'system' && (
-                    <CheckIcon className="w-4 h-4 flex-shrink-0" style={{ color: primaryColor }} />
-                  )}
-                </button>
+                {([
+                  { t: 'light',  Icon: SunIcon },
+                  { t: 'dark',   Icon: MoonIcon },
+                  { t: 'system', Icon: MonitorIcon },
+                ] as const).map(({ t, Icon }) => (
+                  <button
+                    key={t}
+                    onClick={() => setTheme(t)}
+                    className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded text-sm transition-colors"
+                    style={{
+                      backgroundColor: theme === t ? C.hover : undefined,
+                      color: C.text,
+                    }}
+                    onMouseEnter={e => { if (theme !== t) (e.currentTarget as HTMLElement).style.backgroundColor = C.hover; }}
+                    onMouseLeave={e => { if (theme !== t) (e.currentTarget as HTMLElement).style.backgroundColor = ''; }}
+                  >
+                    <Icon className="w-4 h-4 flex-shrink-0" style={{ color: C.textMuted }} />
+                    <span className="flex-1 text-left capitalize">{t}</span>
+                    {theme === t && <CheckIcon className="w-4 h-4 flex-shrink-0" style={{ color: C.primary }} />}
+                  </button>
+                ))}
               </div>
             </div>
             
@@ -461,40 +383,45 @@ export default function UserMenu({ onSignInClick }: UserMenuProps) {
               <Link
                 href="/admin"
                 onClick={() => setIsOpen(false)}
-                className="w-full flex items-center gap-2.5 px-4 py-2 text-sm transition-colors text-left hover:bg-[var(--bg-hover)]"
-                style={{ color: textForeground }}
+                className="w-full flex items-center gap-2.5 px-4 py-2 text-sm transition-colors text-left"
+                style={{ color: C.text }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.backgroundColor = C.hover; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.backgroundColor = ''; }}
               >
-                <ShieldIcon className="w-4 h-4 flex-shrink-0" style={{ color: textMuted }} />
+                <ShieldIcon className="w-4 h-4 flex-shrink-0" style={{ color: C.textMuted }} />
                 Admin Dashboard
               </Link>
             )}
             
             {/* Settings submenu */}
-            <div className="border-t" style={{ borderColor: borderColor }}>
+            <div className="border-t" style={{ borderColor: C.border }}>
               <button
                 onClick={() => setShowSettings(!showSettings)}
-                className="w-full flex items-center gap-2.5 px-4 py-2 text-sm transition-colors text-left hover:bg-[var(--bg-hover)]"
-                style={{ color: textForeground }}
+                className="w-full flex items-center gap-2.5 px-4 py-2 text-sm transition-colors text-left"
+                style={{ color: C.text }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.backgroundColor = C.hover; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.backgroundColor = ''; }}
               >
-                <SettingsIcon className="w-4 h-4 flex-shrink-0" style={{ color: textMuted }} />
+                <SettingsIcon className="w-4 h-4 flex-shrink-0" style={{ color: C.textMuted }} />
                 <span className="flex-1">Settings</span>
                 <ChevronRightIcon 
                   className={`w-4 h-4 flex-shrink-0 transition-transform ${showSettings ? 'rotate-90' : ''}`}
-                  style={{ color: textMuted }}
+                  style={{ color: C.textMuted }}
                 />
               </button>
               
-              {/* Settings submenu items */}
               {showSettings && (
-                <div className="pl-4 pr-2 py-1" style={{ backgroundColor: hoverBg }}>
+                <div className="pl-4 pr-2 py-2 space-y-1" style={{ backgroundColor: C.hover }}>
                   <button
                     onClick={() => {
                       setIsOpen(false);
                       setShowSettings(false);
                       setShowDeleteConfirm(true);
                     }}
-                    className="w-full flex items-center gap-2.5 px-4 py-2 text-sm transition-colors text-left hover:bg-[var(--bg-hover)] rounded"
-                    style={{ color: isDark ? 'hsl(0 70% 60%)' : 'hsl(0 70% 50%)' }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2 text-sm transition-colors text-left rounded"
+                    style={{ color: C.destructive }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.backgroundColor = C.border; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.backgroundColor = ''; }}
                   >
                     <TrashIcon className="w-4 h-4 flex-shrink-0" />
                     Delete account
@@ -505,14 +432,13 @@ export default function UserMenu({ onSignInClick }: UserMenuProps) {
             
             {/* Sign out */}
             <button
-              onClick={() => {
-                setIsOpen(false);
-                signOut({ callbackUrl: '/' });
-              }}
-              className="w-full flex items-center gap-2.5 px-4 py-2 text-sm transition-colors text-left hover:bg-[var(--bg-hover)]"
-              style={{ color: textForeground }}
+              onClick={() => { setIsOpen(false); signOut({ callbackUrl: '/' }); }}
+              className="w-full flex items-center gap-2.5 px-4 py-2 text-sm transition-colors text-left"
+              style={{ color: C.text }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.backgroundColor = C.hover; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.backgroundColor = ''; }}
             >
-              <LogOutIcon className="w-4 h-4 flex-shrink-0" style={{ color: textMuted }} />
+              <LogOutIcon className="w-4 h-4 flex-shrink-0" style={{ color: C.textMuted }} />
               Sign out
             </button>
           </div>
@@ -523,27 +449,18 @@ export default function UserMenu({ onSignInClick }: UserMenuProps) {
       {showDeleteConfirm && (
         <div 
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+          style={{ backgroundColor: C.overlay }}
           onClick={() => !isDeleting && setShowDeleteConfirm(false)}
         >
           <div 
             className="rounded-lg border shadow-lg max-w-md w-full p-6"
-            style={{ 
-              backgroundColor: cardBg,
-              borderColor: borderColor,
-            }}
+            style={{ backgroundColor: C.bg, borderColor: C.border }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 
-              className="text-lg font-semibold mb-2"
-              style={{ color: textForeground }}
-            >
+            <h3 className="text-lg font-semibold mb-2" style={{ color: C.text }}>
               Delete Account
             </h3>
-            <p 
-              className="text-sm mb-6"
-              style={{ color: textMuted }}
-            >
+            <p className="text-sm mb-6" style={{ color: C.textMuted }}>
               Are you sure you want to delete your account? This action cannot be undone. All your data will be permanently deleted.
             </p>
             <div className="flex gap-3 justify-end">
@@ -551,10 +468,7 @@ export default function UserMenu({ onSignInClick }: UserMenuProps) {
                 onClick={() => setShowDeleteConfirm(false)}
                 disabled={isDeleting}
                 className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                style={{ 
-                  color: textForeground,
-                  backgroundColor: hoverBg,
-                }}
+                style={{ color: C.text, backgroundColor: C.hover }}
               >
                 Cancel
               </button>
@@ -562,16 +476,11 @@ export default function UserMenu({ onSignInClick }: UserMenuProps) {
                 onClick={async () => {
                   setIsDeleting(true);
                   try {
-                    const response = await fetch('/api/user/delete', {
-                      method: 'DELETE',
-                    });
-                    
+                    const response = await fetch('/api/user/delete', { method: 'DELETE' });
                     if (!response.ok) {
                       const data = await response.json();
                       throw new Error(data.error || 'Failed to delete account');
                     }
-                    
-                    // Sign out and redirect
                     await signOut({ callbackUrl: '/' });
                   } catch (error) {
                     console.error('Delete account error:', error);
@@ -581,9 +490,7 @@ export default function UserMenu({ onSignInClick }: UserMenuProps) {
                 }}
                 disabled={isDeleting}
                 className="px-4 py-2 rounded-lg text-sm font-medium transition-colors text-white"
-                style={{ 
-                  backgroundColor: isDeleting ? textMuted : (isDark ? 'hsl(0 70% 50%)' : 'hsl(0 70% 45%)'),
-                }}
+                style={{ backgroundColor: isDeleting ? C.textMuted : C.destructive }}
               >
                 {isDeleting ? 'Deleting...' : 'Delete Account'}
               </button>

@@ -40,6 +40,23 @@ html:not([data-theme]) {
   --warning-text: #92400e;
   --warning-text-secondary: #a16207;
 
+  /* Elevated surfaces — modals, popups, tooltips, dropdowns, footer */
+  --modal-bg: hsl(220 15% 95%);
+  --modal-border: hsl(220 15% 84%);
+  --modal-hover: hsl(220 15% 88%);
+  --modal-overlay: rgba(0, 0, 0, 0.5);
+  --modal-text: hsl(220 30% 12%);
+  --modal-text-muted: hsl(220 15% 45%);
+  --modal-divider: hsl(220 15% 90%);
+  --modal-input-bg: hsl(220 15% 98%);
+  --modal-input-border: hsl(220 15% 85%);
+
+  /* Semantic action colors */
+  --destructive: hsl(0 65% 50%);
+  --destructive-muted: hsl(0 65% 50% / 0.05);
+  --success: hsl(142 70% 40%);
+  --success-muted: hsl(142 70% 40% / 0.1);
+
   /* Scrollbar */
   --scrollbar-thumb: #d4d4d4;
   --scrollbar-thumb-hover: #a3a3a3;
@@ -139,6 +156,32 @@ html:not([data-theme]) {
   --warning-text: #92400e;
   --warning-text-secondary: #a16207;
 
+/* Elevated surfaces — modals, popups, tooltips, dropdowns, footer */
+
+/* Core surface */
+--modal-bg: hsl(220 20% 96%);
+--modal-border: hsl(220 15% 82%);
+--modal-hover: hsl(220 18% 90%);
+--modal-overlay: rgba(15, 23, 42, 0.55);
+
+/* Text */
+--modal-text: hsl(220 35% 14%);
+--modal-text-muted: hsl(220 12% 42%);
+
+/* Dividers */
+--modal-divider: hsl(220 16% 88%);
+
+/* Inputs */
+--modal-input-bg: hsl(220 25% 99%);
+--modal-input-border: hsl(220 15% 78%);
+
+/* Semantic action colors (modern + accessible) */
+--destructive: hsl(0 72% 48%);
+--destructive-muted: hsl(0 72% 48% / 0.08);
+
+--success: hsl(150 65% 38%);
+--success-muted: hsl(150 65% 38% / 0.12);
+
   /* Scrollbar */
   --scrollbar-thumb: #d4d4d4;
   --scrollbar-thumb-hover: #a3a3a3;
@@ -225,6 +268,23 @@ html:not([data-theme]) {
   --warning-border: rgba(252, 211, 77, 0.3);
   --warning-text: #fbbf24;
   --warning-text-secondary: #fcd34d;
+
+  /* Elevated surfaces */
+  --modal-bg: hsl(220 15% 12%);
+  --modal-border: hsl(0 0% 20%);
+  --modal-hover: hsl(220 15% 20%);
+  --modal-overlay: rgba(0, 0, 0, 0.8);
+  --modal-text: hsl(0 0% 98%);
+  --modal-text-muted: hsl(0 0% 60%);
+  --modal-divider: hsla(0, 0%, 100%, 0.08);
+  --modal-input-bg: hsl(220 15% 15%);
+  --modal-input-border: hsl(0 0% 25%);
+
+  /* Semantic action colors */
+  --destructive: hsl(0 70% 60%);
+  --destructive-muted: hsl(0 70% 60% / 0.15);
+  --success: hsl(142 70% 50%);
+  --success-muted: hsl(142 70% 50% / 0.15);
 
   /* Scrollbar */
   --scrollbar-thumb: rgba(237, 237, 237, 0.2);

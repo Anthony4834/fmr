@@ -16,6 +16,9 @@ interface RankingItem {
   medianScore: number | null;
   netYield?: number | null;
   medianFMR?: number | null;
+  medianEffectiveRent?: number | null;
+  medianMarketRent?: number | null;
+  rentConstrainedPct?: number | null;
   medianPropertyValue?: number | null;
   cashFlowEstimate?: number | null;
 }
@@ -139,6 +142,27 @@ export default function ExplorerStructuredData({ type, topItems = [] }: Explorer
           '@type': 'PropertyValue',
           name: 'Median FMR',
           value: `$${item.medianFMR.toLocaleString()}`,
+        });
+      }
+      if (item.medianEffectiveRent != null) {
+        itemData.additionalProperty.push({
+          '@type': 'PropertyValue',
+          name: 'Effective Rent',
+          value: `$${item.medianEffectiveRent.toLocaleString()}`,
+        });
+      }
+      if (item.medianMarketRent != null) {
+        itemData.additionalProperty.push({
+          '@type': 'PropertyValue',
+          name: 'Market Rent',
+          value: `$${item.medianMarketRent.toLocaleString()}`,
+        });
+      }
+      if (item.rentConstrainedPct != null) {
+        itemData.additionalProperty.push({
+          '@type': 'PropertyValue',
+          name: 'Rent Constrained %',
+          value: `${item.rentConstrainedPct.toFixed(1)}%`,
         });
       }
       if (item.medianPropertyValue !== null) {

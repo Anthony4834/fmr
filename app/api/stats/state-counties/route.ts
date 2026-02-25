@@ -34,71 +34,31 @@ export async function GET(request: NextRequest) {
     // This handles cases where the same FIPS appears with different county_name variations or data versions
     const counties = await sql.query(
       `
-      WITH all_county_data AS (
+      WITH county_aggregates AS (
         SELECT
           county_fips,
           state_code,
-          county_name,
-          COALESCE(score_with_demand, score) as score,
-          zhvi_month,
-          acs_vintage,
-          computed_at
+          PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY adjusted_score) as median_score,
+          AVG(adjusted_score) as avg_score,
+          COUNT(*) as zip_count
         FROM investment_score
         WHERE state_code = $1
           AND fmr_year = $2
-          AND data_sufficient = true
+          AND bedroom_count = 3
           AND county_fips IS NOT NULL
           AND LENGTH(TRIM(county_fips)) = 5
-      ),
-      latest_versions AS (
-        -- Get the latest zhvi_month and acs_vintage for this state/year
-        SELECT 
-          MAX(zhvi_month) as latest_zhvi_month,
-          MAX(acs_vintage) as latest_acs_vintage
-        FROM all_county_data
-      ),
-      filtered_data AS (
-        -- Filter to only the latest data version
-        SELECT 
-          county_fips,
-          state_code,
-          county_name,
-          score,
-          computed_at
-        FROM all_county_data acd
-        CROSS JOIN latest_versions lv
-        WHERE (
-          (lv.latest_zhvi_month IS NULL AND acd.zhvi_month IS NULL) OR
-          (lv.latest_zhvi_month IS NOT NULL AND acd.zhvi_month = lv.latest_zhvi_month)
-        )
-        AND (
-          (lv.latest_acs_vintage IS NULL AND acd.acs_vintage IS NULL) OR
-          (lv.latest_acs_vintage IS NOT NULL AND acd.acs_vintage = lv.latest_acs_vintage)
-        )
+        GROUP BY county_fips, state_code
+        HAVING COUNT(*) > 0
       ),
       county_names AS (
-        -- Get one county_name per FIPS (prefer the most common one)
         SELECT DISTINCT ON (county_fips, state_code)
-          county_fips,
-          state_code,
-          county_name,
-          COUNT(*) as name_count
-        FROM filtered_data
-        GROUP BY county_fips, state_code, county_name
-        ORDER BY county_fips, state_code, name_count DESC, county_name
-      ),
-      county_aggregates AS (
-        SELECT 
-          fd.county_fips,
-          fd.state_code,
-          PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY fd.score) as median_score,
-          AVG(fd.score) as avg_score,
-          COUNT(*) as zip_count
-        FROM filtered_data fd
-        GROUP BY fd.county_fips, fd.state_code
-        HAVING COUNT(*) > 0
+          county_fips, state_code, county_name
+        FROM investment_score
+        WHERE state_code = $1 AND fmr_year = $2
+          AND county_fips IS NOT NULL AND LENGTH(TRIM(county_fips)) = 5
+        ORDER BY county_fips, state_code, county_name
       )
-      SELECT 
+      SELECT
         ca.county_fips,
         COALESCE(cn.county_name, 'Unknown County') as county_name,
         ca.state_code,
@@ -177,39 +137,12 @@ export async function GET(request: NextRequest) {
     // This ensures consistency with the USA map state-level scores
     const stateMedianResult = await sql.query(
       `
-      WITH all_state_data AS (
-        SELECT
-          COALESCE(score_with_demand, score) as score,
-          zhvi_month,
-          acs_vintage
-        FROM investment_score
-        WHERE state_code = $1
-          AND fmr_year = $2
-          AND data_sufficient = true
-      ),
-      latest_versions AS (
-        SELECT
-          MAX(zhvi_month) as latest_zhvi_month,
-          MAX(acs_vintage) as latest_acs_vintage
-        FROM all_state_data
-      ),
-      filtered_data AS (
-        SELECT
-          score
-        FROM all_state_data asd
-        CROSS JOIN latest_versions lv
-        WHERE (
-          (lv.latest_zhvi_month IS NULL AND asd.zhvi_month IS NULL) OR
-          (lv.latest_zhvi_month IS NOT NULL AND asd.zhvi_month = lv.latest_zhvi_month)
-        )
-        AND (
-          (lv.latest_acs_vintage IS NULL AND asd.acs_vintage IS NULL) OR
-          (lv.latest_acs_vintage IS NOT NULL AND asd.acs_vintage = lv.latest_acs_vintage)
-        )
-      )
       SELECT
-        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY score) as median_score
-      FROM filtered_data
+        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY adjusted_score) as median_score
+      FROM investment_score
+      WHERE state_code = $1
+        AND fmr_year = $2
+        AND bedroom_count = 3
       `,
       [stateCode, year]
     );

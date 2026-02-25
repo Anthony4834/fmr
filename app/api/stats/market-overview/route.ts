@@ -47,50 +47,30 @@ export async function GET(req: NextRequest) {
 
     // Base CTE for all queries
     const baseCTE = `
-      WITH latest_versions AS (
-        SELECT
-          MAX(zhvi_month) as latest_zhvi_month,
-          MAX(acs_vintage) as latest_acs_vintage
-        FROM investment_score
-        WHERE fmr_year = $1
-          AND data_sufficient = true
-      ),
-      base_scores AS (
+      WITH base_scores AS (
         SELECT
           isc.zip_code,
           isc.city_name,
           isc.county_name,
           isc.state_code,
           isc.bedroom_count,
-          COALESCE(isc.score_with_demand, isc.score) as score,
+          isc.adjusted_score as score,
           isc.net_yield,
           isc.property_value,
           isc.tax_rate,
           isc.annual_rent,
-          -- Calculate cash flow estimate
           (isc.annual_rent / 12 * 0.92) 
           - (isc.property_value * 0.80 * ${mortgageRate} / 12 * 1.5)
           - (isc.property_value * isc.tax_rate / 12)
           as cash_flow_estimate,
-          -- Calculate value ratio (score per dollar)
-          (COALESCE(isc.score_with_demand, isc.score) / NULLIF(isc.property_value, 0)) as value_ratio
+          (isc.adjusted_score / NULLIF(isc.property_value, 0)) as value_ratio
         FROM investment_score isc
-        CROSS JOIN latest_versions lv
         WHERE isc.fmr_year = $1
-          AND isc.data_sufficient = true
+          AND isc.bedroom_count = 3
           AND isc.geo_type = 'zip'
           AND isc.zip_code IS NOT NULL
           AND isc.state_code IS NOT NULL
           AND isc.state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS')
-          AND isc.bedroom_count IN (2, 3, 4)
-          AND (
-            (lv.latest_zhvi_month IS NULL AND isc.zhvi_month IS NULL) OR
-            (lv.latest_zhvi_month IS NOT NULL AND isc.zhvi_month = lv.latest_zhvi_month)
-          )
-          AND (
-            (lv.latest_acs_vintage IS NULL AND isc.acs_vintage IS NULL) OR
-            (lv.latest_acs_vintage IS NOT NULL AND isc.acs_vintage = lv.latest_acs_vintage)
-          )
       )
     `;
 

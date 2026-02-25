@@ -5,11 +5,12 @@ import { Doughnut } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   ArcElement,
-  Tooltip,
+  Tooltip as ChartTooltip,
   Legend,
 } from 'chart.js';
+import Tooltip from '@/app/components/Tooltip';
 
-ChartJS.register(ArcElement, Tooltip, Legend);
+ChartJS.register(ArcElement, ChartTooltip, Legend);
 
 type ScoreGaugeProps = {
   score?: number | null;
@@ -17,6 +18,8 @@ type ScoreGaugeProps = {
   label?: string;
   description?: string;
   loading?: boolean;
+  confidenceScore?: number | null;
+  confidenceReasons?: string[];
 };
 
 export function ScoreGaugeSkeleton() {
@@ -62,12 +65,20 @@ function getTextColorForScore(score: number | null, themeKey?: string): string {
   return themeKey === 'dark' ? '#4ade80' : '#16a34a';
 }
 
+function getConfidenceColor(confidence: number): string {
+  if (confidence >= 80) return 'var(--map-color-medium)';
+  if (confidence >= 60) return '#f59e0b'; // amber
+  return 'var(--map-color-low)';
+}
+
 export default function ScoreGauge({ 
   score = null, 
   maxValue = 140,
   label = 'State Median Investment Score',
   description = 'Based on median scores across all counties',
-  loading = false
+  loading = false,
+  confidenceScore = null,
+  confidenceReasons = [],
 }: ScoreGaugeProps) {
   if (loading) {
     return <ScoreGaugeSkeleton />;
@@ -193,6 +204,39 @@ export default function ScoreGauge({
         <div className="text-xs text-[var(--text-tertiary)]">
           {isInsufficientData ? 'Insufficient data to calculate score' : description}
         </div>
+        {confidenceScore !== null && confidenceScore < 100 && !isInsufficientData && (
+          <Tooltip
+            content={
+              <div>
+                <div className="font-semibold mb-1">Data Confidence: {Math.round(confidenceScore)}%</div>
+                {confidenceReasons.length > 0 ? (
+                  <ul className="space-y-0.5">
+                    {confidenceReasons.map((reason, i) => (
+                      <li key={i} className="flex items-start gap-1">
+                        <span className="mt-0.5 shrink-0">•</span>
+                        <span>{reason}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div>Some data sources are unavailable for this area.</div>
+                )}
+              </div>
+            }
+            side="bottom"
+            align="start"
+          >
+            <div className="mt-1.5 inline-flex items-center gap-1 cursor-help">
+              <span
+                className="inline-block w-1.5 h-1.5 rounded-full shrink-0"
+                style={{ backgroundColor: getConfidenceColor(confidenceScore) }}
+              />
+              <span className="text-[11px] text-[var(--text-tertiary)]">
+                {Math.round(confidenceScore)}% confidence
+              </span>
+            </div>
+          </Tooltip>
+        )}
       </div>
     </div>
   );

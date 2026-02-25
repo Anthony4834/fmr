@@ -67,23 +67,8 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
   const [verificationCode, setVerificationCode] = useState(['', '', '', '', '', '']);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isDark, setIsDark] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
-
-  // Check theme
-  useEffect(() => {
-    const checkTheme = () => {
-      const theme = document.documentElement.getAttribute('data-theme');
-      setIsDark(theme === 'dark');
-    };
-    
-    checkTheme();
-    const observer = new MutationObserver(checkTheme);
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
-    
-    return () => observer.disconnect();
-  }, []);
 
   // Reset form when modal opens/closes or mode changes
   useEffect(() => {
@@ -106,18 +91,6 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
     }
   }, [resendCooldown]);
 
-  // Theme colors
-  const cardBg = isDark ? 'hsl(220 15% 12%)' : '#ffffff';
-  const borderColor = isDark ? 'hsl(0 0% 20%)' : 'hsl(220 15% 88%)';
-  const textForeground = isDark ? 'hsl(0 0% 98%)' : 'hsl(220 30% 12%)';
-  const textMuted = isDark ? 'hsl(0 0% 60%)' : 'hsl(220 15% 45%)';
-  const primaryColor = isDark ? 'hsl(192 85% 52%)' : 'hsl(192 85% 42%)';
-  const primaryHover = isDark ? 'hsl(192 85% 48%)' : 'hsl(192 85% 38%)';
-  const inputBg = isDark ? 'hsl(220 15% 15%)' : 'hsl(220 15% 98%)';
-  const inputBorder = isDark ? 'hsl(0 0% 25%)' : 'hsl(220 15% 85%)';
-  const inputFocus = primaryColor;
-  const destructiveColor = isDark ? 'hsl(0 70% 60%)' : 'hsl(0 65% 50%)';
-  const destructiveBg = isDark ? 'hsl(0 70% 60% / 0.15)' : 'hsl(0 65% 50% / 0.05)';
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -315,19 +288,19 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
         {/* Header */}
         <div 
           className="border-b p-6 relative"
-          style={{ borderColor: borderColor }}
+          style={{ borderColor: 'var(--modal-border)' }}
         >
           <button
             onClick={onClose}
             className="absolute right-4 top-4 p-1 rounded-md transition-colors hover:bg-black/5 dark:hover:bg-white/10"
             aria-label="Close"
           >
-            <XIcon className="w-5 h-5" style={{ color: textMuted }} />
+            <XIcon className="w-5 h-5" style={{ color: 'var(--modal-text-muted)' }} />
           </button>
           
           <h2 
             className="text-xl font-display font-bold"
-            style={{ color: textForeground }}
+            style={{ color: 'var(--modal-text)' }}
           >
             {mode === 'login' ? 'Welcome back' 
              : mode === 'signup' ? 'Create an account'
@@ -336,7 +309,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
           </h2>
           <p 
             className="text-sm mt-1"
-            style={{ color: textMuted }}
+            style={{ color: 'var(--modal-text-muted)' }}
           >
             {mode === 'login' 
               ? 'Sign in to access your account' 
@@ -372,9 +345,9 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
                     }}
                     className="w-12 h-14 text-center text-xl font-semibold rounded-lg border focus:outline-none focus:ring-2"
                     style={{
-                      backgroundColor: inputBg,
-                      borderColor: inputBorder,
-                      color: textForeground,
+                      backgroundColor: 'var(--modal-input-bg)',
+                      borderColor: 'var(--modal-input-border)',
+                      color: 'var(--modal-text)',
                     }}
                     autoFocus={index === 0}
                   />
@@ -385,8 +358,8 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
                 <div 
                   className="text-sm p-3 rounded-lg"
                   style={{ 
-                    color: destructiveColor,
-                    backgroundColor: destructiveBg,
+                    color: 'var(--destructive)',
+                    backgroundColor: 'var(--destructive-muted)',
                   }}
                 >
                   {error}
@@ -399,10 +372,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
                 onClick={() => handleVerification()}
                 disabled={isLoading || verificationCode.join('').length !== 6}
                   className="w-full px-4 py-2.5 rounded-lg font-semibold transition-all duration-200 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  style={{
-                    backgroundColor: primaryColor,
-                    color: '#ffffff',
-                  }}
+                  style={{ backgroundColor: 'var(--primary-blue)', color: '#ffffff' }}
                 >
                   {isLoading ? (
                     <>
@@ -415,13 +385,13 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
                 </button>
 
                 <div className="flex items-center justify-center gap-2 text-sm">
-                  <span style={{ color: textMuted }}>Didn't receive a code?</span>
+                  <span style={{ color: 'var(--modal-text-muted)' }}>Didn't receive a code?</span>
                   <button
                     type="button"
                     onClick={handleResendCode}
                     disabled={resendCooldown > 0 || isLoading}
                     className="font-medium transition-colors hover:underline disabled:opacity-50"
-                    style={{ color: primaryColor }}
+                    style={{ color: 'var(--primary-blue)' }}
                   >
                     {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend code'}
                   </button>
@@ -435,7 +405,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
                     setError('');
                   }}
                   className="text-sm font-medium transition-colors hover:underline"
-                  style={{ color: textMuted }}
+                  style={{ color: 'var(--modal-text-muted)' }}
                 >
                   Wrong email?
                 </button>
@@ -448,14 +418,14 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
                 <label 
                   htmlFor="forgot-email" 
                   className="text-sm font-medium"
-                  style={{ color: textForeground }}
+                  style={{ color: 'var(--modal-text)' }}
                 >
                   Email
                 </label>
                 <div className="relative">
                   <MailIcon 
                     className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" 
-                    style={{ color: textMuted }}
+                    style={{ color: 'var(--modal-text-muted)' }}
                   />
                   <input
                     id="forgot-email"
@@ -466,9 +436,9 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
                     required
                     className="w-full pl-10 pr-4 py-2.5 rounded-lg border text-sm transition-colors focus:outline-none focus:ring-2"
                     style={{ 
-                      backgroundColor: inputBg,
-                      borderColor: inputBorder,
-                      color: textForeground,
+                      backgroundColor: 'var(--modal-input-bg)',
+                      borderColor: 'var(--modal-input-border)',
+                      color: 'var(--modal-text)',
                     }}
                     autoComplete="email"
                   />
@@ -479,8 +449,8 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
                 <div 
                   className="text-sm p-3 rounded-lg"
                   style={{ 
-                    color: destructiveColor,
-                    backgroundColor: destructiveBg,
+                    color: 'var(--destructive)',
+                    backgroundColor: 'var(--destructive-muted)',
                   }}
                 >
                   {error}
@@ -491,10 +461,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
                 type="submit"
                 disabled={isLoading}
                 className="w-full px-4 py-2.5 rounded-lg font-semibold transition-all duration-200 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                style={{
-                  backgroundColor: primaryColor,
-                  color: '#ffffff',
-                }}
+                style={{ backgroundColor: 'var(--primary-blue)', color: '#ffffff' }}
               >
                 {isLoading ? (
                   <>
@@ -515,7 +482,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
                     setError('');
                   }}
                   className="font-medium transition-colors hover:underline"
-                  style={{ color: primaryColor }}
+                  style={{ color: 'var(--primary-blue)' }}
                 >
                   Back to login
                 </button>
@@ -532,8 +499,8 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
                   disabled={isLoading}
                   className="w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg border font-medium transition-all hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ 
-                    borderColor: inputBorder,
-                    color: textForeground,
+                    borderColor: 'var(--modal-input-border)',
+                    color: 'var(--modal-text)',
                   }}
                 >
                   <GoogleIcon className="w-5 h-5" />
@@ -544,12 +511,12 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
               {/* Divider */}
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t" style={{ borderColor: borderColor }} />
+                  <div className="w-full border-t" style={{ borderColor: 'var(--modal-border)' }} />
                 </div>
                 <div className="relative flex justify-center text-xs">
                   <span 
                     className="px-2"
-                    style={{ backgroundColor: cardBg, color: textMuted }}
+                    style={{ backgroundColor: 'var(--modal-bg)', color: 'var(--modal-text-muted)' }}
                   >
                     or continue with email
                   </span>
@@ -563,14 +530,14 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
                 <label 
                   htmlFor="name" 
                   className="text-sm font-medium"
-                  style={{ color: textForeground }}
+                  style={{ color: 'var(--modal-text)' }}
                 >
                   Name
                 </label>
                 <div className="relative">
                   <UserIcon 
                     className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" 
-                    style={{ color: textMuted }}
+                    style={{ color: 'var(--modal-text-muted)' }}
                   />
                   <input
                     id="name"
@@ -580,9 +547,9 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
                     placeholder="Your name"
                     className="w-full pl-10 pr-4 py-2.5 rounded-lg border text-sm transition-colors focus:outline-none focus:ring-2"
                     style={{ 
-                      backgroundColor: inputBg,
-                      borderColor: inputBorder,
-                      color: textForeground,
+                      backgroundColor: 'var(--modal-input-bg)',
+                      borderColor: 'var(--modal-input-border)',
+                      color: 'var(--modal-text)',
                     }}
                     autoComplete="name"
                   />
@@ -594,14 +561,14 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
               <label 
                 htmlFor="email" 
                 className="text-sm font-medium"
-                style={{ color: textForeground }}
+                style={{ color: 'var(--modal-text)' }}
               >
                 Email
               </label>
               <div className="relative">
                 <MailIcon 
                   className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" 
-                  style={{ color: textMuted }}
+                  style={{ color: 'var(--modal-text-muted)' }}
                 />
                 <input
                   id="email"
@@ -612,9 +579,9 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
                   required
                   className="w-full pl-10 pr-4 py-2.5 rounded-lg border text-sm transition-colors focus:outline-none focus:ring-2"
                   style={{ 
-                    backgroundColor: inputBg,
-                    borderColor: inputBorder,
-                    color: textForeground,
+                    backgroundColor: 'var(--modal-input-bg)',
+                    borderColor: 'var(--modal-input-border)',
+                    color: 'var(--modal-text)',
                   }}
                   autoComplete="email"
                 />
@@ -626,7 +593,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
                 <label 
                   htmlFor="password" 
                   className="text-sm font-medium"
-                  style={{ color: textForeground }}
+                  style={{ color: 'var(--modal-text)' }}
                 >
                   Password
                 </label>
@@ -638,7 +605,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
                       setError('');
                     }}
                     className="text-xs font-medium transition-colors hover:underline"
-                    style={{ color: primaryColor }}
+                    style={{ color: 'var(--primary-blue)' }}
                   >
                     Forgot password?
                   </button>
@@ -647,7 +614,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
               <div className="relative">
                 <LockIcon 
                   className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" 
-                  style={{ color: textMuted }}
+                  style={{ color: 'var(--modal-text-muted)' }}
                 />
                 <input
                   id="password"
@@ -659,9 +626,9 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
                   minLength={mode === 'signup' ? 8 : undefined}
                   className="w-full pl-10 pr-4 py-2.5 rounded-lg border text-sm transition-colors focus:outline-none focus:ring-2"
                   style={{ 
-                    backgroundColor: inputBg,
-                    borderColor: inputBorder,
-                    color: textForeground,
+                    backgroundColor: 'var(--modal-input-bg)',
+                    borderColor: 'var(--modal-input-border)',
+                    color: 'var(--modal-text)',
                   }}
                   autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
                 />
@@ -672,8 +639,8 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
               <div 
                 className="text-sm p-3 rounded-lg"
                 style={{ 
-                  color: destructiveColor,
-                  backgroundColor: destructiveBg,
+                  color: 'var(--destructive)',
+                  backgroundColor: 'var(--destructive-muted)',
                 }}
               >
                 {error}
@@ -684,11 +651,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
               type="submit"
               disabled={isLoading}
               className="w-full px-4 py-2.5 rounded-lg font-semibold transition-all duration-200 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              style={{
-                backgroundColor: primaryColor,
-                color: '#ffffff',
-                boxShadow: `0 4px 14px ${primaryColor}40`,
-              }}
+              style={{ backgroundColor: 'var(--primary-blue)', color: '#ffffff' }}
             >
               {isLoading ? (
                 <>
@@ -703,7 +666,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
 
               {/* Toggle mode */}
               <div className="text-center text-sm">
-                <span style={{ color: textMuted }}>
+                <span style={{ color: 'var(--modal-text-muted)' }}>
                   {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
                 </span>
                 <button
@@ -713,7 +676,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
                     setError('');
                   }}
                   className="font-medium transition-colors hover:underline"
-                  style={{ color: primaryColor }}
+                  style={{ color: 'var(--primary-blue)' }}
                 >
                   {mode === 'login' ? 'Sign up' : 'Log in'}
                 </button>

@@ -95,10 +95,16 @@ interface ZipScoreData {
   // Demand data
   zordiMetro: string | null;
   zordiValue: number | null;
-  zordiDelta3m: number | null;
-  zoriYoy: number | null;
   demandScore: number | null;
   demandMultiplier: number | null;
+  // Rent audit (effective = min(FMR, market))
+  fmrMonthlyRent: number | null;
+  marketMonthlyRent: number | null;
+  effectiveMonthlyRent: number | null;
+  rentLimitedByMarket: boolean;
+  marketRentMissing: boolean;
+  // Confidence score (0-100): reflects completeness of optional data sources
+  confidenceScore: number;
 }
 
 function computeScore(data: ZipScoreData): number {
@@ -113,10 +119,10 @@ async function computeZipScores(
   acsVintageOverride: number | null = null,
   useHistorical: boolean = false
 ) {
-  // Ensure schema exists
   await createSchema();
 
   console.log(`\n=== Computing Investment Scores (FMR Year: ${fmrYear}) ===\n`);
+  console.log('Income basis: min(FMR, market_rent) — uses market rent where available, FMR where not\n');
 
   // Determine which ZHVI month to use
   let targetMonth: Date | null = null;
@@ -163,12 +169,20 @@ async function computeZipScores(
   // Priority: 3BR → 2BR → 4BR
   // FMR can come from SAFMR (zip-level) or county FMR (fallback)
   // Includes county-level ZHVI medians for blending
+  //
   const params: any[] = [targetMonth, fmrYear];
   
   let zipTaxWhere = 'WHERE effective_tax_rate IS NOT NULL';
   if (targetVintage) {
     zipTaxWhere += ` AND acs_vintage = $${params.length + 1}`;
     params.push(targetVintage);
+  }
+
+  // Build state filter condition for use inside the zip_data WHERE clause
+  let stateWhereClause = '';
+  if (stateFilter) {
+    stateWhereClause = `AND z.state_code = $${params.length + 1}`;
+    params.push(stateFilter);
   }
   
   let queryText = `
@@ -181,7 +195,7 @@ async function computeZipScores(
         city_name,
         county_name
       FROM zhvi_zip_bedroom_monthly
-      WHERE month = $1::date
+      WHERE month <= $1::date
         AND bedroom_count IN (2, 3, 4)
       ORDER BY zip_code, bedroom_count, month DESC
     ),
@@ -288,12 +302,22 @@ async function computeZipScores(
           WHEN 4 THEN fmr.fmr_4br
           ELSE NULL
         END as fmr_value,
+        MAX(rmr.estimated_monthly_rent) as market_monthly_rent,
+        LEAST(
+          CASE z.bedroom_count WHEN 2 THEN fmr.fmr_2br WHEN 3 THEN fmr.fmr_3br WHEN 4 THEN fmr.fmr_4br ELSE NULL END,
+          COALESCE(MAX(rmr.estimated_monthly_rent), CASE z.bedroom_count WHEN 2 THEN fmr.fmr_2br WHEN 3 THEN fmr.fmr_3br WHEN 4 THEN fmr.fmr_4br ELSE NULL END)
+        ) as effective_monthly_rent,
+        (MAX(rmr.estimated_monthly_rent) IS NOT NULL AND (CASE z.bedroom_count WHEN 2 THEN fmr.fmr_2br WHEN 3 THEN fmr.fmr_3br WHEN 4 THEN fmr.fmr_4br ELSE NULL END) > MAX(rmr.estimated_monthly_rent)) as rent_limited_by_market,
+        (MAX(rmr.estimated_monthly_rent) IS NULL) as market_rent_missing,
         MAX(tax.effective_tax_rate) as tax_rate,
         MAX(tax.acs_vintage) as acs_vintage
       FROM latest_zhvi z
       LEFT JOIN zip_fmr_combined fmr ON 
         fmr.zip_code = z.zip_code
         AND fmr.state_code = z.state_code
+      LEFT JOIN rentcast_market_rents rmr ON 
+        rmr.zip_code = z.zip_code
+        AND rmr.bedroom_count = z.bedroom_count
       LEFT JOIN zip_county_mapping zcm ON 
         zcm.zip_code = z.zip_code
         AND zcm.state_code = z.state_code
@@ -312,12 +336,8 @@ async function computeZipScores(
       WHERE tax.effective_tax_rate IS NOT NULL
         AND z.zhvi IS NOT NULL
         AND z.zhvi > 0
+        ${stateWhereClause}
       GROUP BY z.zip_code, z.bedroom_count, z.state_code, z.city_name, z.county_name, z.zhvi, fmr.fmr_2br, fmr.fmr_3br, fmr.fmr_4br`;
-
-  if (stateFilter) {
-    queryText += ` AND z.state_code = $${params.length + 1}`;
-    params.push(stateFilter);
-  }
 
   queryText += `
       HAVING 
@@ -343,14 +363,21 @@ async function computeZipScores(
         zd.tax_rate,
         zd.acs_vintage,
         zd.fmr_value,
-        (zd.fmr_value * 12) as annual_rent
+        zd.market_monthly_rent,
+        zd.effective_monthly_rent,
+        zd.rent_limited_by_market,
+        zd.market_rent_missing,
+        (zd.effective_monthly_rent * 12) as annual_rent
       FROM zip_data zd
       LEFT JOIN canonical_county_lookup ccl ON 
         ccl.county_fips = zd.county_fips
         AND ccl.state_code = zd.state_code
       LEFT JOIN zhvi_rollup_monthly county_zhvi ON (
         county_zhvi.geo_type = 'county'
-        AND county_zhvi.month = $1
+        AND county_zhvi.month = (
+          SELECT MAX(m.month) FROM zhvi_rollup_monthly m
+          WHERE m.geo_type = 'county' AND m.month <= $1
+        )
         AND county_zhvi.bedroom_count = zd.bedroom_count
         AND county_zhvi.state_code = zd.state_code
         AND (
@@ -365,47 +392,15 @@ async function computeZipScores(
     latest_zordi_month AS (
       SELECT MAX(month) as month FROM zillow_zordi_metro_monthly
     ),
-    -- Get ZORDI values with 3-month delta
+    -- Get ZORDI values
     zordi_current AS (
       SELECT
         z.region_name,
-        z.zordi as zordi_value,
-        z_prev.zordi as zordi_3m_ago,
-        CASE
-          WHEN z_prev.zordi IS NOT NULL AND z_prev.zordi != 0
-          THEN (z.zordi - z_prev.zordi) / z_prev.zordi
-          ELSE NULL
-        END as zordi_delta_3m
+        z.zordi as zordi_value
       FROM zillow_zordi_metro_monthly z
       CROSS JOIN latest_zordi_month lzm
-      LEFT JOIN zillow_zordi_metro_monthly z_prev ON
-        z_prev.region_name = z.region_name
-        AND z_prev.region_type = z.region_type
-        AND z_prev.month = (lzm.month - INTERVAL '3 months')::date
       WHERE z.month = lzm.month
         AND z.region_type IN ('msa', 'metro')
-    ),
-    -- Get latest ZORI month
-    latest_zori_month AS (
-      SELECT MAX(month) as month FROM zillow_zori_zip_monthly
-    ),
-    -- Calculate ZORI YoY growth for each ZIP
-    zori_growth AS (
-      SELECT
-        zc.zip_code,
-        zc.zori as zori_current,
-        zp.zori as zori_1y_ago,
-        CASE
-          WHEN zp.zori IS NOT NULL AND zp.zori > 0
-          THEN (zc.zori - zp.zori) / zp.zori
-          ELSE NULL
-        END as zori_yoy
-      FROM zillow_zori_zip_monthly zc
-      CROSS JOIN latest_zori_month lsm
-      LEFT JOIN zillow_zori_zip_monthly zp ON
-        zp.zip_code = zc.zip_code
-        AND zp.month = (lsm.month - INTERVAL '1 year')::date
-      WHERE zc.month = lsm.month
     ),
     -- County-level metro fallback: find most common metro for ZIPs in same county
     -- This allows us to map ZIPs without direct metro data by using metro assignments
@@ -505,17 +500,18 @@ async function computeZipScores(
       zdc.tax_rate,
       zdc.acs_vintage,
       zdc.fmr_value,
+      zdc.market_monthly_rent,
+      zdc.effective_monthly_rent,
+      zdc.rent_limited_by_market,
+      zdc.market_rent_missing,
       zdc.annual_rent,
       -- Demand data
       zmm.metro_name as zordi_metro,
-      zrd.zordi_value,
-      zrd.zordi_delta_3m,
-      zg.zori_yoy
+      zrd.zordi_value
     FROM zip_data_with_canonical zdc
     LEFT JOIN zip_metro_mapping zmm ON zmm.zip_code = zdc.zip_code
     LEFT JOIN zordi_normalized zn ON zn.region_name_normalized = zmm.metro_name_normalized
     LEFT JOIN zordi_current zrd ON zrd.region_name = zn.region_name
-    LEFT JOIN zori_growth zg ON zg.zip_code = zdc.zip_code
     WHERE zdc.tax_rate IS NOT NULL
       AND zdc.zip_zhvi IS NOT NULL
       AND zdc.fmr_value IS NOT NULL
@@ -628,8 +624,24 @@ async function computeZipScores(
     // Extract demand data from row (will be populated by the query)
     const zordiMetro = row.zordi_metro || null;
     const zordiValue = row.zordi_value ? Number(row.zordi_value) : null;
-    const zordiDelta3m = row.zordi_delta_3m ? Number(row.zordi_delta_3m) : null;
-    const zoriYoy = row.zori_yoy ? Number(row.zori_yoy) : null;
+
+    const fmrMonthlyRent = row.fmr_value != null ? Number(row.fmr_value) : null;
+    const marketMonthlyRent = row.market_monthly_rent != null ? Number(row.market_monthly_rent) : null;
+    const effectiveMonthlyRent = row.effective_monthly_rent != null ? Number(row.effective_monthly_rent) : null;
+    const rentLimitedByMarket = Boolean(row.rent_limited_by_market);
+    const marketRentMissing = Boolean(row.market_rent_missing);
+
+    // Confidence score: weighted sum of available data sources (max 100)
+    // Core sources (FMR + ZHVI + ACS) are always present when a score exists — 40 pts base
+    // Optional enrichment sources:
+    //   Market Rent / AMR (Rentcast): 30 pts
+    //   ZORDI demand level:           20 pts
+    //   County ZHVI median (blending):10 pts
+    // Min possible: 40 (core data only), Max: 100 (all sources present)
+    let confidenceScore = 40; // base: core data always present for any scored ZIP
+    if (!marketRentMissing) confidenceScore += 30;
+    if (zordiValue !== null) confidenceScore += 20;
+    if (countyZhviMedian !== null) confidenceScore += 10;
 
     scores.push({
       zipCode,
@@ -658,10 +670,14 @@ async function computeZipScores(
       // Demand data (will be computed after percentile ranking)
       zordiMetro,
       zordiValue,
-      zordiDelta3m,
-      zoriYoy,
       demandScore: null, // Computed later
       demandMultiplier: null, // Computed later
+      fmrMonthlyRent,
+      marketMonthlyRent,
+      effectiveMonthlyRent,
+      rentLimitedByMarket,
+      marketRentMissing,
+      confidenceScore,
     });
   }
 
@@ -708,62 +724,20 @@ async function computeZipScores(
     return ranks;
   }
 
-  // Collect demand metrics for percentile ranking
+  // Collect ZORDI values for percentile ranking
   const zordiValues = scores.map(s => s.zordiValue).filter(v => v !== null) as number[];
-  const zordiDeltas = scores.map(s => s.zordiDelta3m).filter(v => v !== null) as number[];
-  const zoriYoys = scores.map(s => s.zoriYoy).filter(v => v !== null) as number[];
-
   const zordiRanks = computePercentileRank(zordiValues);
-  const zordiDeltaRanks = computePercentileRank(zordiDeltas);
-  const zoriYoyRanks = computePercentileRank(zoriYoys);
 
   // Count how many ZIPs have demand data
   let demandDataCount = 0;
 
-  // Compute demand scores for each ZIP
+  // Compute demand scores for each ZIP using ZORDI percentile rank
   for (const score of scores) {
-    let demandLevel: number | null = null;
-    let demandMomentum: number | null = null;
-    let rentPressure: number | null = null;
-
     if (score.zordiValue !== null && zordiRanks.has(score.zordiValue)) {
-      demandLevel = zordiRanks.get(score.zordiValue)!;
-    }
-    if (score.zordiDelta3m !== null && zordiDeltaRanks.has(score.zordiDelta3m)) {
-      demandMomentum = zordiDeltaRanks.get(score.zordiDelta3m)!;
-    }
-    if (score.zoriYoy !== null && zoriYoyRanks.has(score.zoriYoy)) {
-      rentPressure = zoriYoyRanks.get(score.zoriYoy)!;
-    }
-
-    // Compute weighted demand score (only if we have at least demand level)
-    if (demandLevel !== null) {
-      // If missing components, reweight to available data
-      let totalWeight = 0;
-      let weightedSum = 0;
-
-      if (demandLevel !== null) {
-        weightedSum += 0.5 * demandLevel;
-        totalWeight += 0.5;
-      }
-      if (demandMomentum !== null) {
-        weightedSum += 0.3 * demandMomentum;
-        totalWeight += 0.3;
-      }
-      if (rentPressure !== null) {
-        weightedSum += 0.2 * rentPressure;
-        totalWeight += 0.2;
-      }
-
-      // Normalize to 0-100 scale
-      const demandScore = totalWeight > 0 ? (weightedSum / totalWeight) : 50;
-      score.demandScore = demandScore;
-      // Demand multiplier will be computed after normalization based on score threshold
-
+      score.demandScore = zordiRanks.get(score.zordiValue)!;
       demandDataCount++;
     } else {
       // No demand data - assign low demand score
-      // Demand multiplier will be computed after normalization based on score threshold
       score.demandScore = 10; // Low score indicating insufficient data / low demand
     }
   }
@@ -773,8 +747,6 @@ async function computeZipScores(
 
   console.log(`Demand Data Statistics:`);
   console.log(`  ZIPs with ZORDI data: ${zordiValues.length}`);
-  console.log(`  ZIPs with ZORDI momentum: ${zordiDeltas.length}`);
-  console.log(`  ZIPs with ZORI YoY growth: ${zoriYoys.length}`);
   console.log(`  ZIPs with computed demand score: ${demandDataCount}`);
   console.log(`  ZIPs without demand data (penalized): ${noDemandDataCount}\n`);
 
@@ -841,6 +813,15 @@ async function computeZipScores(
     score.demandMultiplier = demandMultiplier;
     const scoreWithDemand = Math.min(cappedScore * demandMultiplier, 300);
 
+    // Apply confidence discount: reflect model uncertainty from missing optional data sources.
+    // Max 5% discount (at confidence=50 or below). Formula:
+    //   discount_factor = max(0.95, 1 - (100 - confidence) / 100 * 0.10)
+    const amrAdjustmentFactor = 1.0;
+    const confidenceDiscount = Math.max(0.95, 1 - (100 - score.confidenceScore) / 100 * 0.10);
+    // Clamp scores to 129 for confidence < 90 — only high-confidence ZIPs can reach the blue tier
+    const confidenceCap = score.confidenceScore < 90 ? 129 : 300;
+    const adjustedScore = Math.min(scoreWithDemand * confidenceDiscount, confidenceCap);
+
     // Track ZIPs that hit the cap
     if (rawScore > 300) {
       cappedZips.push({
@@ -860,6 +841,8 @@ async function computeZipScores(
       ...score,
       score: cappedScore,
       scoreWithDemand: scoreWithDemand,
+      amrAdjustmentFactor,
+      adjustedScore,
     };
   });
 
@@ -912,9 +895,9 @@ async function computeZipScores(
 
     for (let j = 0; j < batch.length; j++) {
       const s = batch[j]!;
-      const base = j * 31; // 31 total fields (26 original + 5 demand fields: demand_score, demand_multiplier, score_with_demand, zordi_metro, zori_yoy)
+      const base = j * 38; // 38 total fields (removed zori_yoy)
       placeholders.push(
-        `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11}, $${base + 12}, $${base + 13}, $${base + 14}, $${base + 15}, $${base + 16}, $${base + 17}, $${base + 18}, $${base + 19}, $${base + 20}, $${base + 21}, $${base + 22}, $${base + 23}, $${base + 24}, $${base + 25}, $${base + 26}, $${base + 27}, $${base + 28}, $${base + 29}, $${base + 30}, $${base + 31})`
+        `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11}, $${base + 12}, $${base + 13}, $${base + 14}, $${base + 15}, $${base + 16}, $${base + 17}, $${base + 18}, $${base + 19}, $${base + 20}, $${base + 21}, $${base + 22}, $${base + 23}, $${base + 24}, $${base + 25}, $${base + 26}, $${base + 27}, $${base + 28}, $${base + 29}, $${base + 30}, $${base + 31}, $${base + 32}, $${base + 33}, $${base + 34}, $${base + 35}, $${base + 36}, $${base + 37}, $${base + 38})`
       );
       values.push(
         "zip",
@@ -936,7 +919,7 @@ async function computeZipScores(
         s.netYield,
         s.rentToPriceRatio,
         s.score,
-        true,
+        true, // data_sufficient: always true — use confidence_score instead of binary exclusion
         // Normalization tracking
         s.rawZhvi,
         s.countyZhviMedian,
@@ -950,7 +933,16 @@ async function computeZipScores(
         s.demandMultiplier,
         s.scoreWithDemand,
         s.zordiMetro,
-        s.zoriYoy
+        // Rent audit
+        s.fmrMonthlyRent,
+        s.marketMonthlyRent,
+        s.effectiveMonthlyRent,
+        s.rentLimitedByMarket,
+        s.marketRentMissing,
+        s.amrAdjustmentFactor,
+        s.adjustedScore,
+        // Confidence score
+        s.confidenceScore
       );
       
     }
@@ -963,15 +955,19 @@ async function computeZipScores(
         net_yield, rent_to_price_ratio, score, data_sufficient,
         raw_zhvi, county_zhvi_median, blended_zhvi, price_floor_applied,
         rent_cap_applied, county_blending_applied, raw_rent_to_price_ratio,
-        demand_score, demand_multiplier, score_with_demand, zordi_metro, zori_yoy
+        demand_score, demand_multiplier, score_with_demand, zordi_metro,
+        fmr_monthly_rent, market_monthly_rent, effective_monthly_rent, rent_limited_by_market, market_rent_missing,
+        amr_adjustment_factor, adjusted_score, confidence_score
       )
       VALUES ${placeholders.join(", ")}
-      ON CONFLICT (geo_type, geo_key, bedroom_count, fmr_year, zhvi_month, acs_vintage)
+      ON CONFLICT (geo_type, geo_key, bedroom_count, fmr_year)
       DO UPDATE SET
         state_code = EXCLUDED.state_code,
         city_name = EXCLUDED.city_name,
         county_name = EXCLUDED.county_name,
         county_fips = EXCLUDED.county_fips,
+        zhvi_month = EXCLUDED.zhvi_month,
+        acs_vintage = EXCLUDED.acs_vintage,
         property_value = EXCLUDED.property_value,
         tax_rate = EXCLUDED.tax_rate,
         annual_rent = EXCLUDED.annual_rent,
@@ -991,7 +987,14 @@ async function computeZipScores(
         demand_multiplier = EXCLUDED.demand_multiplier,
         score_with_demand = EXCLUDED.score_with_demand,
         zordi_metro = EXCLUDED.zordi_metro,
-        zori_yoy = EXCLUDED.zori_yoy,
+        fmr_monthly_rent = EXCLUDED.fmr_monthly_rent,
+        market_monthly_rent = EXCLUDED.market_monthly_rent,
+        effective_monthly_rent = EXCLUDED.effective_monthly_rent,
+        rent_limited_by_market = EXCLUDED.rent_limited_by_market,
+        market_rent_missing = EXCLUDED.market_rent_missing,
+        amr_adjustment_factor = EXCLUDED.amr_adjustment_factor,
+        adjusted_score = EXCLUDED.adjusted_score,
+        confidence_score = EXCLUDED.confidence_score,
         computed_at = NOW()
       `,
       values
@@ -1002,6 +1005,18 @@ async function computeZipScores(
       `\rInserted ${inserted}/${deduplicatedScores.length} scores...`
     );
   }
+
+  // Log confidence score distribution
+  const confidenceValues = deduplicatedScores.map(s => s.confidenceScore);
+  const fullConfidence = confidenceValues.filter(c => c === 100).length;
+  const highConfidence = confidenceValues.filter(c => c >= 80 && c < 100).length;
+  const medConfidence = confidenceValues.filter(c => c >= 60 && c < 80).length;
+  const lowConfidence = confidenceValues.filter(c => c < 60).length;
+  console.log(`\nConfidence Score Distribution:`);
+  console.log(`  100% (full data):  ${fullConfidence} ZIPs (${(fullConfidence / confidenceValues.length * 100).toFixed(1)}%)`);
+  console.log(`  80-99% (high):     ${highConfidence} ZIPs (${(highConfidence / confidenceValues.length * 100).toFixed(1)}%)`);
+  console.log(`  60-79% (medium):   ${medConfidence} ZIPs (${(medConfidence / confidenceValues.length * 100).toFixed(1)}%)`);
+  console.log(`  <60% (low):        ${lowConfidence} ZIPs (${(lowConfidence / confidenceValues.length * 100).toFixed(1)}%)`);
 
   console.log(`\n\n✅ Computed ${inserted} investment scores`);
   console.log(`\nScore distribution:`);
@@ -1116,7 +1131,7 @@ async function computeZipScores(
   }
 }
 
-// Export for use in API routes
+// Export for use in API routes (mode defaults to 'fmr' to preserve existing behavior)
 export { computeZipScores };
 
 // Bun sets import.meta.main; Node/Next do not (avoid type error and skip when imported by cron)

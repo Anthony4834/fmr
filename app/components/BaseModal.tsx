@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, ReactNode } from 'react';
+import { useEffect, ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface BaseModalProps {
@@ -18,22 +18,6 @@ export default function BaseModal({
   maxWidth = '420px',
   className = ''
 }: BaseModalProps) {
-  const [isDark, setIsDark] = useState(false);
-
-  // Check theme
-  useEffect(() => {
-    const checkTheme = () => {
-      const theme = document.documentElement.getAttribute('data-theme');
-      setIsDark(theme === 'dark');
-    };
-    
-    checkTheme();
-    const observer = new MutationObserver(checkTheme);
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
-    
-    return () => observer.disconnect();
-  }, []);
-
   // Handle escape key
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -57,11 +41,6 @@ export default function BaseModal({
     }
   }, [isOpen]);
 
-  // Theme colors
-  const bgOverlay = isDark ? 'rgba(0, 0, 0, 0.8)' : 'rgba(0, 0, 0, 0.5)';
-  const cardBg = isDark ? 'hsl(220 15% 12%)' : '#ffffff';
-  const borderColor = isDark ? 'hsl(0 0% 20%)' : 'hsl(220 15% 88%)';
-
   return (
     <AnimatePresence>
       {isOpen && (
@@ -71,7 +50,7 @@ export default function BaseModal({
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ backgroundColor: bgOverlay }}
+          style={{ backgroundColor: 'var(--modal-overlay)' }}
           onClick={onClose}
         >
           <motion.div
@@ -81,8 +60,8 @@ export default function BaseModal({
             transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
             className={`w-full rounded-lg border shadow-lg overflow-hidden max-h-[90vh] overflow-y-auto ${className}`}
             style={{ 
-              backgroundColor: cardBg,
-              borderColor: borderColor,
+              backgroundColor: 'var(--modal-bg)',
+              borderColor: 'var(--modal-border)',
               maxWidth: maxWidth,
             }}
             onClick={(e) => e.stopPropagation()}

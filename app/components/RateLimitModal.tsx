@@ -86,7 +86,6 @@ function formatResetTime(resetTime: number): string {
 
 export default function RateLimitModal({ isOpen, onClose, resetTime }: RateLimitModalProps) {
   const [progress, setProgress] = useState(0);
-  const [isDark, setIsDark] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('signup');
 
@@ -95,20 +94,6 @@ export default function RateLimitModal({ isOpen, onClose, resetTime }: RateLimit
   const currentUsage = 50;
   const percentage = Math.min(100, (currentUsage / limit) * 100);
   const isLimitReached = currentUsage >= limit;
-
-  // Check theme
-  useEffect(() => {
-    const checkTheme = () => {
-      const theme = document.documentElement.getAttribute('data-theme');
-      setIsDark(theme === 'dark');
-    };
-    
-    checkTheme();
-    const observer = new MutationObserver(checkTheme);
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
-    
-    return () => observer.disconnect();
-  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -119,18 +104,6 @@ export default function RateLimitModal({ isOpen, onClose, resetTime }: RateLimit
     }
   }, [isOpen, percentage]);
 
-  // Theme-aware colors
-  const borderColor = isDark ? 'hsl(0 0% 20%)' : 'hsl(220 15% 88%)';
-  const cardBg = isDark ? 'hsl(220 15% 12%)' : '#ffffff';
-  const textForeground = isDark ? 'hsl(0 0% 98%)' : 'hsl(220 30% 12%)';
-  const textMuted = isDark ? 'hsl(0 0% 60%)' : 'hsl(220 15% 45%)';
-  const primaryColor = 'hsl(192 85% 42%)';
-  const accentBg = isDark ? 'hsl(192 85% 42% / 0.15)' : 'hsl(192 85% 42% / 0.08)';
-  const accentBorder = isDark ? 'hsl(192 85% 42% / 0.3)' : 'hsl(192 85% 42% / 0.2)';
-  const secondaryBg = isDark ? 'hsl(0 0% 20%)' : 'hsl(220 15% 95%)';
-  const destructiveColor = isDark ? 'hsl(0 70% 60%)' : 'hsl(0 65% 50%)';
-  const destructiveBg = isDark ? 'hsl(0 70% 60% / 0.15)' : 'hsl(0 65% 50% / 0.05)';
-  const destructiveBorder = isDark ? 'hsl(0 70% 60% / 0.3)' : 'hsl(0 65% 50% / 0.15)';
 
   const content = {
     title: "Daily Limit Exceeded",
@@ -146,57 +119,54 @@ export default function RateLimitModal({ isOpen, onClose, resetTime }: RateLimit
               {/* Header Section */}
               <div 
                 className="border-b p-6"
-                style={{ 
-                  backgroundColor: cardBg,
-                  borderColor: borderColor,
-                }}
+                style={{ backgroundColor: 'var(--modal-bg)', borderColor: 'var(--modal-border)' }}
               >
                 <h2 
                   className="text-xl font-display font-bold"
-                  style={{ color: textForeground }}
+                  style={{ color: 'var(--modal-text)' }}
                 >
                   {content.title}
                 </h2>
                 <p 
                   className="text-sm mt-1"
-                  style={{ color: textMuted }}
+                  style={{ color: 'var(--modal-text-muted)' }}
                 >
                   {content.description}
                 </p>
               </div>
 
               {/* Body Section */}
-              <div className="p-6 space-y-6" style={{ backgroundColor: cardBg }}>
+              <div className="p-6 space-y-6" style={{ backgroundColor: 'var(--modal-bg)' }}>
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
                     <span 
                       className="text-xs font-semibold uppercase tracking-wide"
-                      style={{ color: textMuted }}
+                      style={{ color: 'var(--modal-text-muted)' }}
                     >
                       Daily Usage
                     </span>
                     <div className="text-right flex items-baseline gap-1">
                       <span 
                         className="text-lg font-semibold tabular-nums"
-                        style={{ color: isLimitReached ? destructiveColor : textForeground }}
+                        style={{ color: isLimitReached ? 'var(--destructive)' : 'var(--modal-text)' }}
                       >
                         {currentUsage}
                       </span>
-                      <span className="text-sm" style={{ color: textMuted }}>/</span>
-                      <span className="text-sm tabular-nums" style={{ color: textMuted }}>{limit}</span>
+                      <span className="text-sm" style={{ color: 'var(--modal-text-muted)' }}>/</span>
+                      <span className="text-sm tabular-nums" style={{ color: 'var(--modal-text-muted)' }}>{limit}</span>
                     </div>
                   </div>
                   
                   {/* Progress bar */}
                   <div 
                     className="h-3 rounded-full overflow-hidden"
-                    style={{ backgroundColor: secondaryBg }}
+                    style={{ backgroundColor: 'var(--modal-hover)' }}
                   >
                     <div 
                       className="h-full rounded-full transition-all duration-500 ease-out"
                       style={{ 
                         width: `${progress}%`,
-                        backgroundColor: isLimitReached ? destructiveColor : primaryColor,
+                        backgroundColor: isLimitReached ? 'var(--destructive)' : 'var(--primary-blue)',
                       }}
                     />
                   </div>
@@ -205,9 +175,9 @@ export default function RateLimitModal({ isOpen, onClose, resetTime }: RateLimit
                     <div 
                       className="flex items-start gap-2.5 text-sm p-3.5 rounded-lg border"
                       style={{
-                        color: destructiveColor,
-                        backgroundColor: destructiveBg,
-                        borderColor: destructiveBorder,
+                        color: 'var(--destructive)',
+                        backgroundColor: 'var(--destructive-muted)',
+                        borderColor: 'color-mix(in srgb, var(--destructive) 25%, transparent)',
                       }}
                     >
                       <AlertCircleIcon className="w-5 h-5 shrink-0 mt-0.5" />
@@ -225,17 +195,14 @@ export default function RateLimitModal({ isOpen, onClose, resetTime }: RateLimit
                       setShowAuthModal(true);
                     }}
                     className="w-full px-4 py-2.5 rounded-lg font-semibold transition-all duration-200 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                    style={{
-                      backgroundColor: primaryColor,
-                      color: '#ffffff',
-                    }}
+                    style={{ backgroundColor: 'var(--primary-blue)', color: '#ffffff' }}
                   >
                     {content.action}
                   </button>
                   
                   {/* Login option */}
                   <div className="text-center">
-                    <span className="text-sm" style={{ color: textMuted }}>
+                    <span className="text-sm" style={{ color: 'var(--modal-text-muted)' }}>
                       {content.loginText}{' '}
                     </span>
                     <button
@@ -245,9 +212,7 @@ export default function RateLimitModal({ isOpen, onClose, resetTime }: RateLimit
                         setShowAuthModal(true);
                       }}
                       className="text-sm font-medium transition-colors hover:underline"
-                      style={{
-                        color: primaryColor,
-                      }}
+                      style={{ color: 'var(--primary-blue)' }}
                     >
                       Log in
                     </button>

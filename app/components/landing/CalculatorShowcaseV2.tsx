@@ -31,6 +31,8 @@ type FmrApiResponse = {
     countyName?: string;
     stateCode?: string;
     bedroom3?: number;
+    effectiveRent?: { bedroom3?: number | null };
+    rentConstraint?: { missingMarketRent?: boolean; isConstrained?: boolean };
   };
 };
 
@@ -299,7 +301,7 @@ function CalculatorDemoV2({ enabled, initialExample, onExampleChange }: {
               ? taxSettled.value
               : { zip, found: false, effectiveTaxRatePct: null };
 
-          const rent = fmr?.data?.bedroom3;
+          const rent = fmr?.data?.effectiveRent?.bedroom3 ?? fmr?.data?.bedroom3;
           if (!Number.isFinite(rent) || (rent as number) < 800) continue;
 
           const fmrYear = Number.isFinite(Number(fmr?.data?.year)) ? Number(fmr?.data?.year) : null;

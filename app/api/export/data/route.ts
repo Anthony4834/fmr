@@ -51,22 +51,14 @@ async function fetchMarketOverview(year: number) {
     : 0.065;
 
   const baseCTE = `
-    WITH latest_versions AS (
-      SELECT
-        MAX(zhvi_month) as latest_zhvi_month,
-        MAX(acs_vintage) as latest_acs_vintage
-      FROM investment_score
-      WHERE fmr_year = $1
-        AND data_sufficient = true
-    ),
-    base_scores AS (
+    WITH base_scores AS (
       SELECT
         isc.zip_code,
         isc.city_name,
         isc.county_name,
         isc.state_code,
         isc.bedroom_count,
-        COALESCE(isc.score_with_demand, isc.score) as score,
+        isc.adjusted_score as score,
         isc.net_yield,
         isc.property_value,
         isc.tax_rate,
@@ -75,24 +67,14 @@ async function fetchMarketOverview(year: number) {
         - (isc.property_value * 0.80 * ${mortgageRate} / 12 * 1.5)
         - (isc.property_value * isc.tax_rate / 12)
         as cash_flow_estimate,
-        (COALESCE(isc.score_with_demand, isc.score) / NULLIF(isc.property_value, 0)) as value_ratio
+        (isc.adjusted_score / NULLIF(isc.property_value, 0)) as value_ratio
       FROM investment_score isc
-      CROSS JOIN latest_versions lv
       WHERE isc.fmr_year = $1
-        AND isc.data_sufficient = true
+        AND isc.bedroom_count = 3
         AND isc.geo_type = 'zip'
         AND isc.zip_code IS NOT NULL
         AND isc.state_code IS NOT NULL
         AND isc.state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS')
-        AND isc.bedroom_count IN (2, 3, 4)
-        AND (
-          (lv.latest_zhvi_month IS NULL AND isc.zhvi_month IS NULL) OR
-          (lv.latest_zhvi_month IS NOT NULL AND isc.zhvi_month = lv.latest_zhvi_month)
-        )
-        AND (
-          (lv.latest_acs_vintage IS NULL AND isc.acs_vintage IS NULL) OR
-          (lv.latest_acs_vintage IS NOT NULL AND isc.acs_vintage = lv.latest_acs_vintage)
-        )
     )
   `;
 
@@ -229,7 +211,7 @@ async function fetchMarketExplorer(
     SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY property_value) as national_median
     FROM investment_score
     WHERE fmr_year = ${year}
-      AND data_sufficient = true
+      AND bedroom_count = 3
       AND property_value > 0
       AND state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS')
   `;
@@ -276,38 +258,20 @@ async function fetchMarketExplorer(
   if (type === 'state') {
     // State-level aggregation
     const query = `
-      WITH latest_versions AS (
-        SELECT
-          MAX(zhvi_month) as latest_zhvi_month,
-          MAX(acs_vintage) as latest_acs_vintage
-        FROM investment_score
-        WHERE fmr_year = $1
-          AND data_sufficient = true
-      ),
-      base_scores AS (
+      WITH base_scores AS (
         SELECT
           isc.state_code,
-          COALESCE(isc.score_with_demand, isc.score) as score,
+          isc.adjusted_score as score,
           isc.net_yield,
           isc.property_value,
           isc.tax_rate,
           isc.annual_rent,
-          isc.demand_score,
-          isc.zori_yoy
+          isc.demand_score
         FROM investment_score isc
-        CROSS JOIN latest_versions lv
         WHERE isc.fmr_year = $1
-          AND isc.data_sufficient = true
+          AND isc.bedroom_count = 3
           AND isc.state_code IS NOT NULL
           AND isc.state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS')
-          AND (
-            (lv.latest_zhvi_month IS NULL AND isc.zhvi_month IS NULL) OR
-            (lv.latest_zhvi_month IS NOT NULL AND isc.zhvi_month = lv.latest_zhvi_month)
-          )
-          AND (
-            (lv.latest_acs_vintage IS NULL AND isc.acs_vintage IS NULL) OR
-            (lv.latest_acs_vintage IS NOT NULL AND isc.acs_vintage = lv.latest_acs_vintage)
-          )
           AND ($2::text IS NULL OR isc.state_code ILIKE ($2::text || '%'))
       ),
       aggregated AS (
@@ -320,11 +284,9 @@ async function fetchMarketExplorer(
           PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY bs.tax_rate) as median_tax,
           PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY bs.annual_rent / 12) as median_fmr,
           AVG(bs.demand_score) as avg_demand,
-          AVG(bs.zori_yoy) as avg_rent_growth,
           COUNT(DISTINCT bs.state_code || '-' || COALESCE(bs.net_yield::text, '')) as zip_count,
           (${nationalMedianZHVI} / NULLIF(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY bs.property_value), 0)) * 100 as affordability_index,
-          COALESCE(AVG(bs.demand_score), 50) * 0.4 + 
-          COALESCE(AVG(bs.zori_yoy) * 100, 0) * 6 as heat_score,
+          COALESCE(AVG(bs.demand_score), 50) * 0.4 as heat_score,
           (PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY bs.annual_rent / 12) * 0.92) 
           - (PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY bs.property_value) * 0.80 * ${mortgageRate} / 12 * 1.5)
           - (PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY bs.property_value) * PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY bs.tax_rate) / 12)
@@ -352,42 +314,24 @@ async function fetchMarketExplorer(
   } else if (type === 'county') {
     // County-level aggregation
     const query = `
-      WITH latest_versions AS (
-        SELECT
-          MAX(zhvi_month) as latest_zhvi_month,
-          MAX(acs_vintage) as latest_acs_vintage
-        FROM investment_score
-        WHERE fmr_year = $1
-          AND data_sufficient = true
-      ),
-      base_scores AS (
+      WITH base_scores AS (
         SELECT
           isc.county_fips,
           isc.county_name,
           isc.state_code,
-          COALESCE(isc.score_with_demand, isc.score) as score,
+          isc.adjusted_score as score,
           isc.net_yield,
           isc.property_value,
           isc.tax_rate,
           isc.annual_rent,
-          isc.demand_score,
-          isc.zori_yoy
+          isc.demand_score
         FROM investment_score isc
-        CROSS JOIN latest_versions lv
         WHERE isc.fmr_year = $1
-          AND isc.data_sufficient = true
+          AND isc.bedroom_count = 3
           AND isc.county_fips IS NOT NULL
           AND LENGTH(TRIM(isc.county_fips)) = 5
           AND isc.state_code IS NOT NULL
           AND isc.state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS')
-          AND (
-            (lv.latest_zhvi_month IS NULL AND isc.zhvi_month IS NULL) OR
-            (lv.latest_zhvi_month IS NOT NULL AND isc.zhvi_month = lv.latest_zhvi_month)
-          )
-          AND (
-            (lv.latest_acs_vintage IS NULL AND isc.acs_vintage IS NULL) OR
-            (lv.latest_acs_vintage IS NOT NULL AND isc.acs_vintage = lv.latest_acs_vintage)
-          )
           AND ($2::text IS NULL OR isc.state_code = $2::text)
           AND ($3::text IS NULL OR isc.county_name ILIKE ('%' || $3::text || '%'))
       ),
@@ -402,11 +346,9 @@ async function fetchMarketExplorer(
           PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY bs.tax_rate) as median_tax,
           PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY bs.annual_rent / 12) as median_fmr,
           AVG(bs.demand_score) as avg_demand,
-          AVG(bs.zori_yoy) as avg_rent_growth,
           COUNT(*) as zip_count,
           (${nationalMedianZHVI} / NULLIF(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY bs.property_value), 0)) * 100 as affordability_index,
-          COALESCE(AVG(bs.demand_score), 50) * 0.4 + 
-          COALESCE(AVG(bs.zori_yoy) * 100, 0) * 6 as heat_score,
+          COALESCE(AVG(bs.demand_score), 50) * 0.4 as heat_score,
           (PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY bs.annual_rent / 12) * 0.92) 
           - (PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY bs.property_value) * 0.80 * ${mortgageRate} / 12 * 1.5)
           - (PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY bs.property_value) * PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY bs.tax_rate) / 12)
@@ -434,41 +376,23 @@ async function fetchMarketExplorer(
   } else if (type === 'city') {
     // City-level aggregation
     const query = `
-      WITH latest_versions AS (
-        SELECT
-          MAX(zhvi_month) as latest_zhvi_month,
-          MAX(acs_vintage) as latest_acs_vintage
-        FROM investment_score
-        WHERE fmr_year = $1
-          AND data_sufficient = true
-      ),
-      base_scores AS (
+      WITH base_scores AS (
         SELECT
           isc.city_name,
           isc.county_name,
           isc.state_code,
-          COALESCE(isc.score_with_demand, isc.score) as score,
+          isc.adjusted_score as score,
           isc.net_yield,
           isc.property_value,
           isc.tax_rate,
           isc.annual_rent,
-          isc.demand_score,
-          isc.zori_yoy
+          isc.demand_score
         FROM investment_score isc
-        CROSS JOIN latest_versions lv
         WHERE isc.fmr_year = $1
-          AND isc.data_sufficient = true
+          AND isc.bedroom_count = 3
           AND isc.city_name IS NOT NULL
           AND isc.state_code IS NOT NULL
           AND isc.state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS')
-          AND (
-            (lv.latest_zhvi_month IS NULL AND isc.zhvi_month IS NULL) OR
-            (lv.latest_zhvi_month IS NOT NULL AND isc.zhvi_month = lv.latest_zhvi_month)
-          )
-          AND (
-            (lv.latest_acs_vintage IS NULL AND isc.acs_vintage IS NULL) OR
-            (lv.latest_acs_vintage IS NOT NULL AND isc.acs_vintage = lv.latest_acs_vintage)
-          )
           AND ($2::text IS NULL OR isc.state_code = $2::text)
           AND ($3::text IS NULL OR isc.city_name ILIKE ('%' || $3::text || '%'))
       ),
@@ -483,11 +407,9 @@ async function fetchMarketExplorer(
           PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY bs.tax_rate) as median_tax,
           PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY bs.annual_rent / 12) as median_fmr,
           AVG(bs.demand_score) as avg_demand,
-          AVG(bs.zori_yoy) as avg_rent_growth,
           COUNT(*) as zip_count,
           (${nationalMedianZHVI} / NULLIF(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY bs.property_value), 0)) * 100 as affordability_index,
-          COALESCE(AVG(bs.demand_score), 50) * 0.4 + 
-          COALESCE(AVG(bs.zori_yoy) * 100, 0) * 6 as heat_score,
+          COALESCE(AVG(bs.demand_score), 50) * 0.4 as heat_score,
           (PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY bs.annual_rent / 12) * 0.92) 
           - (PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY bs.property_value) * 0.80 * ${mortgageRate} / 12 * 1.5)
           - (PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY bs.property_value) * PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY bs.tax_rate) / 12)
@@ -519,88 +441,56 @@ async function fetchMarketExplorer(
     
     const baseScoresSelect = bedroom === 'all'
       ? `
-      WITH latest_versions AS (
-        SELECT
-          MAX(zhvi_month) as latest_zhvi_month,
-          MAX(acs_vintage) as latest_acs_vintage
-        FROM investment_score
-        WHERE fmr_year = $1
-          AND data_sufficient = true
-      ),
-      base_scores AS (
+      WITH base_scores AS (
         SELECT
           isc.zip_code,
           MAX(isc.city_name) as city_name,
           MAX(isc.county_name) as county_name,
           MAX(isc.state_code) as state_code,
-          PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY COALESCE(isc.score_with_demand, isc.score)) as score,
+          PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY isc.adjusted_score) as score,
           PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY isc.net_yield) as net_yield,
           PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY isc.property_value) as property_value,
           PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY isc.tax_rate) as tax_rate,
           PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY isc.annual_rent) as annual_rent,
-          AVG(isc.demand_score) as demand_score,
-          AVG(isc.zori_yoy) as zori_yoy
+          PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY isc.effective_monthly_rent) FILTER (WHERE isc.effective_monthly_rent IS NOT NULL) as effective_monthly_rent,
+          PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY isc.market_monthly_rent) FILTER (WHERE isc.market_monthly_rent IS NOT NULL) as market_monthly_rent,
+          (COUNT(*) FILTER (WHERE isc.rent_limited_by_market = true)::float / NULLIF(COUNT(*), 0)) > 0 as rent_limited_by_market,
+          AVG(isc.demand_score) as demand_score
         FROM investment_score isc
-        CROSS JOIN latest_versions lv
         WHERE isc.fmr_year = $1
-          AND isc.data_sufficient = true
           AND isc.geo_type = 'zip'
           AND isc.zip_code IS NOT NULL
           AND isc.state_code IS NOT NULL
           AND isc.state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS')
           ${bedroomFilter}
-          AND (
-            (lv.latest_zhvi_month IS NULL AND isc.zhvi_month IS NULL) OR
-            (lv.latest_zhvi_month IS NOT NULL AND isc.zhvi_month = lv.latest_zhvi_month)
-          )
-          AND (
-            (lv.latest_acs_vintage IS NULL AND isc.acs_vintage IS NULL) OR
-            (lv.latest_acs_vintage IS NOT NULL AND isc.acs_vintage = lv.latest_acs_vintage)
-          )
           AND ($2::text IS NULL OR isc.state_code = $2::text)
           AND ($3::text IS NULL OR isc.zip_code ILIKE ($3::text || '%'))
         GROUP BY isc.zip_code
       ),`
       : `
-      WITH latest_versions AS (
-        SELECT
-          MAX(zhvi_month) as latest_zhvi_month,
-          MAX(acs_vintage) as latest_acs_vintage
-        FROM investment_score
-        WHERE fmr_year = $1
-          AND data_sufficient = true
-      ),
-      base_scores AS (
+      WITH base_scores AS (
         SELECT
           isc.zip_code,
           isc.city_name,
           isc.county_name,
           isc.state_code,
           isc.bedroom_count,
-          COALESCE(isc.score_with_demand, isc.score) as score,
+          isc.adjusted_score as score,
           isc.net_yield,
           isc.property_value,
           isc.tax_rate,
           isc.annual_rent,
-          isc.demand_score,
-          isc.zori_yoy
+          isc.effective_monthly_rent,
+          isc.market_monthly_rent,
+          isc.rent_limited_by_market,
+          isc.demand_score
         FROM investment_score isc
-        CROSS JOIN latest_versions lv
         WHERE isc.fmr_year = $1
-          AND isc.data_sufficient = true
           AND isc.geo_type = 'zip'
           AND isc.zip_code IS NOT NULL
           AND isc.state_code IS NOT NULL
           AND isc.state_code NOT IN ('PR', 'GU', 'VI', 'MP', 'AS')
           ${bedroomFilter}
-          AND (
-            (lv.latest_zhvi_month IS NULL AND isc.zhvi_month IS NULL) OR
-            (lv.latest_zhvi_month IS NOT NULL AND isc.zhvi_month = lv.latest_zhvi_month)
-          )
-          AND (
-            (lv.latest_acs_vintage IS NULL AND isc.acs_vintage IS NULL) OR
-            (lv.latest_acs_vintage IS NOT NULL AND isc.acs_vintage = lv.latest_acs_vintage)
-          )
           AND ($2::text IS NULL OR isc.state_code = $2::text)
           AND ($3::text IS NULL OR isc.zip_code ILIKE ($3::text || '%'))
       ),`;
@@ -620,11 +510,13 @@ async function fetchMarketExplorer(
           bs.property_value as median_value,
           bs.tax_rate as median_tax,
           bs.annual_rent / 12 as median_fmr,
+          bs.effective_monthly_rent,
+          bs.market_monthly_rent,
+          bs.rent_limited_by_market,
           bs.demand_score as avg_demand,
-          bs.zori_yoy as avg_rent_growth,
           1 as zip_count,
           (${nationalMedianZHVI} / NULLIF(bs.property_value, 0)) * 100 as affordability_index,
-          COALESCE(bs.demand_score, 50) * 0.4 + COALESCE(bs.zori_yoy * 100, 0) * 6 as heat_score,
+          COALESCE(bs.demand_score, 50) * 0.4 as heat_score,
           (bs.annual_rent / 12 * 0.92) 
           - (bs.property_value * 0.80 * ${mortgageRate} / 12 * 1.5)
           - (bs.property_value * bs.tax_rate / 12)
@@ -774,6 +666,9 @@ function createExcelFile(
         'Rent Growth 1Y (%)': row.avg_rent_growth !== null ? (Number(row.avg_rent_growth) * 100).toFixed(2) : '',
         'Demand Score': row.avg_demand !== null ? Number(row.avg_demand).toFixed(1) : '',
         'ZIP Count': row.zip_count !== null ? Number(row.zip_count) : '',
+        'Effective Rent (Monthly)': row.median_effective_rent != null ? Number(row.median_effective_rent) : (row.effective_monthly_rent != null ? Number(row.effective_monthly_rent) : ''),
+        'Market Rent (Monthly)': row.median_market_rent != null ? Number(row.median_market_rent) : (row.market_monthly_rent != null ? Number(row.market_monthly_rent) : ''),
+        'Rent Constrained': row.rent_constrained_pct != null ? (Number(row.rent_constrained_pct).toFixed(1) + '%') : (row.rent_limited_by_market ? 'Yes' : ''),
       };
 
       // Add type-specific fields

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useEffect, useRef, type ReactNode } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import type { StateCode } from '@/lib/states';
@@ -9,11 +9,11 @@ import { buildCitySlug, buildCountySlug } from '@/lib/location-slugs';
 import SearchInput from './SearchInput';
 import StateBedroomCurveChart from './StateBedroomCurveChart';
 import PercentageBadge from './PercentageBadge';
-import Tooltip from './Tooltip';
 import ScoreGauge from './ScoreGauge';
 import InvestorScoreInfoIcon from './InvestorScoreInfoIcon';
 import AppHeader from './AppHeader';
 import FMRTable from './FMRTable';
+import VoucherStrengthChart, { type ChartRow } from './VoucherStrengthChart';
 import { formatCountyName } from '@/lib/county-utils';
 
 // Dynamically import ChoroplethMap to avoid SSR issues with Leaflet
@@ -49,43 +49,7 @@ type CountyRanking = {
   percentDiff: number;
 };
 
-type MoversData = {
-  rising?: Array<{
-    areaName: string;
-    stateCode: string;
-    yoyPercent: number;
-    yoyBedroom: number;
-    bedroom0?: number | null;
-    bedroom1?: number | null;
-    bedroom2?: number | null;
-    bedroom3?: number | null;
-    bedroom4?: number | null;
-  }>;
-  falling?: Array<{
-    areaName: string;
-    stateCode: string;
-    yoyPercent: number;
-    yoyBedroom: number;
-    bedroom0?: number | null;
-    bedroom1?: number | null;
-    bedroom2?: number | null;
-    bedroom3?: number | null;
-    bedroom4?: number | null;
-  }>;
-  anomalies?: Array<{
-    areaName: string;
-    stateCode: string;
-    jumpFrom: number;
-    jumpTo: number;
-    jumpPercent: number;
-    nationalAvg?: number | null;
-    bedroom0?: number | null;
-    bedroom1?: number | null;
-    bedroom2?: number | null;
-    bedroom3?: number | null;
-    bedroom4?: number | null;
-  }>;
-};
+
 
 type StateMetrics = {
   year: number;
@@ -94,6 +58,8 @@ type StateMetrics = {
   byBedroom: Array<{
     br: number;
     medianFMR: number | null;
+    minFMR: number | null;
+    maxFMR: number | null;
     medianYoY: number | null;
     medianCAGR3: number | null;
     pctPositiveYoY: number | null;
@@ -117,26 +83,22 @@ type StateMetrics = {
 export default function StateDashboardClient(props: { stateCode: StateCode }) {
   const router = useRouter();
   const [displayYear, setDisplayYear] = useState<number | null>(null);
-  const [sideTab, setSideTab] = useState<'rising' | 'falling' | 'jumps'>('rising');
   const [countyRankings, setCountyRankings] = useState<CountyRanking[]>([]);
   const [countyRankingsLoading, setCountyRankingsLoading] = useState(true);
   const [stateMedianScore, setStateMedianScore] = useState<number | null>(null);
   const [hoveredCountyFips, setHoveredCountyFips] = useState<string | null>(null);
   const [hoverSource, setHoverSource] = useState<'map' | 'list' | null>(null);
-  const [moversData, setMoversData] = useState<MoversData | null>(null);
-  const [moversLoading, setMoversLoading] = useState(true);
   const [stateMetrics, setStateMetrics] = useState<StateMetrics | null>(null);
   const [stateMetricsLoading, setStateMetricsLoading] = useState(true);
+  const [alignmentRows, setAlignmentRows] = useState<ChartRow[]>([]);
   const countyAbortRef = useRef<AbortController | null>(null);
-  const moversAbortRef = useRef<AbortController | null>(null);
   const metricsAbortRef = useRef<AbortController | null>(null);
+  const alignmentAbortRef = useRef<AbortController | null>(null);
   const countyRowRefs = useRef<Map<string, HTMLAnchorElement>>(new Map());
   const lastScrolledFipsRef = useRef<string | null>(null);
   const countyListScrollRef = useRef<HTMLDivElement | null>(null);
 
   const stateName = STATES.find((s) => s.code === props.stateCode)?.name || props.stateCode;
-  const effectiveText = displayYear ? `FY ${displayYear} | Effective Oct 1, ${displayYear - 1}` : 'Loading…';
-
   // Fetch county rankings
   useEffect(() => {
     if (countyAbortRef.current) countyAbortRef.current.abort();
@@ -197,6 +159,28 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
     };
   }, [props.stateCode, displayYear]);
 
+  // Fetch per-ZIP FMR+AMR data for Market Alignment chart
+  useEffect(() => {
+    if (alignmentAbortRef.current) alignmentAbortRef.current.abort();
+    const abortController = new AbortController();
+    alignmentAbortRef.current = abortController;
+
+    fetch(`/api/stats/state-alignment?state=${props.stateCode}`, { signal: abortController.signal })
+      .then((res) => res.json())
+      .then((data) => {
+        if (abortController.signal.aborted) return;
+        setAlignmentRows(Array.isArray(data.rows) ? data.rows : []);
+      })
+      .catch((e) => {
+        if (e.name === 'AbortError') return;
+        console.error('Failed to fetch state alignment data:', e);
+      });
+
+    return () => {
+      if (alignmentAbortRef.current === abortController) abortController.abort();
+    };
+  }, [props.stateCode]);
+
   // Map-hover should scroll the list to the hovered county
   useEffect(() => {
     if (hoverSource !== 'map') return;
@@ -229,38 +213,6 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
     });
   }, [hoveredCountyFips, hoverSource]);
 
-  // Fetch movers data from dashboard insights
-  useEffect(() => {
-    if (moversAbortRef.current) moversAbortRef.current.abort();
-    const abortController = new AbortController();
-    moversAbortRef.current = abortController;
-
-    setMoversLoading(true);
-    const url = `/api/stats/insights?type=county&state=${props.stateCode}`;
-    fetch(url, {
-      signal: abortController.signal,
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (abortController.signal.aborted) return;
-        setMoversData({
-          rising: data.rising || [],
-          falling: data.falling || [],
-          anomalies: data.anomalies || [],
-        });
-        if (displayYear === null && typeof data.year === 'number') setDisplayYear(data.year);
-        setMoversLoading(false);
-      })
-      .catch((e) => {
-        if (e.name === 'AbortError') return;
-        console.error('Failed to fetch movers data:', e);
-        setMoversLoading(false);
-      });
-
-    return () => {
-      if (moversAbortRef.current === abortController) abortController.abort();
-    };
-  }, [props.stateCode, displayYear]);
 
   // Helper function to get CSS variable value safely
   const getCSSVariable = (variableName: string, fallback: string): string => {
@@ -330,6 +282,11 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
     [stateMetrics?.byBedroom]
   );
 
+  const alignmentZipCount = useMemo(
+    () => new Set(alignmentRows.map((r) => r.zipCode).filter(Boolean)).size,
+    [alignmentRows]
+  );
+
   return (
     <main className="min-h-screen bg-[var(--bg-primary)] antialiased">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-10 sm:py-8 md:py-10 lg:py-10">
@@ -376,11 +333,11 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
                         SAFMR
                       </span>
                     </div>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <div className="text-xs text-[var(--text-tertiary)] truncate">State dashboard • ZIP-level medians (SAFMR where required)</div>
-                      <span className="text-xs text-[var(--text-muted)] shrink-0">•</span>
-                      <span className="text-xs text-[var(--text-muted)] shrink-0">{effectiveText}</span>
-                    </div>
+                    {alignmentZipCount > 0 && (
+                      <div className="text-xs text-[var(--text-tertiary)] mt-0.5">
+                        Found {alignmentZipCount} ZIP{alignmentZipCount !== 1 ? 's' : ''}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -434,6 +391,9 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
                     data={stateMetrics.byBedroom.map((b) => ({
                       br: b.br,
                       rent: b.medianFMR,
+                      rentRange: (b.minFMR != null && b.maxFMR != null && b.medianFMR != null)
+                        ? { min: b.minFMR, max: b.maxFMR, median: b.medianFMR }
+                        : undefined,
                       yoy: b.medianYoY,
                       cagr3: b.medianCAGR3,
                     }))}
@@ -443,153 +403,52 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
                     currentYear={stateMetrics.year}
                   />
 
-                  {/* Bedroom curve chart below table */}
-                  <div className="mt-3 sm:mt-4">
-                    <div className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] p-3 sm:p-4">
-                      <div className="mb-3">
-                        <h3 className="text-sm font-semibold text-[var(--text-primary)]">Bedroom curve</h3>
-                        <div className="text-xs text-[var(--text-tertiary)]">
-                          YoY: {stateMetrics.prevYear}→{stateMetrics.year} • 3Y: {stateMetrics.prev3Year}→{stateMetrics.year}
-                        </div>
-                      </div>
-                      <StateBedroomCurveChart rows={chartRows} />
-                    </div>
-                  </div>
                 </>
+              )}
+
+              {/* Market Alignment chart — shown first, more actionable than bedroom curve */}
+              {alignmentRows.length > 0 && (
+                <div className="mt-3 sm:mt-4">
+                  <VoucherStrengthChart rows={alignmentRows} stateCode={props.stateCode} />
+                </div>
+              )}
+
+              {stateMetrics && (
+                <div className="mt-3 sm:mt-4">
+                  <div className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] p-3 sm:p-4">
+                    <div className="mb-3">
+                      <h3 className="text-sm font-semibold text-[var(--text-primary)]">Bedroom curve</h3>
+                    </div>
+                    <StateBedroomCurveChart rows={chartRows} />
+                  </div>
+                </div>
               )}
             </div>
 
-            {/* Tabbed movers - hidden on mobile, shown in secondary cards */}
-            <div className="mb-4 sm:mb-6 hidden lg:block">
-              <h3 className="text-sm sm:text-base font-semibold text-[var(--text-primary)] mb-2 sm:mb-3">Movers</h3>
-              <p className="text-xs text-[var(--text-tertiary)] mb-3 sm:mb-4">
-                Counties with largest YoY changes and price jumps
-              </p>
-              <div className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] overflow-hidden flex flex-col max-h-[60vh]">
-                <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[var(--border-color)] bg-[var(--bg-tertiary)] flex-shrink-0">
-                  <div className="flex items-center justify-between gap-2 mb-1.5">
-                    <span className="text-xs text-[var(--text-tertiary)]">View:</span>
-                    <div className="flex gap-1">
-                      {[
-                        { id: 'rising' as const, label: 'Rising' },
-                        { id: 'falling' as const, label: 'Falling' },
-                        { id: 'jumps' as const, label: 'Jumps' },
-                      ].map((t) => (
-                        <button
-                          key={t.id}
-                          type="button"
-                          onClick={() => setSideTab(t.id)}
-                          className={`px-2 py-1 rounded-md text-xs font-semibold border transition-colors ${
-                            sideTab === t.id
-                              ? 'bg-[var(--bg-secondary)] border-[var(--border-secondary)] text-[var(--text-primary)]'
-                              : 'bg-[var(--bg-tertiary)] border-[var(--border-color)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
-                          }`}
-                        >
-                          {t.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                <div className="divide-y divide-[var(--border-color)] overflow-y-auto flex-1 min-h-0 custom-scrollbar pb-2">
-                  {moversLoading ? (
-                    <>
-                      {[...Array(8)].map((_, i) => (
-                        <div key={i} className="px-3 sm:px-4 py-2 sm:py-2.5">
-                          <div className="flex items-start justify-between gap-2 sm:gap-3">
-                            <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
-                              <div className="h-3 bg-[#e5e5e5] rounded w-4 shrink-0 animate-pulse" />
-                              <div className="min-w-0 flex-1">
-                                <div className="h-4 bg-[#e5e5e5] rounded w-32 mb-1.5 animate-pulse" />
-                                <div className="h-3 bg-[#e5e5e5] rounded w-16 animate-pulse" />
-                              </div>
-                            </div>
-                            <div className="text-right shrink-0">
-                              <div className="h-4 bg-[#e5e5e5] rounded w-12 ml-auto mb-1 animate-pulse" />
-                              <div className="h-3 bg-[#e5e5e5] rounded w-16 ml-auto animate-pulse" />
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </>
-                  ) : (() => {
-                    const bedroomLabels = ['0 BR', '1 BR', '2 BR', '3 BR', '4 BR'];
-                    let items: any[] = [];
-                    let colorClass = '';
-                    let primaryText: (item: any) => ReactNode = () => '';
-                    let secondaryText: (item: any) => string | null = () => null;
-                    let tertiaryText: (item: any) => string | null = () => null;
-                    let tertiaryValue: (item: any) => number | null = () => null;
-
-                    if (sideTab === 'rising') {
-                      items = (moversData?.rising || []).slice(0, 15);
-                      colorClass = 'text-[var(--map-color-high)]';
-                      primaryText = (item) => <PercentageBadge value={item.yoyPercent} />;
-                      secondaryText = (item) => bedroomLabels[item.yoyBedroom] || `${item.yoyBedroom} BR`;
-                      tertiaryValue = (item) => item.bedroom2 ?? null;
-                    } else if (sideTab === 'falling') {
-                      items = (moversData?.falling || []).slice(0, 15);
-                      colorClass = 'text-[var(--map-color-low)]';
-                      primaryText = (item) => <PercentageBadge value={item.yoyPercent} />;
-                      secondaryText = (item) => bedroomLabels[item.yoyBedroom] || `${item.yoyBedroom} BR`;
-                      tertiaryValue = (item) => item.bedroom2 ?? null;
-                    } else {
-                      items = (moversData?.anomalies || []).slice(0, 15);
-                      colorClass = 'text-[var(--text-primary)]';
-                      primaryText = (item) => <PercentageBadge value={item.jumpPercent} />;
-                      secondaryText = (item) => `${item.jumpFrom}→${item.jumpTo} BR`;
-                      tertiaryText = (item) =>
-                        typeof item.nationalAvg === 'number' ? `Nat avg ${item.nationalAvg.toFixed(1)}%` : null;
-                      // show the destination BR rent if available (e.g. 2BR for 1→2)
-                      tertiaryValue = (item) => {
-                        const key = `bedroom${item.jumpTo}` as const;
-                        return typeof item[key] === 'number' ? item[key] : null;
-                      };
-                    }
-
-                    if (items.length === 0) {
-                      return (
-                        <div className="px-3 sm:px-4 py-6 text-center">
-                          <p className="text-xs text-[var(--text-tertiary)]">No data available</p>
-                        </div>
-                      );
-                    }
-
-                    return items.map((item, index) => {
-                      const countyLabel = formatCountyName(item.areaName, item.stateCode);
-                      const href = `/county/${buildCountySlug(item.areaName, item.stateCode)}`;
-
-                      return (
-                        <a
-                          key={`${sideTab}-${item.areaName}-${item.stateCode}-${index}`}
-                          href={href}
-                          className="block px-3 sm:px-4 py-2 sm:py-2.5 hover:bg-[var(--bg-hover)] transition-colors"
-                        >
-                          <div className="flex items-start justify-between gap-2 sm:gap-3">
-                            <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
-                              <span className="text-xs text-[var(--text-muted)] font-medium shrink-0 tabular-nums">#{index + 1}</span>
-                              <div className="min-w-0">
-                                <div className="font-medium text-[var(--text-primary)] text-xs sm:text-sm truncate">{countyLabel}</div>
-                                <div className="text-xs text-[var(--text-tertiary)] truncate mt-0.5">{item.stateCode}</div>
-                              </div>
-                            </div>
-                            <div className="text-right shrink-0">
-                              <div className={`font-semibold text-xs sm:text-sm tabular-nums ${colorClass}`}>
-                                {primaryText(item)}
-                              </div>
-                              {secondaryText(item) && <div className="text-xs text-[var(--text-tertiary)] mt-0.5">{secondaryText(item)}</div>}
-                              {tertiaryText(item) && <div className="text-xs text-[var(--text-muted)] mt-0.5 tabular-nums">{tertiaryText(item)}</div>}
-                              {tertiaryValue(item) !== null && (
-                                <div className="text-xs text-[var(--text-muted)] mt-0.5 tabular-nums">{formatCurrency(tertiaryValue(item) as number)}</div>
-                              )}
-                            </div>
-                          </div>
-                        </a>
-                      );
-                    });
-                  })()}
-                </div>
-              </div>
+            {/* Explore further — two nav tiles */}
+            <div className="mb-4 sm:mb-6 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              <a
+                href={`/explorer?geoTab=county&geoState=${props.stateCode}`}
+                className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] p-4 sm:p-5 flex flex-col hover:-translate-y-0.5 hover:shadow-[0_4px_12px_-2px_rgba(0,0,0,0.1)] transition-all duration-200"
+              >
+                <div className="text-xs font-semibold text-[var(--text-secondary)]">Rankings</div>
+                <h3 className="text-sm sm:text-base font-semibold text-[var(--text-primary)] mt-1">Market Explorer</h3>
+                <p className="text-xs sm:text-sm text-[var(--text-tertiary)] mt-1.5">
+                  Browse counties, cities, and ZIPs in {stateName} ranked by Investment Score.
+                </p>
+                <div className="mt-auto pt-3 text-xs sm:text-sm font-medium text-[var(--text-primary)]">Browse rankings →</div>
+              </a>
+              <a
+                href={`/insights?type=zip&state=${props.stateCode}`}
+                className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] p-4 sm:p-5 flex flex-col hover:-translate-y-0.5 hover:shadow-[0_4px_12px_-2px_rgba(0,0,0,0.1)] transition-all duration-200"
+              >
+                <div className="text-xs font-semibold text-[var(--text-secondary)]">Trends</div>
+                <h3 className="text-sm sm:text-base font-semibold text-[var(--text-primary)] mt-1">Market Intelligence</h3>
+                <p className="text-xs sm:text-sm text-[var(--text-tertiary)] mt-1.5">
+                  Find ZIPs in {stateName} with notable FMR, yield, and home value trends.
+                </p>
+                <div className="mt-auto pt-3 text-xs sm:text-sm font-medium text-[var(--text-primary)]">View insights →</div>
+              </a>
             </div>
 
           </div>
@@ -681,14 +540,9 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
 
             {/* Choropleth Map */}
             <div className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] overflow-hidden order-2 lg:order-2">
-              <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[var(--border-color)] bg-[var(--bg-tertiary)] flex items-center justify-between gap-2">
-                <div>
-                  <h3 className="text-xs sm:text-sm font-semibold text-[var(--text-primary)] mb-0.5">County Map</h3>
-                  <p className="text-xs text-[var(--text-tertiary)]">Click a county to view details</p>
-                </div>
-                <div className="text-xs font-medium text-[var(--text-tertiary)]">
-                  Layer: Investment Score
-                </div>
+              <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[var(--border-color)] bg-[var(--bg-tertiary)]">
+                <h3 className="text-xs sm:text-sm font-semibold text-[var(--text-primary)] mb-0.5">County Map</h3>
+                <p className="text-xs text-[var(--text-tertiary)]">Click a county to view details</p>
               </div>
               <div className="p-4">
                 <div className="h-40 rounded-lg overflow-hidden bg-[var(--map-bg)]">
@@ -714,135 +568,6 @@ export default function StateDashboardClient(props: { stateCode: StateCode }) {
               </div>
             </div>
 
-            {/* Tabbed movers - shown in secondary cards on mobile, after counties */}
-            <div className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] overflow-hidden flex flex-col max-h-[60vh] order-3 lg:hidden">
-              <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[var(--border-color)] bg-[var(--bg-tertiary)] flex-shrink-0">
-                <h3 className="text-xs sm:text-sm font-semibold text-[var(--text-primary)] mb-0.5">Movers</h3>
-                <p className="text-xs text-[var(--text-tertiary)]">
-                  Counties with largest YoY changes and price jumps
-                </p>
-                <div className="flex items-center justify-between gap-2 mt-2">
-                  <span className="text-xs text-[var(--text-tertiary)]">View:</span>
-                  <div className="flex gap-1">
-                    {[
-                      { id: 'rising' as const, label: 'Rising' },
-                      { id: 'falling' as const, label: 'Falling' },
-                      { id: 'jumps' as const, label: 'Jumps' },
-                    ].map((t) => (
-                      <button
-                        key={t.id}
-                        type="button"
-                        onClick={() => setSideTab(t.id)}
-                        className={`px-2 py-1 rounded-md text-xs font-semibold border transition-colors ${
-                          sideTab === t.id
-                            ? 'bg-[var(--bg-secondary)] border-[var(--border-secondary)] text-[var(--text-primary)]'
-                            : 'bg-[var(--bg-tertiary)] border-[var(--border-color)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
-                        }`}
-                      >
-                        {t.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <div className="divide-y divide-[var(--border-color)] overflow-y-auto flex-1 min-h-0 custom-scrollbar pb-2">
-                {moversLoading ? (
-                  <>
-                    {[...Array(8)].map((_, i) => (
-                      <div key={i} className="px-3 sm:px-4 py-2 sm:py-2.5">
-                        <div className="flex items-start justify-between gap-2 sm:gap-3">
-                          <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
-                            <div className="h-3 bg-[#e5e5e5] rounded w-4 shrink-0 animate-pulse" />
-                            <div className="min-w-0 flex-1">
-                              <div className="h-4 bg-[#e5e5e5] rounded w-32 mb-1.5 animate-pulse" />
-                              <div className="h-3 bg-[#e5e5e5] rounded w-16 animate-pulse" />
-                            </div>
-                          </div>
-                          <div className="text-right shrink-0">
-                            <div className="h-4 bg-[#e5e5e5] rounded w-12 ml-auto mb-1 animate-pulse" />
-                            <div className="h-3 bg-[#e5e5e5] rounded w-16 ml-auto animate-pulse" />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </>
-                ) : (() => {
-                  const bedroomLabels = ['0 BR', '1 BR', '2 BR', '3 BR', '4 BR'];
-                  let items: any[] = [];
-                  let colorClass = '';
-                  let primaryText: (item: any) => ReactNode = () => '';
-                  let secondaryText: (item: any) => string | null = () => null;
-                  let tertiaryText: (item: any) => string | null = () => null;
-                  let tertiaryValue: (item: any) => number | null = () => null;
-
-                  if (sideTab === 'rising') {
-                    items = (moversData?.rising || []).slice(0, 15);
-                    colorClass = 'text-[var(--map-color-high)]';
-                    primaryText = (item) => <PercentageBadge value={item.yoyPercent} />;
-                    secondaryText = (item) => bedroomLabels[item.yoyBedroom] || `${item.yoyBedroom} BR`;
-                    tertiaryValue = (item) => item.bedroom2 ?? null;
-                  } else if (sideTab === 'falling') {
-                    items = (moversData?.falling || []).slice(0, 15);
-                    colorClass = 'text-[var(--map-color-low)]';
-                    primaryText = (item) => <PercentageBadge value={item.yoyPercent} />;
-                    secondaryText = (item) => bedroomLabels[item.yoyBedroom] || `${item.yoyBedroom} BR`;
-                    tertiaryValue = (item) => item.bedroom2 ?? null;
-                  } else {
-                    items = (moversData?.anomalies || []).slice(0, 15);
-                    colorClass = 'text-[var(--text-primary)]';
-                    primaryText = (item) => <PercentageBadge value={item.jumpPercent} />;
-                    secondaryText = (item) => `${item.jumpFrom}→${item.jumpTo} BR`;
-                    tertiaryText = (item) =>
-                      typeof item.nationalAvg === 'number' ? `Nat avg ${item.nationalAvg.toFixed(1)}%` : null;
-                    tertiaryValue = (item) => {
-                      const key = `bedroom${item.jumpTo}` as const;
-                      return typeof item[key] === 'number' ? item[key] : null;
-                    };
-                  }
-
-                  if (items.length === 0) {
-                    return (
-                      <div className="px-3 sm:px-4 py-6 text-center">
-                        <p className="text-xs text-[var(--text-tertiary)]">No data available</p>
-                      </div>
-                    );
-                  }
-
-                  return items.map((item, index) => {
-                    const countyLabel = formatCountyName(item.areaName, item.stateCode);
-                    const href = `/county/${buildCountySlug(item.areaName, item.stateCode)}`;
-
-                    return (
-                      <a
-                        key={`${sideTab}-${item.areaName}-${item.stateCode}-${index}`}
-                        href={href}
-                        className="block px-3 sm:px-4 py-2 sm:py-2.5 hover:bg-[var(--bg-hover)] transition-colors"
-                      >
-                        <div className="flex items-start justify-between gap-2 sm:gap-3">
-                          <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
-                            <span className="text-xs text-[var(--text-muted)] font-medium shrink-0 tabular-nums">#{index + 1}</span>
-                            <div className="min-w-0">
-                              <div className="font-medium text-[var(--text-primary)] text-xs sm:text-sm truncate">{countyLabel}</div>
-                              <div className="text-xs text-[var(--text-tertiary)] truncate mt-0.5">{item.stateCode}</div>
-                            </div>
-                          </div>
-                          <div className="text-right shrink-0">
-                            <div className={`font-semibold text-xs sm:text-sm tabular-nums ${colorClass}`}>
-                              {primaryText(item)}
-                            </div>
-                            {secondaryText(item) && <div className="text-xs text-[var(--text-tertiary)] mt-0.5">{secondaryText(item)}</div>}
-                            {tertiaryText(item) && <div className="text-xs text-[var(--text-muted)] mt-0.5 tabular-nums">{tertiaryText(item)}</div>}
-                            {tertiaryValue(item) !== null && (
-                              <div className="text-xs text-[var(--text-muted)] mt-0.5 tabular-nums">{formatCurrency(tertiaryValue(item) as number)}</div>
-                            )}
-                          </div>
-                        </div>
-                      </a>
-                    );
-                  });
-                })()}
-              </div>
-            </div>
             </div>
           </div>
         </div>

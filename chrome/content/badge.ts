@@ -10,6 +10,10 @@ export interface BadgeProps {
   mode?: 'cashFlow' | 'fmr';
   fmrMonthly?: number | null;
   rateLimited?: boolean;
+  /** Effective rent is constrained (HUD FMR > market). Show warning in tooltip. */
+  rentConstrained?: boolean;
+  /** Market rent data missing; effective rent = FMR. Show warning in tooltip. */
+  missingMarketRent?: boolean;
 }
 
 export function createBadgeElement(props: BadgeProps): HTMLElement {
@@ -63,6 +67,12 @@ export function createBadgeElement(props: BadgeProps): HTMLElement {
     badge.style.borderColor = 'rgba(229, 229, 229, 1)';
     badge.style.background = '#ffffff';
   });
+
+  if (props.rentConstrained) {
+    badge.title = 'HUD may not pay above going market rates. Effective rent used.';
+  } else if (props.missingMarketRent) {
+    badge.title = 'Market rent data unavailable; showing HUD FMR.';
+  }
 
   // Click behavior
   // Allow clicks when rateLimited (login required) even if nonInteractive

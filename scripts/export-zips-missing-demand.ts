@@ -59,7 +59,6 @@ async function exportMissingDemandZips(year?: number) {
       bedroom_count,
       fmr_year,
       zordi_metro,
-      zori_yoy,
       demand_score,
       demand_multiplier
     FROM investment_score

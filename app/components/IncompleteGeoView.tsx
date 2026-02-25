@@ -236,8 +236,7 @@ export default function IncompleteGeoView({
               <tr className="border-b border-[var(--border-color)]">
                 <th className="text-left py-2 px-2 sm:px-3 font-medium text-[var(--text-tertiary)] text-xs uppercase tracking-wider">BR</th>
                 <th className="text-right py-2 px-2 sm:px-3 font-medium text-[var(--text-tertiary)] text-xs uppercase tracking-wider">Rent</th>
-                <th className="text-right py-2 px-2 sm:px-3 font-medium text-[var(--text-tertiary)] text-xs uppercase tracking-wider">YoY</th>
-                <th className="text-right py-2 px-2 sm:px-3 font-medium text-[var(--text-tertiary)] text-xs uppercase tracking-wider">3Y CAGR</th>
+                <th className="hidden sm:table-cell text-right py-2 px-2 sm:px-3 font-medium text-[var(--text-tertiary)] text-xs uppercase tracking-wider">3Y CAGR</th>
               </tr>
             </thead>
             <tbody>
@@ -245,8 +244,7 @@ export default function IncompleteGeoView({
                 <tr key={br} className="border-b border-[var(--border-color)]">
                   <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-sm text-[var(--text-muted)]">{br} BR</td>
                   <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right text-sm text-[var(--text-muted)]">—</td>
-                  <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right text-sm text-[var(--text-muted)]">—</td>
-                  <td className="py-2.5 sm:py-2 px-2 sm:px-3 text-right text-sm text-[var(--text-muted)]">—</td>
+                  <td className="hidden sm:table-cell py-2.5 sm:py-2 px-2 sm:px-3 text-right text-sm text-[var(--text-muted)]">—</td>
                 </tr>
               ))}
             </tbody>

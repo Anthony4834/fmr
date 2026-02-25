@@ -30,8 +30,6 @@ interface ScoreComparison {
   difference: number;
   percentChange: number;
   zordiValue: number | null;
-  zordiDelta3m: number | null;
-  zoriYoy: number | null;
 }
 
 // Helper function for percentile rank (0-100) - same as compute-investment-scores.ts
@@ -84,41 +82,11 @@ async function compareScores(year?: number, stateFilter?: string) {
     zordi_current AS (
       SELECT
         z.region_name,
-        z.zordi as zordi_value,
-        z_prev.zordi as zordi_3m_ago,
-        CASE
-          WHEN z_prev.zordi IS NOT NULL AND z_prev.zordi != 0
-          THEN (z.zordi - z_prev.zordi) / z_prev.zordi
-          ELSE NULL
-        END as zordi_delta_3m
+        z.zordi as zordi_value
       FROM zillow_zordi_metro_monthly z
       CROSS JOIN latest_zordi_month lzm
-      LEFT JOIN zillow_zordi_metro_monthly z_prev ON
-        z_prev.region_name = z.region_name
-        AND z_prev.region_type = z.region_type
-        AND z_prev.month = (lzm.month - INTERVAL '3 months')::date
       WHERE z.month = lzm.month
         AND z.region_type IN ('msa', 'metro')
-    ),
-    latest_zori_month AS (
-      SELECT MAX(month) as month FROM zillow_zori_zip_monthly
-    ),
-    zori_growth AS (
-      SELECT
-        zc.zip_code,
-        zc.zori as zori_current,
-        zp.zori as zori_1y_ago,
-        CASE
-          WHEN zp.zori IS NOT NULL AND zp.zori > 0
-          THEN (zc.zori - zp.zori) / zp.zori
-          ELSE NULL
-        END as zori_yoy
-      FROM zillow_zori_zip_monthly zc
-      CROSS JOIN latest_zori_month lsm
-      LEFT JOIN zillow_zori_zip_monthly zp ON
-        zp.zip_code = zc.zip_code
-        AND zp.month = (lsm.month - INTERVAL '1 year')::date
-      WHERE zc.month = lsm.month
     ),
     zip_metro_mapping AS (
       SELECT DISTINCT ON (z.zip_code)
@@ -135,13 +103,10 @@ async function compareScores(year?: number, stateFilter?: string) {
       isc.base_score,
       isc.net_yield,
       zrd.zordi_value,
-      zrd.zordi_delta_3m,
-      zg.zori_yoy,
       zmm.metro_name as zordi_metro
     FROM investment_scores isc
     LEFT JOIN zip_metro_mapping zmm ON zmm.zip_code = isc.zip_code
     LEFT JOIN zordi_current zrd ON zrd.region_name = zmm.metro_name
-    LEFT JOIN zori_growth zg ON zg.zip_code = isc.zip_code
     ORDER BY isc.zip_code
     LIMIT 10000
   `;
@@ -159,16 +124,8 @@ async function compareScores(year?: number, stateFilter?: string) {
   const zordiValues = results
     .map((r: any) => r.zordi_value ? Number(r.zordi_value) : null)
     .filter((v): v is number => v !== null);
-  const zordiDeltas = results
-    .map((r: any) => r.zordi_delta_3m ? Number(r.zordi_delta_3m) : null)
-    .filter((v): v is number => v !== null);
-  const zoriYoys = results
-    .map((r: any) => r.zori_yoy ? Number(r.zori_yoy) : null)
-    .filter((v): v is number => v !== null);
 
   const zordiRanks = computePercentileRank(zordiValues);
-  const zordiDeltaRanks = computePercentileRank(zordiDeltas);
-  const zoriYoyRanks = computePercentileRank(zoriYoys);
 
   // Compute demand scores and multipliers for each ZIP
   const comparisons: ScoreComparison[] = [];
@@ -178,47 +135,13 @@ async function compareScores(year?: number, stateFilter?: string) {
   for (const row of results) {
     const baseScore = Number(row.base_score) || 0;
     const zordiValue = row.zordi_value ? Number(row.zordi_value) : null;
-    const zordiDelta3m = row.zordi_delta_3m ? Number(row.zordi_delta_3m) : null;
-    const zoriYoy = row.zori_yoy ? Number(row.zori_yoy) : null;
 
-    let demandLevel: number | null = null;
-    let demandMomentum: number | null = null;
-    let rentPressure: number | null = null;
-
-    if (zordiValue !== null && zordiRanks.has(zordiValue)) {
-      demandLevel = zordiRanks.get(zordiValue)!;
-    }
-    if (zordiDelta3m !== null && zordiDeltaRanks.has(zordiDelta3m)) {
-      demandMomentum = zordiDeltaRanks.get(zordiDelta3m)!;
-    }
-    if (zoriYoy !== null && zoriYoyRanks.has(zoriYoy)) {
-      rentPressure = zoriYoyRanks.get(zoriYoy)!;
-    }
-
-    // Compute weighted demand score (same algorithm as compute-investment-scores.ts)
+    // Compute demand score using ZORDI percentile rank
     let demandScore: number | null = null;
     let demandMultiplier: number | null = null;
 
-    if (demandLevel !== null) {
-      // If missing components, reweight to available data
-      let totalWeight = 0;
-      let weightedSum = 0;
-
-      if (demandLevel !== null) {
-        weightedSum += 0.5 * demandLevel;
-        totalWeight += 0.5;
-      }
-      if (demandMomentum !== null) {
-        weightedSum += 0.3 * demandMomentum;
-        totalWeight += 0.3;
-      }
-      if (rentPressure !== null) {
-        weightedSum += 0.2 * rentPressure;
-        totalWeight += 0.2;
-      }
-
-      // Normalize to 0-100 scale
-      demandScore = totalWeight > 0 ? (weightedSum / totalWeight) : 50;
+    if (zordiValue !== null && zordiRanks.has(zordiValue)) {
+      demandScore = zordiRanks.get(zordiValue)!;
 
       // Compute demand multiplier: clamp(0.90, 1.10, 1 + 0.20*(DEMAND_SCORE - 50)/100)
       const rawMultiplier = 1 + 0.20 * (demandScore - 50) / 100;
@@ -250,8 +173,6 @@ async function compareScores(year?: number, stateFilter?: string) {
       difference,
       percentChange,
       zordiValue,
-      zordiDelta3m,
-      zoriYoy
     });
   }
 

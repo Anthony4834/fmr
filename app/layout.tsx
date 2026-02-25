@@ -8,6 +8,7 @@ import GuestRouteTracker from "./components/GuestRouteTracker";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { RateLimitProvider } from "./contexts/RateLimitContext";
 import { AuthProvider } from "./contexts/AuthContext";
+import { RentDisplayProvider } from "./contexts/RentDisplayContext";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -132,6 +133,7 @@ export default function RootLayout({
       <body className="antialiased">
         <AuthProvider>
           <ThemeProvider>
+            <RentDisplayProvider>
             <RateLimitProvider>
               <Script
                 src="https://www.googletagmanager.com/gtag/js?id=AW-11417164379"
@@ -158,6 +160,7 @@ export default function RootLayout({
               <VercelAnalytics />
               {children}
             </RateLimitProvider>
+            </RentDisplayProvider>
           </ThemeProvider>
         </AuthProvider>
       </body>

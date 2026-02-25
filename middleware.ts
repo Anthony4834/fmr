@@ -6,6 +6,10 @@ import { trackGuestActivity } from '@/lib/guest-tracking';
 import { trackUserActivity } from '@/lib/user-tracking';
 import * as jose from 'jose';
 
+const AUTH_DEBUG =
+  process.env.NODE_ENV === 'development' &&
+  process.env.DEBUG_MIDDLEWARE_AUTH === '1';
+
 /**
  * Generate a UUID v4 using Web Crypto API (Edge Runtime compatible)
  */
@@ -197,6 +201,12 @@ function getOrCreateGuestId(request: NextRequest, response: NextResponse): { gue
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Prevent redirect loops:
+  // when we redirect to "/?rateLimitExceeded=...", allow that page to render.
+  if (pathname === '/' && request.nextUrl.searchParams.has('rateLimitExceeded')) {
+    return NextResponse.next();
+  }
+
   // Handle CORS for API routes (allowlist: site origin + chrome-extension + CORS_ALLOWED_ORIGINS)
   if (pathname.startsWith('/api/')) {
     // Handle preflight requests
@@ -319,7 +329,7 @@ export async function middleware(request: NextRequest) {
  */
 async function validateExtensionToken(authHeader: string | null): Promise<AuthToken | null> {
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    if (process.env.NODE_ENV === 'development') {
+    if (AUTH_DEBUG) {
       console.log('[Middleware] No Bearer token in auth header');
     }
     return null;
@@ -327,7 +337,7 @@ async function validateExtensionToken(authHeader: string | null): Promise<AuthTo
 
   const token = authHeader.slice('Bearer '.length).trim();
   if (!token) {
-    if (process.env.NODE_ENV === 'development') {
+    if (AUTH_DEBUG) {
       console.log('[Middleware] Empty token after Bearer');
     }
     return null;
@@ -336,13 +346,13 @@ async function validateExtensionToken(authHeader: string | null): Promise<AuthTo
   try {
     const secret = process.env.NEXTAUTH_SECRET;
     if (!secret) {
-      if (process.env.NODE_ENV === 'development') {
+      if (AUTH_DEBUG) {
         console.log('[Middleware] NEXTAUTH_SECRET not configured');
       }
       return null;
     }
 
-    if (process.env.NODE_ENV === 'development') {
+    if (AUTH_DEBUG) {
       console.log('[Middleware] Attempting to verify JWT token with jose...');
     }
 
@@ -352,19 +362,19 @@ async function validateExtensionToken(authHeader: string | null): Promise<AuthTo
     // Verify the token
     const { payload } = await jose.jwtVerify(token, secretKey);
 
-    if (process.env.NODE_ENV === 'development') {
+    if (AUTH_DEBUG) {
       console.log('[Middleware] JWT decoded successfully:', { type: payload.type, tier: payload.tier, sub: payload.sub });
     }
 
     // Check if this is an extension token
     if (payload.type !== 'extension_access') {
-      if (process.env.NODE_ENV === 'development') {
+      if (AUTH_DEBUG) {
         console.log('[Middleware] Token type is not extension_access:', payload.type);
       }
       return null;
     }
 
-    if (process.env.NODE_ENV === 'development') {
+    if (AUTH_DEBUG) {
       console.log('[Middleware] Extension token validated, tier:', payload.tier);
     }
     return {
@@ -375,7 +385,7 @@ async function validateExtensionToken(authHeader: string | null): Promise<AuthTo
     };
   } catch (error) {
     // Token invalid or expired
-    if (process.env.NODE_ENV === 'development') {
+    if (AUTH_DEBUG) {
       console.log('[Middleware] JWT verification failed:', error instanceof Error ? error.message : error);
     }
     return null;
@@ -403,14 +413,14 @@ async function handleRateLimit(request: NextRequest): Promise<NextResponse> {
     
     // First check for extension Bearer token
     const authHeader = request.headers.get('authorization');
-    if (process.env.NODE_ENV === 'development') {
+    if (AUTH_DEBUG) {
       console.log('[Middleware] Auth header present:', !!authHeader);
     }
     let token: AuthToken | null = await validateExtensionToken(authHeader);
 
     // If no extension token, try NextAuth session token
     if (!token) {
-      if (process.env.NODE_ENV === 'development') {
+      if (AUTH_DEBUG) {
         console.log('[Middleware] No extension token, trying NextAuth session');
       }
       try {
@@ -434,12 +444,12 @@ async function handleRateLimit(request: NextRequest): Promise<NextResponse> {
           }) as AuthToken | null;
         }
         
-        if (token && process.env.NODE_ENV === 'development') {
+        if (token && AUTH_DEBUG) {
           console.log('[Middleware] NextAuth session found:', { tier: token.tier, role: token.role, id: token.id });
         }
       } catch (tokenError) {
         // If token extraction fails, treat as logged-out user
-        if (process.env.NODE_ENV === 'development') {
+        if (AUTH_DEBUG) {
           console.warn('Failed to extract auth token:', tokenError);
         }
       }
@@ -448,8 +458,9 @@ async function handleRateLimit(request: NextRequest): Promise<NextResponse> {
     // Get user tier and ID from token
     const tier = getUserTierFromToken(token);
     const userId = getUserIdFromToken(token);
-    if (process.env.NODE_ENV === 'development') {
+    if (AUTH_DEBUG) {
       console.log('[Middleware] Final tier:', tier, 'userId:', userId);
+      console.log('[Middleware] Request:', request.method, request.nextUrl.pathname);
     }
 
     // Get or create guest_id cookie (for logged-out users)
@@ -460,7 +471,7 @@ async function handleRateLimit(request: NextRequest): Promise<NextResponse> {
     if (tier === 'logged-out') {
       const { guestId: id, isNew } = getOrCreateGuestId(request, tempResponse);
       guestId = id;
-      if (isNew && process.env.NODE_ENV === 'development') {
+      if (isNew && AUTH_DEBUG) {
         console.log('[Middleware] Created new guest_id:', guestId);
       }
     }
@@ -546,10 +557,11 @@ async function handleRateLimit(request: NextRequest): Promise<NextResponse> {
   }
 }
 
-// Run on every request except Next.js internals and static assets (so last_seen and rate limits apply to all routes without hardcoding)
+// Run on app/page/API requests, but skip Next.js internals and static assets.
+// In dev, excluding all "/_next/*" avoids noisy middleware loops from HMR/flight endpoints.
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff2?|ttf|eot)$).*)',
+    '/((?!_next/|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff2?|ttf|eot)$).*)',
   ],
 };
 

@@ -56,7 +56,6 @@ interface InvestmentScoreRecord {
   demand_multiplier: number | null;
   score_with_demand: number | null;
   zordi_metro: string | null;
-  zori_yoy: number | null;
 }
 
 function escapeCsvField(value: any): string {
@@ -111,8 +110,7 @@ async function dumpInvestmentScores(year?: number, outputFile?: string) {
         demand_score,
         demand_multiplier,
         score_with_demand,
-        zordi_metro,
-        zori_yoy
+        zordi_metro
       FROM investment_score
       WHERE fmr_year = ${year}
       ORDER BY fmr_year DESC, geo_type, state_code, zip_code, bedroom_count
@@ -151,8 +149,7 @@ async function dumpInvestmentScores(year?: number, outputFile?: string) {
         demand_score,
         demand_multiplier,
         score_with_demand,
-        zordi_metro,
-        zori_yoy
+        zordi_metro
       FROM investment_score
       ORDER BY fmr_year DESC, geo_type, state_code, zip_code, bedroom_count
     `;
@@ -202,8 +199,7 @@ async function dumpInvestmentScores(year?: number, outputFile?: string) {
     'demand_score',
     'demand_multiplier',
     'score_with_demand',
-    'zordi_metro',
-    'zori_yoy'
+    'zordi_metro'
   ];
 
   // Convert rows to CSV
@@ -242,8 +238,7 @@ async function dumpInvestmentScores(year?: number, outputFile?: string) {
         escapeCsvField(row.demand_score),
         escapeCsvField(row.demand_multiplier),
         escapeCsvField(row.score_with_demand),
-        escapeCsvField(row.zordi_metro),
-        escapeCsvField(row.zori_yoy)
+        escapeCsvField(row.zordi_metro)
       ].join(',');
     })
   ];
