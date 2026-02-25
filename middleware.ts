@@ -94,14 +94,26 @@ function isBotRequest(request: NextRequest): boolean {
   return false;
 }
 
-/** Allowed CORS origins: site origin + optional env list + any chrome-extension:// */
+/** Real estate site origins where the Chrome extension runs (for CORS when content script fetches) */
+const EXTENSION_HOST_ORIGINS = [
+  'https://www.zillow.com',
+  'https://zillow.com',
+  'https://www.redfin.com',
+  'https://redfin.com',
+  'https://www.realtor.com',
+  'https://realtor.com',
+  'https://www.homes.com',
+  'https://homes.com',
+];
+
+/** Allowed CORS origins: site origin + extension host origins + optional env list + any chrome-extension:// */
 function getAllowedCorsOrigins(): string[] {
-  const list: string[] = [];
+  const list: string[] = [...EXTENSION_HOST_ORIGINS];
   try {
     const url = process.env.NEXTAUTH_URL || process.env.VERCEL_URL;
     if (url) {
       const origin = new URL(url.startsWith('http') ? url : `https://${url}`).origin;
-      list.push(origin);
+      if (!list.includes(origin)) list.push(origin);
     }
   } catch {
     // ignore

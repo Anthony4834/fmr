@@ -10,7 +10,8 @@ const nextConfig = {
       {
         source: '/:path*',
         headers: [
-          { key: 'X-Frame-Options', value: 'DENY' },
+          // Allow framing from real estate sites where the Chrome extension runs (mini view iframe)
+          { key: 'Content-Security-Policy', value: "frame-ancestors 'self' https://www.zillow.com https://*.zillow.com https://zillow.com https://www.redfin.com https://*.redfin.com https://redfin.com https://www.realtor.com https://*.realtor.com https://realtor.com https://www.homes.com https://*.homes.com https://homes.com" },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
