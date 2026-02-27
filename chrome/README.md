@@ -71,6 +71,23 @@ chrome/
 └── dist/                 # Built extension (generated)
 ```
 
+## Publishing
+
+To publish to the Chrome Web Store, you **must** package the **built** extension from `dist/`, not the source folder. Otherwise Sign In and other features will not work.
+
+1. Build the extension:
+```bash
+bun run build
+```
+
+2. Create a zip for store upload:
+```bash
+bun run package:store
+```
+This creates `extension.zip` from the contents of `dist/`.
+
+3. Upload `extension.zip` to the Chrome Web Store developer dashboard.
+
 ## Notes
 
 - The extension uses the main app's API at `https://fmr.fyi`
@@ -79,4 +96,4 @@ chrome/
   - `assets/icons/icon16.png` (16x16 pixels)
   - `assets/icons/icon48.png` (48x48 pixels)
   - `assets/icons/icon128.png` (128x128 pixels)
-- The popup uses a JavaScript file (`popup.js`) directly - TypeScript compilation for popup is optional
+- The popup is built from `popup.ts` via Webpack; the output is `dist/popup/popup.js`

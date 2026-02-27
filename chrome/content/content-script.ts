@@ -7,7 +7,7 @@ import { computeCashFlow, getRentForBedrooms } from '../shared/cashflow';
 import { DEFAULT_PREFERENCES, ExtensionPreferences } from '../shared/types';
 import { createBadgeElement } from './badge';
 import { createMiniViewElement } from './mini-view';
-import { isLoggedIn } from '../shared/auth';
+import { isLoggedIn, login } from '../shared/auth';
 import { getApiBaseUrl } from '../shared/config';
 
 // Rate limit marker - returned when API returns 429
@@ -713,9 +713,7 @@ async function injectBadge(
       if (rateLimited || !loggedIn) {
         // Trigger login flow
         try {
-          const authModule = await import('../shared/auth');
-          await authModule.login();
-          // After login, refresh the page or reprocess
+          await login();
           location.reload();
         } catch (error) {
           console.error('[FMR Extension] Login error:', error);

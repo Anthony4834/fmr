@@ -966,5 +966,33 @@ export async function createSchema() {
     );
   `);
 
+  // ============================================
+  // Announcements (local-first read cursor)
+  // ============================================
+  await execute(`
+    CREATE TABLE IF NOT EXISTS announcements (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      title TEXT NOT NULL,
+      body_markdown TEXT NOT NULL,
+      published_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      is_published BOOLEAN NOT NULL DEFAULT true,
+      audience TEXT NOT NULL DEFAULT 'all',
+      created_by_user_id UUID REFERENCES users(id),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+  await execute(
+    "CREATE INDEX IF NOT EXISTS idx_announcements_published ON announcements (is_published, published_at DESC);"
+  );
+
+  await execute(`
+    CREATE TABLE IF NOT EXISTS announcements_last_viewed (
+      user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      last_read_at TIMESTAMPTZ NOT NULL DEFAULT '1970-01-01T00:00:00.000Z'::timestamptz,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+
   console.log("Schema created successfully!");
 }

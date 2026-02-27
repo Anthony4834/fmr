@@ -7,9 +7,11 @@
     "build:ts": "tsc",
     "build:bundle": "bunx webpack --mode production",
     "dev": "bunx webpack --mode development --watch",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "package:store": "node scripts/zip-for-store.js"
   },
   "devDependencies": {
+    "archiver": "^7.0.0",
     "@types/chrome": "^0.0.268",
     "@types/node": "^20.11.0",
     "copy-webpack-plugin": "^12.0.2",

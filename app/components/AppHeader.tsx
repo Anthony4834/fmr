@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { ReactNode, useState } from 'react';
 import InvestorScoreInfoButton from './InvestorScoreInfoButton';
+import AnnouncementsButton from './AnnouncementsButton';
 import UserMenu from './UserMenu';
 import AuthModal from './AuthModal';
 import SearchInput from './SearchInput';
@@ -24,6 +25,7 @@ export function AppHeaderSkeleton({
           <div className="h-3 sm:h-4 bg-[var(--border-color)] rounded w-40 sm:w-48 animate-pulse" />
         </div>
         <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+          <div className="h-9 w-9 rounded bg-[var(--border-color)] animate-pulse" />
           <div className="h-9 w-9 rounded bg-[var(--border-color)] animate-pulse" />
           <div className="h-9 w-9 rounded bg-[var(--border-color)] animate-pulse" />
         </div>
@@ -101,6 +103,7 @@ export default function AppHeader({
           )}
           <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
             <InvestorScoreInfoButton />
+            <AnnouncementsButton />
             <UserMenu onSignInClick={() => setShowAuthModal(true)} />
           </div>
         </div>

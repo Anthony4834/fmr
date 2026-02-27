@@ -1,7 +1,11 @@
 // Popup UI logic
 
 import { getPreferences, savePreferences, resetPreferences } from './settings';
-import { ExtensionPreferences, DEFAULT_PREFERENCES } from '../shared/types';
+
+// Custom line items state (used by modal and saveFormData)
+let customLineItemsState: CustomLineItem[] = [];
+let currentEditingItemId: string | null = null;
+import { ExtensionPreferences, DEFAULT_PREFERENCES, CustomLineItem } from '../shared/types';
 import { login, logout, getCurrentUser, isLoggedIn } from '../shared/auth';
 import { getApiBaseUrl, setApiBaseUrl } from '../shared/config';
 
@@ -89,6 +93,9 @@ async function init() {
   const overrideMortgage = document.getElementById('override-mortgage-rate') as HTMLInputElement;
   overrideTax.addEventListener('change', updateConditionalFields);
   overrideMortgage.addEventListener('change', updateConditionalFields);
+
+  // Initialize custom line items (load from prefs, wire button and modal)
+  initCustomItems(prefs.customLineItems || []);
 }
 
 function updateConditionalFields() {
@@ -160,12 +167,13 @@ async function saveFormData() {
     mortgageRateAnnualPct: (document.getElementById('override-mortgage-rate') as HTMLInputElement).checked
       ? parseFloat((document.getElementById('mortgage-rate') as HTMLInputElement).value) || null
       : null,
+    customLineItems: customLineItemsState,
     enabledSites: {
       redfin: (document.getElementById('enable-redfin') as HTMLInputElement).checked,
       zillow: (document.getElementById('enable-zillow') as HTMLInputElement).checked,
     },
   };
-  
+
   await savePreferences(prefs);
 }
 
@@ -345,6 +353,181 @@ function showMessage(message: string) {
   `;
   document.body.appendChild(msg);
   setTimeout(() => msg.remove(), 2000);
+}
+
+// --- Custom Line Items ---
+
+function renderCustomItems() {
+  const container = document.getElementById('custom-items-list');
+  if (!container) return;
+
+  if (customLineItemsState.length === 0) {
+    container.innerHTML = '<p style="font-size: 12px; color: #737373; text-align: center; padding: 12px 0;">No custom expenses added yet</p>';
+    return;
+  }
+
+  container.innerHTML = customLineItemsState.map((item) => {
+    let details = '';
+    if (item.method === 'amount') {
+      details = `$${item.value.toFixed(2)}/month`;
+    } else {
+      const percentOfLabel =
+        item.percentOf === 'purchasePrice' ? 'Purchase Price' :
+        item.percentOf === 'rent' ? 'Monthly Rent' :
+        item.percentOf === 'downPayment' ? 'Down Payment' : '';
+      details = `${item.value}% of ${percentOfLabel}`;
+    }
+    return `
+      <div class="custom-item">
+        <div class="custom-item-info">
+          <div class="custom-item-label">${escapeHtml(item.label)}</div>
+          <div class="custom-item-details">${escapeHtml(details)}</div>
+        </div>
+        <div class="custom-item-actions">
+          <button type="button" class="icon-btn edit" data-id="${escapeHtml(item.id)}">Edit</button>
+          <button type="button" class="icon-btn delete" data-id="${escapeHtml(item.id)}">Delete</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  container.querySelectorAll('.edit').forEach((btn) => {
+    btn.addEventListener('click', () => editCustomItem((btn as HTMLElement).dataset.id ?? ''));
+  });
+  container.querySelectorAll('.delete').forEach((btn) => {
+    btn.addEventListener('click', () => deleteCustomItem((btn as HTMLElement).dataset.id ?? ''));
+  });
+}
+
+function escapeHtml(text: string): string {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function openCustomItemModal(itemId: string | null = null) {
+  const modal = document.getElementById('custom-item-modal') as HTMLElement;
+  const form = document.getElementById('custom-item-form') as HTMLFormElement;
+  const titleEl = document.getElementById('modal-title') as HTMLElement;
+  if (!modal || !form || !titleEl) return;
+
+  currentEditingItemId = itemId;
+
+  if (itemId) {
+    titleEl.textContent = 'Edit Custom Expense';
+    const item = customLineItemsState.find((i) => i.id === itemId);
+    if (item) {
+      (document.getElementById('custom-item-label') as HTMLInputElement).value = item.label;
+      (document.getElementById('custom-item-method') as HTMLSelectElement).value = item.method;
+      (document.getElementById('custom-item-value') as HTMLInputElement).value = String(item.value);
+      if (item.method === 'percent') {
+        (document.getElementById('custom-item-percent-of') as HTMLSelectElement).value = item.percentOf || 'purchasePrice';
+      }
+      updateCustomItemMethodUI();
+    }
+  } else {
+    titleEl.textContent = 'Add Custom Expense';
+    form.reset();
+    updateCustomItemMethodUI();
+  }
+
+  modal.style.display = 'flex';
+}
+
+function closeCustomItemModal() {
+  const modal = document.getElementById('custom-item-modal') as HTMLElement;
+  const form = document.getElementById('custom-item-form') as HTMLFormElement;
+  if (modal) modal.style.display = 'none';
+  if (form) form.reset();
+  currentEditingItemId = null;
+}
+
+function updateCustomItemMethodUI() {
+  const methodEl = document.getElementById('custom-item-method') as HTMLSelectElement;
+  const percentOfGroup = document.getElementById('custom-item-percent-of-group') as HTMLElement;
+  const valueLabel = document.getElementById('custom-item-value-label') as HTMLElement;
+  if (!methodEl || !percentOfGroup || !valueLabel) return;
+
+  const method = methodEl.value;
+  if (method === 'percent') {
+    percentOfGroup.style.display = 'block';
+    valueLabel.textContent = 'Percentage (%)';
+  } else {
+    percentOfGroup.style.display = 'none';
+    valueLabel.textContent = 'Amount ($)';
+  }
+}
+
+function saveCustomItem(e: Event) {
+  e.preventDefault();
+
+  const labelEl = document.getElementById('custom-item-label') as HTMLInputElement;
+  const methodEl = document.getElementById('custom-item-method') as HTMLSelectElement;
+  const valueEl = document.getElementById('custom-item-value') as HTMLInputElement;
+  const percentOfEl = document.getElementById('custom-item-percent-of') as HTMLSelectElement;
+  if (!labelEl || !methodEl || !valueEl) return;
+
+  const label = labelEl.value;
+  const method = methodEl.value as 'percent' | 'amount';
+  const value = parseFloat(valueEl.value);
+  const percentOf = method === 'percent' ? (percentOfEl?.value as 'purchasePrice' | 'rent' | 'downPayment') : undefined;
+
+  const newItem: CustomLineItem = {
+    id: currentEditingItemId || Date.now().toString(),
+    label,
+    method,
+    value,
+    percentOf,
+  };
+
+  if (currentEditingItemId) {
+    const index = customLineItemsState.findIndex((i) => i.id === currentEditingItemId);
+    if (index !== -1) customLineItemsState[index] = newItem;
+  } else {
+    customLineItemsState.push(newItem);
+  }
+
+  chrome.storage.sync.set({ customLineItems: customLineItemsState }, () => {
+    renderCustomItems();
+    closeCustomItemModal();
+    showMessage('Custom expense saved');
+  });
+}
+
+function editCustomItem(itemId: string) {
+  openCustomItemModal(itemId);
+}
+
+function deleteCustomItem(itemId: string) {
+  if (!confirm('Are you sure you want to delete this custom expense?')) return;
+  customLineItemsState = customLineItemsState.filter((i) => i.id !== itemId);
+  chrome.storage.sync.set({ customLineItems: customLineItemsState }, () => {
+    renderCustomItems();
+    showMessage('Custom expense deleted');
+  });
+}
+
+function initCustomItems(initialItems: CustomLineItem[]) {
+  customLineItemsState = initialItems;
+  renderCustomItems();
+
+  const addBtn = document.getElementById('add-custom-item-btn');
+  if (!(addBtn as any)?.__fmrCustomItemsAttached) {
+    (addBtn as any).__fmrCustomItemsAttached = true;
+    addBtn?.addEventListener('click', () => openCustomItemModal(null));
+  }
+
+  const modalClose = document.getElementById('modal-close-btn');
+  const modalCancel = document.getElementById('modal-cancel-btn');
+  const customForm = document.getElementById('custom-item-form');
+  const customMethod = document.getElementById('custom-item-method');
+  if (!(modalClose as any)?.__fmrCustomItemsModalAttached) {
+    (modalClose as any).__fmrCustomItemsModalAttached = true;
+    modalClose?.addEventListener('click', closeCustomItemModal);
+    modalCancel?.addEventListener('click', closeCustomItemModal);
+    customForm?.addEventListener('submit', (e) => saveCustomItem(e));
+    customMethod?.addEventListener('change', updateCustomItemMethodUI);
+  }
 }
 
 // Initialize when DOM is ready

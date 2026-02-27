@@ -1,5 +1,7 @@
 // Background service worker for the extension
 
+import * as auth from '../shared/auth';
+
 // Service worker initialized
 console.log('[FMR Background] Service worker started');
 
@@ -59,25 +61,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // Handle auth success from auth-bridge content script
   if (message.type === 'EXTENSION_AUTH_SUCCESS') {
     console.log('[FMR Background] Auth success received, storing tokens');
-    import('../shared/auth').then(async (authModule) => {
+    (async () => {
       try {
-        // Store tokens using the auth module's internal storage
         await chrome.storage.sync.set({ 'fmr_extension_auth': message.tokens });
         console.log('[FMR Background] Tokens stored successfully');
-        
-        // Close the auth tab
         if (sender.tab?.id) {
-          chrome.tabs.remove(sender.tab.id).catch(() => {
-            console.log('[FMR Background] Tab already closed');
-          });
+          chrome.tabs.remove(sender.tab.id).catch(() => {});
         }
-        
         sendResponse({ success: true });
       } catch (error) {
         console.error('[FMR Background] Failed to store tokens:', error);
         sendResponse({ success: false, error: String(error) });
       }
-    });
+    })();
     return true; // Keep channel open for async response
   }
   
@@ -111,15 +107,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   // Handle token refresh requests
   if (message.type === 'REFRESH_TOKEN') {
-    import('../shared/auth').then((authModule) => {
-      authModule.refreshTokenIfNeeded()
-        .then((tokens) => {
-          sendResponse({ success: true, tokens });
-        })
-        .catch((error) => {
-          sendResponse({ success: false, error: error.message });
-        });
-    });
+    auth.refreshTokenIfNeeded()
+      .then((tokens) => {
+        sendResponse({ success: true, tokens });
+      })
+      .catch((error) => {
+        sendResponse({ success: false, error: error.message });
+      });
     return true; // Keep message channel open for async response
   }
 

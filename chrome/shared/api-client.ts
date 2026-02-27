@@ -1,18 +1,7 @@
 // API client for making requests to the main app API
 
 import { getApiBaseUrl } from './config';
-
-// Import auth functions (dynamic import to avoid circular dependencies)
-let getAuthHeaders: (() => Promise<Record<string, string>>) | null = null;
-
-// Lazy load auth module
-async function loadAuthHeaders(): Promise<Record<string, string>> {
-  if (!getAuthHeaders) {
-    const authModule = await import('./auth');
-    getAuthHeaders = authModule.getAuthHeaders;
-  }
-  return getAuthHeaders();
-}
+import { getAuthHeaders } from './auth';
 
 /** Per-bedroom market rent (0-4 BR). */
 export interface MarketRentByBR {
@@ -88,7 +77,7 @@ export async function fetchFMRData(zipCode: string): Promise<FMRDataResponse> {
   try {
     const API_BASE_URL = await getApiBaseUrl();
     const url = `${API_BASE_URL}/api/search/fmr?zip=${encodeURIComponent(zipCode)}`;
-    const authHeaders = await loadAuthHeaders();
+    const authHeaders = await getAuthHeaders();
     const response = await fetch(url, {
       headers: {
         ...authHeaders,
@@ -120,7 +109,7 @@ export async function fetchMarketParams(zip: string): Promise<MarketParamsRespon
   try {
     const API_BASE_URL = await getApiBaseUrl();
     const url = `${API_BASE_URL}/api/investment/market-params?zip=${encodeURIComponent(zip)}`;
-    const authHeaders = await loadAuthHeaders();
+    const authHeaders = await getAuthHeaders();
     const response = await fetch(url, {
       headers: {
         ...authHeaders,
@@ -164,7 +153,7 @@ export async function fetchInvestmentScore(zip: string): Promise<InvestmentScore
   try {
     const API_BASE_URL = await getApiBaseUrl();
     const url = `${API_BASE_URL}/api/investment/score?zip=${encodeURIComponent(zip)}`;
-    const authHeaders = await loadAuthHeaders();
+    const authHeaders = await getAuthHeaders();
     const response = await fetch(url, {
       headers: {
         ...authHeaders,
@@ -227,7 +216,7 @@ export async function trackMissingData(params: TrackMissingDataParams): Promise<
   });
 
   // Fire-and-forget: don't await, don't care about response
-  const authHeaders = await loadAuthHeaders();
+  const authHeaders = await getAuthHeaders();
   fetch(url, {
     method: 'POST',
     headers: {
