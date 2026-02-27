@@ -62,7 +62,7 @@ export default function AnnouncementsButton() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // When panel opens: mark all read with latestPublishedAt (per spec)
+  // When panel opens: mark all read with latestPublishedAt (per spec) and record views
   useEffect(() => {
     if (!isOpen) {
       didMarkOnOpenRef.current = false;
@@ -71,7 +71,14 @@ export default function AnnouncementsButton() {
     if (didMarkOnOpenRef.current) return;
     didMarkOnOpenRef.current = true;
     markAllRead(latestPublishedAt ?? undefined);
-  }, [isOpen, latestPublishedAt, markAllRead]);
+    announcements.forEach((a) => {
+      fetch('/api/announcements/view', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ announcementId: a.id }),
+      }).catch(() => {});
+    });
+  }, [isOpen, latestPublishedAt, markAllRead, announcements]);
 
   return (
     <div className="relative" ref={menuRef}>

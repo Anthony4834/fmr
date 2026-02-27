@@ -9,93 +9,171 @@ import { ExtensionPreferences, DEFAULT_PREFERENCES, CustomLineItem } from '../sh
 import { login, logout, getCurrentUser, isLoggedIn } from '../shared/auth';
 import { getApiBaseUrl, setApiBaseUrl } from '../shared/config';
 
-// Initialize popup
-async function init() {
-  // Initialize account section
-  await initAccountSection();
-  // Initialize API config (only for admin users)
-  await initApiConfig();
-  
-  // Listen for storage changes to refresh account section when auth state changes
-  chrome.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName === 'sync' && changes.fmr_extension_auth) {
-      // Auth state changed, refresh account section and API config after a small delay
-      setTimeout(async () => {
-        await initAccountSection();
-        await loadApiBaseUrl();
-      }, 100);
-    }
-  });
-  // Load current preferences
-  const prefs = await getPreferences();
-  
-  // Populate form fields
-  (document.getElementById('display-mode') as HTMLSelectElement).value = 
-    prefs.mode || 'cashFlow';
-  (document.getElementById('rent-source') as HTMLSelectElement).value = 
-    prefs.rentSource || 'effective';
-  (document.getElementById('down-payment-percent') as HTMLInputElement).value = 
-    String(prefs.downPaymentPercent);
-  (document.getElementById('insurance-monthly') as HTMLInputElement).value = 
-    String(prefs.insuranceMonthly);
-  (document.getElementById('pm-mode') as HTMLSelectElement).value = 
-    prefs.propertyManagementMode;
-  (document.getElementById('pm-percent') as HTMLInputElement).value = 
-    String(prefs.propertyManagementPercent);
-  (document.getElementById('pm-amount') as HTMLInputElement).value = 
-    String(prefs.propertyManagementAmount);
-  (document.getElementById('override-tax-rate') as HTMLInputElement).checked = 
-    prefs.overrideTaxRate;
-  (document.getElementById('override-mortgage-rate') as HTMLInputElement).checked = 
-    prefs.overrideMortgageRate;
-  (document.getElementById('tax-rate') as HTMLInputElement).value = 
-    prefs.propertyTaxRateAnnualPct !== null ? String(prefs.propertyTaxRateAnnualPct) : '';
-  (document.getElementById('mortgage-rate') as HTMLInputElement).value = 
-    prefs.mortgageRateAnnualPct !== null ? String(prefs.mortgageRateAnnualPct) : '';
-  (document.getElementById('enable-redfin') as HTMLInputElement).checked = 
-    prefs.enabledSites?.redfin !== false;
-  (document.getElementById('enable-zillow') as HTMLInputElement).checked = 
-    prefs.enabledSites?.zillow !== false;
-  
-  // Load API base URL (only show for admin users)
-  await loadApiBaseUrl();
-  
-  // Show/hide conditional fields
-  updateConditionalFields();
-  
-  // Handle form submission
+/**
+ * Attach all button and form listeners synchronously, before any async work.
+ * This ensures buttons work even when the extension runs in strict environments
+ * (e.g. Chrome Web Store) where storage or timing might fail during init.
+ * Uses try/catch per attachment so one failure does not block the rest.
+ */
+function attachAllListeners() {
+  const loginBtn = document.getElementById('login-btn');
+  const logoutBtn = document.getElementById('logout-btn');
   const form = document.getElementById('settings-form') as HTMLFormElement;
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    await saveFormData();
-    showMessage('Settings saved!');
-  });
-  
-  // Handle reset button
   const resetBtn = document.getElementById('reset-btn');
-  resetBtn?.addEventListener('click', async () => {
-    if (confirm('Reset all settings to defaults?')) {
-      await resetPreferences();
-      location.reload(); // Reload to show defaults
-    }
-  });
-  
-  // Handle display mode change
   const displayMode = document.getElementById('display-mode') as HTMLSelectElement;
-  displayMode.addEventListener('change', updateConditionalFields);
-  
-  // Handle property management mode change
   const pmMode = document.getElementById('pm-mode') as HTMLSelectElement;
-  pmMode.addEventListener('change', updateConditionalFields);
-  
-  // Handle override checkboxes
   const overrideTax = document.getElementById('override-tax-rate') as HTMLInputElement;
   const overrideMortgage = document.getElementById('override-mortgage-rate') as HTMLInputElement;
-  overrideTax.addEventListener('change', updateConditionalFields);
-  overrideMortgage.addEventListener('change', updateConditionalFields);
 
-  // Initialize custom line items (load from prefs, wire button and modal)
-  initCustomItems(prefs.customLineItems || []);
+  if (!loginBtn && !form) {
+    console.warn('[FMR Extension] Popup DOM not ready: login-btn and settings-form not found. Will retry.');
+    setTimeout(attachAllListeners, 50);
+    return;
+  }
+
+  try {
+  if (loginBtn && !(loginBtn as any).__fmrLoginListenerAttached) {
+    (loginBtn as any).__fmrLoginListenerAttached = true;
+    loginBtn.addEventListener('click', async () => {
+      try {
+        loginBtn.textContent = 'Signing in...';
+        loginBtn.setAttribute('disabled', 'true');
+        await login();
+        await new Promise((r) => setTimeout(r, 100));
+        await refreshAccountSection();
+        showMessage('Successfully signed in!');
+      } catch (error) {
+        console.error('Login error:', error);
+        showMessage('Login failed. Please try again.');
+      } finally {
+        loginBtn.textContent = 'Sign In';
+        loginBtn.removeAttribute('disabled');
+      }
+    });
+  }
+
+  if (logoutBtn && !(logoutBtn as any).__fmrLogoutListenerAttached) {
+    (logoutBtn as any).__fmrLogoutListenerAttached = true;
+    logoutBtn.addEventListener('click', async () => {
+      try {
+        logoutBtn.textContent = 'Logging out...';
+        logoutBtn.setAttribute('disabled', 'true');
+        await logout();
+        await refreshAccountSection();
+        showMessage('Logged out successfully');
+      } catch (error) {
+        console.error('Logout error:', error);
+        showMessage('Logout failed. Please try again.');
+      } finally {
+        logoutBtn.textContent = 'Logout';
+        logoutBtn.removeAttribute('disabled');
+      }
+    });
+  }
+
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        await saveFormData();
+        showMessage('Settings saved!');
+      } catch (err) {
+        showMessage('Failed to save settings');
+      }
+    });
+  }
+
+  resetBtn?.addEventListener('click', async () => {
+    if (confirm('Reset all settings to defaults?')) {
+      try {
+        await resetPreferences();
+        location.reload();
+      } catch {
+        showMessage('Failed to reset');
+      }
+    }
+  });
+
+  displayMode?.addEventListener('change', updateConditionalFields);
+  pmMode?.addEventListener('change', updateConditionalFields);
+  overrideTax?.addEventListener('change', updateConditionalFields);
+  overrideMortgage?.addEventListener('change', updateConditionalFields);
+
+  try {
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName === 'sync' && changes.fmr_extension_auth) {
+        setTimeout(() => {
+          refreshAccountSection().catch(() => {});
+          loadApiBaseUrl().catch(() => {});
+        }, 100);
+      }
+    });
+  } catch (e) {
+    console.warn('[FMR Extension] storage.onChanged listener:', e);
+  }
+
+  try {
+    initCustomItems([]);
+  } catch (e) {
+    console.warn('[FMR Extension] initCustomItems:', e);
+  }
+  } catch (err) {
+    console.error('[FMR Extension] attachAllListeners error:', err);
+  }
+}
+
+/** Refresh account UI and API config visibility (async). */
+async function refreshAccountSection() {
+  await updateAccountSectionUI();
+  await loadApiBaseUrl();
+}
+
+// Initialize popup
+async function init() {
+  // Attach all listeners first so buttons work even if async init fails (e.g. store install)
+  attachAllListeners();
+
+  try {
+    await updateAccountSectionUI();
+    await initApiConfig();
+    const prefs = await getPreferences();
+
+    (document.getElementById('display-mode') as HTMLSelectElement).value =
+      prefs.mode || 'cashFlow';
+    (document.getElementById('rent-source') as HTMLSelectElement).value =
+      prefs.rentSource || 'effective';
+    (document.getElementById('down-payment-percent') as HTMLInputElement).value =
+      String(prefs.downPaymentPercent);
+    (document.getElementById('insurance-monthly') as HTMLInputElement).value =
+      String(prefs.insuranceMonthly);
+    (document.getElementById('pm-mode') as HTMLSelectElement).value =
+      prefs.propertyManagementMode;
+    (document.getElementById('pm-percent') as HTMLInputElement).value =
+      String(prefs.propertyManagementPercent);
+    (document.getElementById('pm-amount') as HTMLInputElement).value =
+      String(prefs.propertyManagementAmount);
+    (document.getElementById('override-tax-rate') as HTMLInputElement).checked =
+      prefs.overrideTaxRate;
+    (document.getElementById('override-mortgage-rate') as HTMLInputElement).checked =
+      prefs.overrideMortgageRate;
+    (document.getElementById('tax-rate') as HTMLInputElement).value =
+      prefs.propertyTaxRateAnnualPct !== null ? String(prefs.propertyTaxRateAnnualPct) : '';
+    (document.getElementById('mortgage-rate') as HTMLInputElement).value =
+      prefs.mortgageRateAnnualPct !== null ? String(prefs.mortgageRateAnnualPct) : '';
+    (document.getElementById('enable-redfin') as HTMLInputElement).checked =
+      prefs.enabledSites?.redfin !== false;
+    (document.getElementById('enable-zillow') as HTMLInputElement).checked =
+      prefs.enabledSites?.zillow !== false;
+
+    await loadApiBaseUrl();
+    updateConditionalFields();
+
+    customLineItemsState = prefs.customLineItems || [];
+    renderCustomItems();
+  } catch (error) {
+    console.error('[FMR Extension] Init error:', error);
+    showMessage('Settings loading failed. Buttons should still work.');
+  }
 }
 
 function updateConditionalFields() {
@@ -227,36 +305,24 @@ async function initApiConfig() {
   });
 }
 
-async function initAccountSection() {
+/** Update account section UI only (login state, email, tier). Listeners are attached in attachAllListeners(). */
+async function updateAccountSectionUI() {
   const loggedOutDiv = document.getElementById('account-logged-out');
   const loggedInDiv = document.getElementById('account-logged-in');
-  const loginBtn = document.getElementById('login-btn');
-  const logoutBtn = document.getElementById('logout-btn');
   const userEmail = document.getElementById('user-email');
   const userTier = document.getElementById('user-tier');
   const accountAvatar = document.getElementById('account-avatar');
 
-  if (!loggedOutDiv || !loggedInDiv || !loginBtn || !logoutBtn || !userEmail || !userTier) {
-    console.error('[FMR Extension] Account section elements not found', {
-      loggedOutDiv: !!loggedOutDiv,
-      loggedInDiv: !!loggedInDiv,
-      loginBtn: !!loginBtn,
-      logoutBtn: !!logoutBtn,
-      userEmail: !!userEmail,
-      userTier: !!userTier,
-    });
-    // Show logged out state by default if elements missing
+  if (!loggedOutDiv || !loggedInDiv || !userEmail || !userTier) {
     if (loggedOutDiv) loggedOutDiv.style.display = 'block';
     return;
   }
 
   try {
-    // Check login status
     const isLoggedInStatus = await isLoggedIn();
     const user = await getCurrentUser();
 
     if (isLoggedInStatus && user) {
-      // Show logged in state
       loggedOutDiv.style.display = 'none';
       loggedInDiv.style.display = 'block';
       userEmail.textContent = user.email;
@@ -264,76 +330,17 @@ async function initAccountSection() {
         .replace(/_/g, ' ')
         .replace(/\b\w/g, (c) => c.toUpperCase());
       userTier.textContent = `${tierDisplay}${user.role === 'admin' ? ' • Admin' : ''}`;
-      
-      // Set avatar initials
-      if (accountAvatar) {
-        const initials = user.email.charAt(0).toUpperCase();
-        accountAvatar.textContent = initials;
-      }
+      if (accountAvatar) accountAvatar.textContent = user.email.charAt(0).toUpperCase();
     } else {
-      // Show logged out state
       loggedOutDiv.style.display = 'block';
       loggedInDiv.style.display = 'none';
-      
-      // Clear avatar
-      if (accountAvatar) {
-        accountAvatar.textContent = '';
-      }
+      if (accountAvatar) accountAvatar.textContent = '';
     }
   } catch (error) {
     console.error('[FMR Extension] Error checking login status:', error);
-    // Show logged out state on error
     loggedOutDiv.style.display = 'block';
     loggedInDiv.style.display = 'none';
-    
-    // Clear avatar on error
-    if (accountAvatar) {
-      accountAvatar.textContent = '';
-    }
-  }
-
-  // Handle login button (check if already has listener)
-  if (!(loginBtn as any).__fmrLoginListenerAttached) {
-    (loginBtn as any).__fmrLoginListenerAttached = true;
-    loginBtn.addEventListener('click', async () => {
-      try {
-        loginBtn.textContent = 'Signing in...';
-        loginBtn.setAttribute('disabled', 'true');
-        await login();
-        // Small delay to ensure storage is written
-        await new Promise(resolve => setTimeout(resolve, 100));
-        // Reload account section
-        await initAccountSection();
-        showMessage('Successfully signed in!');
-      } catch (error) {
-        console.error('Login error:', error);
-        showMessage('Login failed. Please try again.');
-      } finally {
-        loginBtn.textContent = 'Sign In';
-        loginBtn.removeAttribute('disabled');
-      }
-    });
-  }
-
-  // Handle logout button (check if already has listener)
-  if (!(logoutBtn as any).__fmrLogoutListenerAttached) {
-    (logoutBtn as any).__fmrLogoutListenerAttached = true;
-    logoutBtn.addEventListener('click', async () => {
-      try {
-        logoutBtn.textContent = 'Logging out...';
-        logoutBtn.setAttribute('disabled', 'true');
-        await logout();
-        // Reload account section
-        await initAccountSection();
-        showMessage('Logged out successfully');
-      } catch (error) {
-        console.error('Logout error:', error);
-        showMessage('Logout failed. Please try again.');
-      } finally {
-        logoutBtn.textContent = 'Logout';
-        logoutBtn.removeAttribute('disabled');
-      }
-    });
+    if (accountAvatar) accountAvatar.textContent = '';
   }
 }
 
@@ -530,10 +537,27 @@ function initCustomItems(initialItems: CustomLineItem[]) {
   }
 }
 
-// Initialize when DOM is ready
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', init);
-} else {
-  init();
+/**
+ * Run init only after the popup DOM is ready.
+ * Extension popups can run the script before elements exist; waiting ensures getElementById finds them.
+ */
+function runWhenReady() {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => safeInit());
+  } else {
+    // Already loaded: defer one tick so the popup document is fully ready
+    setTimeout(safeInit, 0);
+  }
 }
+
+function safeInit() {
+  try {
+    init();
+  } catch (err) {
+    console.error('[FMR Extension] Popup init error:', err);
+    showMessage('Something went wrong. Try opening the popup again.');
+  }
+}
+
+runWhenReady();
 

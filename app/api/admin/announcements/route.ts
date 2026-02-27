@@ -22,12 +22,18 @@ export async function GET() {
       published_at: string;
       is_published: boolean;
       audience: string;
+      sticky: boolean;
+      ttl_minutes: number | null;
+      exclusive: boolean;
       created_at: string;
       updated_at: string;
+      read_count: string;
     }>(
-      `SELECT id, title, body_markdown, published_at, is_published, audience, created_at, updated_at
-       FROM announcements
-       ORDER BY published_at DESC`
+      `SELECT a.id, a.title, a.body_markdown, a.published_at, a.is_published, a.audience,
+              a.sticky, a.ttl_minutes, a.exclusive, a.created_at, a.updated_at,
+              (SELECT COUNT(*)::int FROM announcement_reads ar WHERE ar.announcement_id = a.id) AS read_count
+       FROM announcements a
+       ORDER BY a.published_at DESC`
     );
 
     return NextResponse.json(
@@ -38,8 +44,12 @@ export async function GET() {
         publishedAt: r.published_at,
         isPublished: r.is_published,
         audience: r.audience,
+        sticky: r.sticky,
+        ttlMinutes: r.ttl_minutes,
+        exclusive: r.exclusive,
         createdAt: r.created_at,
         updatedAt: r.updated_at,
+        readCount: Number(r.read_count),
       }))
     );
   } catch (error) {
@@ -63,7 +73,15 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { title, bodyMarkdown, audience, published_at: publishedAt } = body;
+    const {
+      title,
+      bodyMarkdown,
+      audience,
+      published_at: publishedAt,
+      sticky,
+      ttlMinutes,
+      exclusive,
+    } = body;
 
     if (!title || typeof title !== 'string') {
       return NextResponse.json(
@@ -83,16 +101,31 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    const stickyVal = Boolean(sticky);
+    const exclusiveVal = Boolean(exclusive);
+    const ttlVal =
+      ttlMinutes == null || ttlMinutes === ''
+        ? null
+        : (typeof ttlMinutes === 'number' ? ttlMinutes : parseInt(String(ttlMinutes), 10));
+    if (ttlVal != null && (isNaN(ttlVal) || ttlVal < 1)) {
+      return NextResponse.json(
+        { error: 'ttlMinutes must be null or a positive integer' },
+        { status: 400 }
+      );
+    }
 
     const result = await query<{ id: string }>(
-      `INSERT INTO announcements (title, body_markdown, published_at, is_published, audience, created_by_user_id)
-       VALUES ($1, $2, $3, true, $4, $5)
+      `INSERT INTO announcements (title, body_markdown, published_at, is_published, audience, sticky, ttl_minutes, exclusive, created_by_user_id)
+       VALUES ($1, $2, $3, true, $4, $5, $6, $7, $8)
        RETURNING id`,
       [
         title.trim(),
         bodyContent,
         published.toISOString(),
         audienceVal,
+        stickyVal,
+        ttlVal,
+        exclusiveVal,
         session.user.id,
       ]
     );

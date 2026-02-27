@@ -11,8 +11,20 @@ interface Announcement {
   publishedAt: string;
   isPublished: boolean;
   audience: string;
+  sticky?: boolean;
+  ttlMinutes?: number | null;
+  exclusive?: boolean;
   createdAt: string;
   updatedAt: string;
+  readCount?: number;
+}
+
+interface ReaderRow {
+  userId?: string;
+  guestId?: string;
+  readAt: string;
+  email?: string;
+  name?: string;
 }
 
 interface Props {
@@ -50,8 +62,14 @@ export default function AnnouncementsAdminClient({
     bodyMarkdown: '',
     audience: 'all',
     publishedAt: nowLocalDatetime(),
+    sticky: false,
+    ttlMinutes: '' as string | number,
+    exclusive: false,
   });
   const [showPreviewInModal, setShowPreviewInModal] = useState(false);
+  const [readersAnnouncementId, setReadersAnnouncementId] = useState<string | null>(null);
+  const [readers, setReaders] = useState<ReaderRow[]>([]);
+  const [readersLoading, setReadersLoading] = useState(false);
 
   const formatDate = (iso: string) =>
     new Date(iso).toLocaleDateString(undefined, {
@@ -78,6 +96,9 @@ export default function AnnouncementsAdminClient({
       bodyMarkdown: '',
       audience: 'all',
       publishedAt: nowLocalDatetime(),
+      sticky: false,
+      ttlMinutes: '',
+      exclusive: false,
     });
     setEditingId(null);
     setShowCreateModal(false);
@@ -90,8 +111,27 @@ export default function AnnouncementsAdminClient({
       bodyMarkdown: a.bodyMarkdown,
       audience: a.audience || 'all',
       publishedAt: toLocalDatetimeLocal(a.publishedAt),
+      sticky: a.sticky ?? false,
+      ttlMinutes: a.ttlMinutes != null ? a.ttlMinutes : '',
+      exclusive: a.exclusive ?? false,
     });
     setEditingId(a.id);
+  };
+
+  const openReaders = async (id: string) => {
+    setReadersAnnouncementId(id);
+    setReaders([]);
+    setReadersLoading(true);
+    try {
+      const res = await fetch(`/api/admin/announcements/${id}/readers`);
+      const data = await res.json();
+      if (res.ok) setReaders(data.readers ?? []);
+      else alert(data.error || 'Failed to load readers');
+    } catch {
+      alert('Failed to load readers');
+    } finally {
+      setReadersLoading(false);
+    }
   };
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -106,6 +146,9 @@ export default function AnnouncementsAdminClient({
           bodyMarkdown: form.bodyMarkdown,
           audience: form.audience,
           published_at: form.publishedAt ? new Date(form.publishedAt).toISOString() : undefined,
+          sticky: form.sticky,
+          ttlMinutes: form.ttlMinutes === '' ? null : (typeof form.ttlMinutes === 'number' ? form.ttlMinutes : parseInt(String(form.ttlMinutes), 10)),
+          exclusive: form.exclusive,
         }),
       });
       const data = await res.json();
@@ -135,6 +178,9 @@ export default function AnnouncementsAdminClient({
           bodyMarkdown: form.bodyMarkdown,
           audience: form.audience,
           published_at: form.publishedAt ? new Date(form.publishedAt).toISOString() : undefined,
+          sticky: form.sticky,
+          ttlMinutes: form.ttlMinutes === '' ? null : (typeof form.ttlMinutes === 'number' ? form.ttlMinutes : parseInt(String(form.ttlMinutes), 10)),
+          exclusive: form.exclusive,
         }),
       });
       const data = await res.json();
@@ -249,6 +295,40 @@ export default function AnnouncementsAdminClient({
               className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
+          <div className="flex flex-wrap gap-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.sticky}
+                onChange={(e) => setForm((f) => ({ ...f, sticky: e.target.checked }))}
+                className="rounded border-gray-300 dark:border-gray-600"
+              />
+              <span className="text-sm text-gray-700 dark:text-gray-300">Sticky (show until disabled, then respect TTL)</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.exclusive}
+                onChange={(e) => setForm((f) => ({ ...f, exclusive: e.target.checked }))}
+                className="rounded border-gray-300 dark:border-gray-600"
+              />
+              <span className="text-sm text-gray-700 dark:text-gray-300">Exclusive (only users/guests created before publish)</span>
+            </label>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              TTL (minutes, optional)
+            </label>
+            <input
+              type="number"
+              min={1}
+              placeholder="Leave empty for no expiry"
+              value={form.ttlMinutes}
+              onChange={(e) => setForm((f) => ({ ...f, ttlMinutes: e.target.value }))}
+              className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Max time in minutes the announcement is shown (when not sticky).</p>
+          </div>
           <div className="flex flex-wrap gap-2 justify-end pt-2">
             <button
               type="button"
@@ -334,7 +414,7 @@ export default function AnnouncementsAdminClient({
         <div className="flex gap-2">
           <button
             onClick={() => {
-              setForm({ title: '', bodyMarkdown: '', audience: 'all', publishedAt: nowLocalDatetime() });
+              setForm({ title: '', bodyMarkdown: '', audience: 'all', publishedAt: nowLocalDatetime(), sticky: false, ttlMinutes: '', exclusive: false });
               setShowCreateModal(true);
             }}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md transition-colors"
@@ -357,6 +437,7 @@ export default function AnnouncementsAdminClient({
             <tr className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
               <th className="px-4 py-3">Title</th>
               <th className="px-4 py-3 whitespace-nowrap">Published</th>
+              <th className="px-4 py-3 whitespace-nowrap">Views</th>
               <th className="px-4 py-3 whitespace-nowrap">Actions</th>
             </tr>
           </thead>
@@ -371,7 +452,16 @@ export default function AnnouncementsAdminClient({
                 <td className="px-4 py-3 text-gray-600 dark:text-gray-300 whitespace-nowrap">
                   {formatDate(a.publishedAt)}
                 </td>
-                <td className="px-4 py-3 flex gap-2">
+                <td className="px-4 py-3 text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                  {a.readCount ?? 0}
+                </td>
+                <td className="px-4 py-3 flex flex-wrap gap-2">
+                  <button
+                    onClick={() => openReaders(a.id)}
+                    className="px-2 py-1 text-xs bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-800 dark:text-white font-medium rounded transition-colors"
+                  >
+                    Readers
+                  </button>
                   <button
                     onClick={() => setPreviewAnnouncement(a)}
                     className="px-2 py-1 text-xs bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-800 dark:text-white font-medium rounded transition-colors"
@@ -410,6 +500,51 @@ export default function AnnouncementsAdminClient({
       {editingId && renderFormModal('Edit announcement', handleUpdate, 'Save', saving === editingId)}
 
       <PreviewModal />
+
+      {readersAnnouncementId && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4"
+          onClick={() => setReadersAnnouncementId(null)}
+        >
+          <div
+            className="relative w-full max-w-lg rounded-lg bg-white dark:bg-gray-800 shadow-xl p-6 max-h-[80vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Readers
+              </h2>
+              <button
+                type="button"
+                onClick={() => setReadersAnnouncementId(null)}
+                className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 text-2xl leading-none"
+              >
+                ×
+              </button>
+            </div>
+            {readersLoading ? (
+              <p className="text-sm text-gray-500 dark:text-gray-400">Loading…</p>
+            ) : readers.length === 0 ? (
+              <p className="text-sm text-gray-500 dark:text-gray-400">No readers yet.</p>
+            ) : (
+              <ul className="space-y-2 overflow-y-auto flex-1 min-h-0">
+                {readers.map((r, i) => (
+                  <li key={i} className="text-sm text-gray-700 dark:text-gray-300 flex flex-wrap gap-x-2 gap-y-0 items-baseline">
+                    {r.userId ? (
+                      <span className="font-medium">{r.name ?? r.email ?? r.userId}</span>
+                    ) : (
+                      <span className="font-mono text-xs">Guest {r.guestId?.slice(0, 8)}…</span>
+                    )}
+                    <span className="text-gray-500 dark:text-gray-400 text-xs">
+                      {formatDate(r.readAt)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

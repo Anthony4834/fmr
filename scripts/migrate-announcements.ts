@@ -65,11 +65,67 @@ async function migrateAnnouncements() {
         );
         console.log('✓ announcements: created_by_user_id added');
       }
+      if (!names.has('sticky')) {
+        await execute(`ALTER TABLE announcements ADD COLUMN sticky BOOLEAN NOT NULL DEFAULT false`);
+        console.log('✓ announcements: sticky added');
+      }
+      if (!names.has('ttl_minutes')) {
+        await execute(`ALTER TABLE announcements ADD COLUMN ttl_minutes INTEGER`);
+        console.log('✓ announcements: ttl_minutes added');
+      }
+      if (!names.has('exclusive')) {
+        await execute(`ALTER TABLE announcements ADD COLUMN exclusive BOOLEAN NOT NULL DEFAULT false`);
+        console.log('✓ announcements: exclusive added');
+      }
     }
 
     await execute(
       `CREATE INDEX IF NOT EXISTS idx_announcements_published ON announcements (is_published, published_at DESC)`
     );
+
+    // --- announcement_reads ---
+    const arExists = await query<{ exists: boolean }>(
+      `SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'announcement_reads')`
+    );
+    if (!arExists[0]?.exists) {
+      await execute(`
+        CREATE TABLE announcement_reads (
+          announcement_id UUID NOT NULL REFERENCES announcements(id) ON DELETE CASCADE,
+          user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+          guest_id UUID,
+          read_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          CONSTRAINT announcement_reads_one_viewer CHECK (
+            (user_id IS NOT NULL AND guest_id IS NULL) OR (user_id IS NULL AND guest_id IS NOT NULL)
+          )
+        );
+      `);
+      await execute(
+        'CREATE UNIQUE INDEX IF NOT EXISTS idx_announcement_reads_announcement_user ON announcement_reads (announcement_id, user_id) WHERE user_id IS NOT NULL'
+      );
+      await execute(
+        'CREATE UNIQUE INDEX IF NOT EXISTS idx_announcement_reads_announcement_guest ON announcement_reads (announcement_id, guest_id) WHERE guest_id IS NOT NULL'
+      );
+      await execute(
+        'CREATE INDEX IF NOT EXISTS idx_announcement_reads_announcement_id ON announcement_reads (announcement_id)'
+      );
+      console.log('✓ announcement_reads table created');
+    } else {
+      // Ensure user_id FK cascades on user delete so users can be deleted
+      const fkRows = await query<{ constraint_name: string }>(
+        `SELECT constraint_name FROM information_schema.table_constraints
+         WHERE table_name = 'announcement_reads' AND constraint_type = 'FOREIGN KEY'
+         AND constraint_name LIKE '%user_id%'`
+      );
+      const fkName = fkRows[0]?.constraint_name;
+      if (fkName) {
+        await execute(`ALTER TABLE announcement_reads DROP CONSTRAINT IF EXISTS ${fkName}`);
+        await execute(
+          `ALTER TABLE announcement_reads ADD CONSTRAINT announcement_reads_user_id_fkey
+           FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE`
+        );
+        console.log('✓ announcement_reads: user_id FK set to ON DELETE CASCADE');
+      }
+    }
 
     // --- announcements_last_viewed ---
     const lvExists = await query<{ exists: boolean }>(

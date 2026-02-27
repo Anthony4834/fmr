@@ -26,6 +26,9 @@ export async function PATCH(
       published_at: publishedAt,
       isPublished,
       audience,
+      sticky,
+      ttlMinutes,
+      exclusive,
     } = body;
 
     const updates: string[] = [];
@@ -68,6 +71,29 @@ export async function PATCH(
     if (audience !== undefined) {
       updates.push(`audience = $${paramIndex++}`);
       values.push(typeof audience === 'string' ? audience : 'all');
+    }
+
+    if (sticky !== undefined) {
+      updates.push(`sticky = $${paramIndex++}`);
+      values.push(Boolean(sticky));
+    }
+    if (ttlMinutes !== undefined) {
+      const ttlVal =
+        ttlMinutes == null || ttlMinutes === ''
+          ? null
+          : (typeof ttlMinutes === 'number' ? ttlMinutes : parseInt(String(ttlMinutes), 10));
+      if (ttlVal != null && (isNaN(ttlVal) || ttlVal < 1)) {
+        return NextResponse.json(
+          { error: 'ttlMinutes must be null or a positive integer' },
+          { status: 400 }
+        );
+      }
+      updates.push(`ttl_minutes = $${paramIndex++}`);
+      values.push(ttlVal);
+    }
+    if (exclusive !== undefined) {
+      updates.push(`exclusive = $${paramIndex++}`);
+      values.push(Boolean(exclusive));
     }
 
     if (updates.length === 0) {

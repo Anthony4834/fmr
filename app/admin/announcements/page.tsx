@@ -28,12 +28,18 @@ export default async function AnnouncementsAdminPage() {
     published_at: string;
     is_published: boolean;
     audience: string;
+    sticky: boolean;
+    ttl_minutes: number | null;
+    exclusive: boolean;
     created_at: string;
     updated_at: string;
+    read_count: string;
   }>(
-    `SELECT id, title, body_markdown, published_at, is_published, audience, created_at, updated_at
-     FROM announcements
-     ORDER BY published_at DESC`
+    `SELECT a.id, a.title, a.body_markdown, a.published_at, a.is_published, a.audience,
+            a.sticky, a.ttl_minutes, a.exclusive, a.created_at, a.updated_at,
+            (SELECT COUNT(*)::int FROM announcement_reads ar WHERE ar.announcement_id = a.id) AS read_count
+     FROM announcements a
+     ORDER BY a.published_at DESC`
   );
 
   const announcements = rows.map((r) => ({
@@ -43,8 +49,12 @@ export default async function AnnouncementsAdminPage() {
     publishedAt: r.published_at,
     isPublished: r.is_published,
     audience: r.audience,
+    sticky: r.sticky,
+    ttlMinutes: r.ttl_minutes,
+    exclusive: r.exclusive,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
+    readCount: Number(r.read_count),
   }));
 
   return (

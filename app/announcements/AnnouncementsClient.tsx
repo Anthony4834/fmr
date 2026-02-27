@@ -13,10 +13,17 @@ export default function AnnouncementsClient() {
     markAllRead,
   } = useAnnouncements();
 
-  // When user opens the announcements tab: mark all read with latestPublishedAt (per spec)
+  // When user opens the announcements tab: mark all read and record views
   useEffect(() => {
     if (latestPublishedAt) markAllRead(latestPublishedAt);
-  }, [latestPublishedAt, markAllRead]);
+    announcements.forEach((a) => {
+      fetch('/api/announcements/view', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ announcementId: a.id }),
+      }).catch(() => {});
+    });
+  }, [latestPublishedAt, markAllRead, announcements]);
 
   return (
     <div className="space-y-8">

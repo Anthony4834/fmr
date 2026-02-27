@@ -977,6 +977,9 @@ export async function createSchema() {
       published_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       is_published BOOLEAN NOT NULL DEFAULT true,
       audience TEXT NOT NULL DEFAULT 'all',
+      sticky BOOLEAN NOT NULL DEFAULT false,
+      ttl_minutes INTEGER,
+      exclusive BOOLEAN NOT NULL DEFAULT false,
       created_by_user_id UUID REFERENCES users(id),
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -984,6 +987,27 @@ export async function createSchema() {
   `);
   await execute(
     "CREATE INDEX IF NOT EXISTS idx_announcements_published ON announcements (is_published, published_at DESC);"
+  );
+
+  await execute(`
+    CREATE TABLE IF NOT EXISTS announcement_reads (
+      announcement_id UUID NOT NULL REFERENCES announcements(id) ON DELETE CASCADE,
+      user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+      guest_id UUID,
+      read_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT announcement_reads_one_viewer CHECK (
+        (user_id IS NOT NULL AND guest_id IS NULL) OR (user_id IS NULL AND guest_id IS NOT NULL)
+      )
+    );
+  `);
+  await execute(
+    'CREATE UNIQUE INDEX IF NOT EXISTS idx_announcement_reads_announcement_user ON announcement_reads (announcement_id, user_id) WHERE user_id IS NOT NULL'
+  );
+  await execute(
+    'CREATE UNIQUE INDEX IF NOT EXISTS idx_announcement_reads_announcement_guest ON announcement_reads (announcement_id, guest_id) WHERE guest_id IS NOT NULL'
+  );
+  await execute(
+    'CREATE INDEX IF NOT EXISTS idx_announcement_reads_announcement_id ON announcement_reads (announcement_id)'
   );
 
   await execute(`
