@@ -1,27 +1,24 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import ContactModal from '@/app/components/ContactModal';
 
 export default function FooterV2() {
-  const [showContactModal, setShowContactModal] = useState(false);
   const currentYear = new Date().getFullYear();
-  
+
   const productLinks = [
     { href: '/', label: 'Search' },
     { href: '/explorer', label: 'Explorer' },
     { href: '/map', label: 'Investment Map' },
     { href: 'https://chromewebstore.google.com/detail/fmrfyi-%E2%80%93-fair-market-rent/gkemjakehildeolcagbibhmbcddkkflb', label: 'Chrome Extension', external: true },
   ];
-  
-  const resourceLinks: Array<{ href: string; label: string; onClick?: () => void; isButton?: boolean }> = [
+
+  const resourceLinks = [
     { href: '/what-is-fmr', label: 'What is FMR?' },
     { href: '/what-is-safmr', label: 'What is SAFMR?' },
     { href: '/faq', label: 'FAQ' },
     { href: '/data-sources', label: 'Data Sources' },
-    { href: '#', label: 'Contact', onClick: () => setShowContactModal(true), isButton: true },
+    { href: '/contact', label: 'Contact' },
   ];
   
   const browseLinks = [
@@ -145,29 +142,16 @@ export default function FooterV2() {
             <ul className="space-y-2 sm:space-y-2.5">
               {resourceLinks.map((link) => (
                 <li key={link.href}>
-                  {link.isButton ? (
-                    <button
-                      onClick={link.onClick}
-                      className="text-xs sm:text-sm transition-colors text-left hover:opacity-80"
-                      style={{ 
-                        color: 'var(--modal-text-muted)',
-                        fontFamily: 'var(--font-sans), system-ui, sans-serif',
-                      }}
-                    >
-                      {link.label}
-                    </button>
-                  ) : (
-                    <Link
-                      href={link.href}
-                      className="text-xs sm:text-sm transition-colors"
-                      style={{ 
-                        color: 'var(--modal-text-muted)',
-                        fontFamily: 'var(--font-sans), system-ui, sans-serif',
-                      }}
-                    >
-                      {link.label}
-                    </Link>
-                  )}
+                  <Link
+                    href={link.href}
+                    className="text-xs sm:text-sm transition-colors"
+                    style={{
+                      color: 'var(--modal-text-muted)',
+                      fontFamily: 'var(--font-sans), system-ui, sans-serif',
+                    }}
+                  >
+                    {link.label}
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -240,7 +224,6 @@ export default function FooterV2() {
           </p>
         </div>
       </div>
-      <ContactModal isOpen={showContactModal} onClose={() => setShowContactModal(false)} />
     </footer>
   );
 }

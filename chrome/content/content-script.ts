@@ -22,6 +22,10 @@ let miniViewContainer: HTMLElement | null = null;
 // Track badges by card element for cleanup
 const cardBadges = new Map<HTMLElement, HTMLElement>();
 
+// Observer refs so we can disconnect on re-entry (prevents memory leak when SPA navigates)
+let redfinObserver: MutationObserver | null = null;
+let zillowObserver: MutationObserver | null = null;
+
 // Used to detect when Zillow reuses a card DOM node for a different listing
 const CARD_KEY_DATASET_FIELD = 'fmrKey';
 const HOA_PENDING_DATASET_FIELD = 'fmrHoaPending';
@@ -51,6 +55,18 @@ function isElementWithinZillowCardOrExpandedView(target: Node | null): boolean {
   return !!el.closest?.(`${ZILLOW_CARD_SELECTOR}, [data-testid="fs-chip-container"]`);
 }
 
+/**
+ * Remove cardBadges entries whose card element is no longer in the DOM (e.g. Zillow virtualized it).
+ * Prevents unbounded growth and detached-DOM memory leaks.
+ */
+function pruneDetachedCardBadges(): void {
+  for (const [card] of Array.from(cardBadges.entries())) {
+    if (!card.isConnected) {
+      cardBadges.delete(card);
+    }
+  }
+}
+
 function startZillowCardKeyPolling(): void {
   // Backstop: Zillow sometimes swaps selected map card state without triggering our debounced observer.
   if (zillowCardPollInterval !== null) return;
@@ -60,6 +76,8 @@ function startZillowCardKeyPolling(): void {
       const site = window.location.hostname.toLowerCase();
       const isZillowDetail = site.includes('zillow.com') && window.location.pathname.toLowerCase().includes('/homedetails/');
       if (!site.includes('zillow.com') || isZillowDetail) return;
+
+      pruneDetachedCardBadges();
 
       // Limit work: only check a small number of visible cards that already have badges
       const badgedCards = Array.from(
@@ -1150,6 +1168,28 @@ async function isSiteEnabled(site: string): Promise<boolean> {
 }
 
 async function processPage(options?: { skipWait?: boolean }) {
+  // Disconnect previous observers to avoid leaking them on SPA navigation
+  if (redfinObserver) {
+    redfinObserver.disconnect();
+    redfinObserver = null;
+  }
+  if (zillowObserver) {
+    zillowObserver.disconnect();
+    zillowObserver = null;
+  }
+
+  const site = window.location.hostname.toLowerCase();
+  const isZillowListOrMap = site.includes('zillow.com') && !window.location.pathname.toLowerCase().includes('/homedetails/');
+  if (!isZillowListOrMap && zillowCardPollInterval !== null) {
+    clearInterval(zillowCardPollInterval);
+    zillowCardPollInterval = null;
+  }
+
+  pruneDetachedCardBadges();
+  if (processedAddresses.size > 300) {
+    processedAddresses.clear();
+  }
+
   // Ensure we have the user's selected mode before processing anything.
   if (!hasLoadedInitialMode) {
     await loadInitialBadgeMode();
@@ -1159,18 +1199,16 @@ async function processPage(options?: { skipWait?: boolean }) {
   if (!options?.skipWait) {
     await new Promise(resolve => setTimeout(resolve, 1000));
   }
-  
-  const site = window.location.hostname.toLowerCase();
-  
+
   // Check if this site is enabled
   const siteEnabled = await isSiteEnabled(site);
   if (!siteEnabled) {
     return; // Site is disabled, don't process
   }
-  
+
   const isRedfinDetail = site.includes('redfin.com') && window.location.pathname.toLowerCase().includes('/home/');
   const isZillowDetail = site.includes('zillow.com') && window.location.pathname.toLowerCase().includes('/homedetails/');
-  
+
   // Check if we're on Redfin list or map view
   if (site.includes('redfin.com') && !isRedfinDetail) {
     
@@ -1179,28 +1217,22 @@ async function processPage(options?: { skipWait?: boolean }) {
     await processCards('map', 'redfin');
     
     // Watch for new cards being added or cards being re-rendered
-    // Use a debounced approach to avoid processing too frequently
     let processTimeout: number | null = null;
-    const observer = new MutationObserver((mutations) => {
+    redfinObserver = new MutationObserver((mutations) => {
       let hasChanges = false;
       mutations.forEach((mutation) => {
-        // Check for added nodes (new cards)
         mutation.addedNodes.forEach((node) => {
           if (node.nodeType === Node.ELEMENT_NODE) {
             const element = node as HTMLElement;
-            // Check if it's a card or contains cards
-            if (element.classList?.contains('bp-Homecard__Content') || 
+            if (element.classList?.contains('bp-Homecard__Content') ||
                 element.querySelector?.('.bp-Homecard__Content')) {
               hasChanges = true;
             }
           }
         });
-        
-        // Check for removed nodes (cards being re-rendered)
         mutation.removedNodes.forEach((node) => {
           if (node.nodeType === Node.ELEMENT_NODE) {
             const element = node as HTMLElement;
-            // If a card was removed, we need to reprocess
             if (element.classList?.contains('bp-Homecard__Content') ||
                 element.querySelector?.('.bp-Homecard__Content')) {
               hasChanges = true;
@@ -1208,39 +1240,31 @@ async function processPage(options?: { skipWait?: boolean }) {
           }
         });
       });
-      
       if (hasChanges) {
-        // Debounce to avoid processing too frequently
-        if (processTimeout) {
-          clearTimeout(processTimeout);
-        }
+        if (processTimeout) clearTimeout(processTimeout);
         processTimeout = setTimeout(() => {
           processCards('list', 'redfin').catch(() => {});
           processCards('map', 'redfin').catch(() => {});
         }, 500) as unknown as number;
       }
     });
-    
-    // Observe multiple areas to catch both list and map cards
+
     const contentAreas = [
       document.querySelector('.HomeViewsView'),
       document.querySelector('.MapAndListView'),
       document.querySelector('[data-rf-test-id="MapAndListView"]'),
       document.querySelector('.MapView'),
-      document.querySelector('.MapHomeCard'), // Expanded map card
+      document.querySelector('.MapHomeCard'),
       document.querySelector('main'),
       document.body
     ].filter(Boolean) as HTMLElement[];
-    
+
     contentAreas.forEach((contentArea) => {
-      if (contentArea) {
-        observer.observe(contentArea, {
-          childList: true,
-          subtree: true,
-        });
+      if (contentArea && redfinObserver) {
+        redfinObserver.observe(contentArea, { childList: true, subtree: true });
       }
     });
-    
+
     return;
   }
   
@@ -1405,17 +1429,14 @@ async function processPage(options?: { skipWait?: boolean }) {
     
     // Watch for new cards being added or cards being re-rendered
     let processTimeout: number | null = null;
-    const observer = new MutationObserver((mutations) => {
+    zillowObserver = new MutationObserver((mutations) => {
       let hasChanges = false;
       mutations.forEach((mutation) => {
-        // Zillow map selection changes often show up as text/attribute mutations
         if (mutation.type === 'attributes' || mutation.type === 'characterData') {
           if (isElementWithinZillowCardOrExpandedView(mutation.target)) {
             hasChanges = true;
           }
         }
-
-        // Check for added nodes (new cards)
         mutation.addedNodes.forEach((node) => {
           if (node.nodeType === Node.ELEMENT_NODE) {
             const element = node as HTMLElement;
@@ -1597,21 +1618,19 @@ async function processPage(options?: { skipWait?: boolean }) {
     ].filter(Boolean) as HTMLElement[];
     
     contentAreas.forEach((contentArea) => {
-      if (contentArea) {
-        observer.observe(contentArea, {
+      if (contentArea && zillowObserver) {
+        zillowObserver.observe(contentArea, {
           childList: true,
           subtree: true,
-          // Zillow often updates the selected map card by mutating text/attributes,
-          // without adding/removing nodes.
           attributes: true,
           characterData: true,
         });
       }
     });
-    
+
     return;
   }
-  
+
   // Handle detail pages (existing logic)
   const address = extractAddress();
   
@@ -2104,6 +2123,10 @@ function init() {
       lastUrl = url;
       processedAddresses.clear();
       cardBadges.clear();
+      if (zillowCardPollInterval !== null) {
+        clearInterval(zillowCardPollInterval);
+        zillowCardPollInterval = null;
+      }
       setTimeout(processPage, 1500);
     }
   };
