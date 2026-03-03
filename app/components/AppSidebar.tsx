@@ -6,7 +6,9 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import Tooltip from './Tooltip';
-import { useAnnouncements } from '@/app/hooks/useAnnouncements';
+import BaseModal from './BaseModal';
+import MarkdownBody from './MarkdownBody';
+import { useAnnouncements, type Announcement } from '@/app/hooks/useAnnouncements';
 import { useNavItems, type NavItem } from '@/app/hooks/useNavItems';
 
 const HOVER_SHOW_DELAY_MS = 0;
@@ -14,6 +16,17 @@ const HOVER_SHOW_DELAY_MS = 0;
 function formatAnnouncementDate(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function formatDateAndTime(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
 }
 
 const SIDEBAR_STORAGE_KEY = 'fmr-sidebar-collapsed';
@@ -34,6 +47,7 @@ function AnnouncementsSidebarItem({
   const [showPopover, setShowPopover] = useState(false);
   const [popoverRect, setPopoverRect] = useState<{ top: number; left: number } | null>(null);
   const [popoverAnimatedIn, setPopoverAnimatedIn] = useState(false);
+  const [detailAnnouncement, setDetailAnnouncement] = useState<Announcement | null>(null);
   const showTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const triggerRef = useRef<HTMLAnchorElement>(null);
@@ -84,6 +98,11 @@ function AnnouncementsSidebarItem({
     setShowPopover(false);
   };
 
+  const handleItemClick = (a: Announcement) => {
+    setDetailAnnouncement(a);
+    setShowPopover(false);
+  };
+
   useEffect(() => () => {
     if (showTimerRef.current) clearTimeout(showTimerRef.current);
     if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
@@ -91,8 +110,9 @@ function AnnouncementsSidebarItem({
 
   const popoverContent =
     showPopover && popoverRect ? (
-      <Link
-        href="/announcements"
+      <div
+        role="dialog"
+        aria-label="Announcements preview"
         className={`fixed z-[100] w-[280px] overflow-hidden rounded-lg border shadow-lg flex flex-col transition-opacity duration-150 ease-out ${
           popoverAnimatedIn ? 'opacity-100' : 'opacity-0'
         }`}
@@ -122,7 +142,9 @@ function AnnouncementsSidebarItem({
             <ul className="space-y-1">
               {preview.map((a) => (
                 <li key={a.id}>
-                  <span
+                  <button
+                    type="button"
+                    onClick={() => handleItemClick(a)}
                     className="block w-full text-left px-2 py-2 rounded-md text-sm transition-colors hover:bg-[var(--modal-hover)]"
                     style={{ color: 'var(--modal-text)' }}
                   >
@@ -132,19 +154,20 @@ function AnnouncementsSidebarItem({
                     <span className="block text-xs mt-0.5" style={{ color: 'var(--modal-text-muted)' }}>
                       {formatAnnouncementDate(a.publishedAt)}
                     </span>
-                  </span>
+                  </button>
                 </li>
               ))}
             </ul>
           )}
-          <div
-            className="mt-1 rounded-md text-center py-2 text-sm font-medium transition-colors hover:bg-[var(--modal-hover)] border-t"
+          <Link
+            href="/announcements"
+            className="mt-1 block rounded-md text-center py-2 text-sm font-medium transition-colors hover:bg-[var(--modal-hover)] border-t"
             style={{ color: 'var(--modal-text-muted)', borderColor: 'var(--modal-border)' }}
           >
             View all
-          </div>
+          </Link>
         </div>
-      </Link>
+      </div>
     ) : null;
 
   return (
@@ -160,6 +183,53 @@ function AnnouncementsSidebarItem({
         {content}
       </Link>
       {typeof document !== 'undefined' && popoverContent && createPortal(popoverContent, document.body)}
+      <BaseModal
+        isOpen={detailAnnouncement !== null}
+        onClose={() => setDetailAnnouncement(null)}
+        maxWidth="min(560px, 100%)"
+        className="max-h-[85vh] flex flex-col"
+      >
+        {detailAnnouncement && (
+          <>
+            <div className="shrink-0 flex items-start justify-between gap-3 p-4 sm:p-5 border-b" style={{ borderColor: 'var(--modal-border)' }}>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-lg sm:text-xl font-semibold leading-tight" style={{ color: 'var(--modal-text)' }}>
+                  {detailAnnouncement.title}
+                </h2>
+                <time
+                  dateTime={detailAnnouncement.publishedAt}
+                  className="text-xs sm:text-sm mt-1.5 block"
+                  style={{ color: 'var(--modal-text-muted)' }}
+                >
+                  {formatDateAndTime(detailAnnouncement.publishedAt)}
+                </time>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDetailAnnouncement(null)}
+                className="shrink-0 w-8 h-8 flex items-center justify-center rounded-md transition-colors hover:bg-[var(--modal-hover)]"
+                style={{ color: 'var(--modal-text-muted)' }}
+                aria-label="Close"
+              >
+                <span className="text-xl leading-none">&times;</span>
+              </button>
+            </div>
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-5 text-sm sm:text-base leading-relaxed" style={{ color: 'var(--modal-text)' }}>
+              <MarkdownBody content={detailAnnouncement.bodyMarkdown} />
+            </div>
+            <div className="shrink-0 p-3 border-t" style={{ borderColor: 'var(--modal-border)' }}>
+              <Link
+                href="/announcements"
+                onClick={() => setDetailAnnouncement(null)}
+                className="block w-full text-center py-2 text-sm font-medium rounded-md transition-colors hover:bg-[var(--modal-hover)]"
+                style={{ color: 'var(--modal-text)' }}
+              >
+                View all announcements
+              </Link>
+            </div>
+          </>
+        )}
+      </BaseModal>
     </>
   );
 }
