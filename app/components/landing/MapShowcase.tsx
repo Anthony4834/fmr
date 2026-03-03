@@ -355,9 +355,9 @@ export default function MapShowcase({ onReady }: MapShowcaseProps) {
                   borderColor: 'hsl(220 15% 88%)',
                 }}
               >
-                {/* Map container - uses aspect ratio so map fills width */}
+                {/* Map container - uses aspect ratio so map fills width; overflow-hidden contains SVG */}
                 <div 
-                  className="relative w-full"
+                  className="relative w-full overflow-hidden"
                   style={{ backgroundColor: 'hsl(210 20% 98%)', aspectRatio: '1200 / 750' }}
                 >
                   {loading ? (

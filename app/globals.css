@@ -350,6 +350,7 @@ html:not([data-theme]) {
   
   html {
     overflow-x: clip; /* Use clip instead of hidden to not break sticky positioning */
+    overflow-y: auto; /* Single scrollport - prevents double scrollbar with body */
   }
   
   body {
@@ -359,6 +360,7 @@ html:not([data-theme]) {
     font-feature-settings: 'rlig' 1, 'calt' 1, "cv02", "cv03", "cv04", "cv11";
     transition: background-color 0.2s ease, color 0.2s ease;
     overflow-x: clip; /* Use clip instead of hidden to not break sticky positioning */
+    overflow-y: visible; /* Let content flow; html is the scroll container */
     width: 100%;
   }
   
