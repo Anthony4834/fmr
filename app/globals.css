@@ -40,6 +40,10 @@ html:not([data-theme]) {
   --warning-text: #92400e;
   --warning-text-secondary: #a16207;
 
+  /* Tooltip (light mode: dark surface on light page) */
+  --tooltip-bg: #0a0a0a;
+  --tooltip-text: #ffffff;
+
   /* Elevated surfaces — modals, popups, tooltips, dropdowns, footer */
   --modal-bg: hsl(220 15% 95%);
   --modal-border: hsl(220 15% 84%);
@@ -268,6 +272,10 @@ html:not([data-theme]) {
   --warning-border: rgba(252, 211, 77, 0.3);
   --warning-text: #fbbf24;
   --warning-text-secondary: #fcd34d;
+
+  /* Tooltip (dark mode: elevated surface that stands out on dark page) */
+  --tooltip-bg: hsl(220 15% 18%);
+  --tooltip-text: hsl(0 0% 98%);
 
   /* Elevated surfaces */
   --modal-bg: hsl(220 15% 12%);

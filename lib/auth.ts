@@ -5,6 +5,7 @@ import bcrypt from 'bcryptjs';
 import { PostgresAdapter } from './auth-adapter';
 import { checkLoginAllowed, recordLoginAttempt } from './auth-rate-limit';
 import { query } from './db';
+import { isEnabled } from './feature-flags';
 import type { NextAuthConfig } from 'next-auth';
 
 // Password requirements
@@ -67,6 +68,11 @@ const config: NextAuthConfig = {
       async authorize(credentials, request) {
         if (!credentials?.email || !credentials?.password) {
           return null;
+        }
+
+        const authOn = await isEnabled('auth', null);
+        if (!authOn) {
+          throw new Error('Sign-in is temporarily disabled');
         }
 
         const email = credentials.email as string;
@@ -194,13 +200,41 @@ const config: NextAuthConfig = {
       return session;
     },
 
-    async signIn({ user, account }) {
-      // Allow all OAuth sign-ins
-      if (account?.provider !== 'credentials') {
-        return true;
+    async signIn({ account, profile }) {
+      try {
+        const authOn = await isEnabled('auth', null);
+        if (!authOn) return false;
+      } catch {
+        // Table missing or error - allow sign-in
       }
 
-      // Credentials are validated in authorize()
+      // SECURITY: Block OAuth sign-in with system/technical email addresses.
+      // Addresses like noreply@, no-reply@, mailer@ should never be used as login
+      // identities - they are for sending only. Using them creates confusion and
+      // security risk (e.g. when a Gmail account has noreply@ as alias, user
+      // expects to see their Gmail but gets logged in as noreply@).
+      if (account?.provider !== 'credentials' && profile?.email) {
+        const email = (profile.email as string).toLowerCase();
+        const systemEmailPatterns = [
+          /^noreply@/,
+          /^no-reply@/,
+          /^mailer@/,
+          /^donotreply@/,
+          /^do-not-reply@/,
+          /^notification@/,
+          /^notifications@/,
+          /^alerts@/,
+        ];
+        if (systemEmailPatterns.some((p) => p.test(email))) {
+          if (process.env.NODE_ENV === 'development') {
+            console.warn(
+              `[Auth] Blocked OAuth sign-in: system email "${email}" cannot be used as login identity`
+            );
+          }
+          return false;
+        }
+      }
+
       return true;
     },
   },

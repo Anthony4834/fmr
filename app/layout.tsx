@@ -2,6 +2,9 @@ import { Analytics as VercelAnalytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
 import Script from "next/script";
 import { Space_Grotesk, IBM_Plex_Sans } from "next/font/google";
+import { auth } from "@/lib/auth";
+import { getFeatureFlags, getActorAccessLevel, isFeatureEnabledForLevels } from "@/lib/feature-flags";
+import { TogglesProvider } from "./contexts/TogglesContext";
 import Analytics from "./components/Analytics";
 import StructuredData from "./components/StructuredData";
 import GuestRouteTracker from "./components/GuestRouteTracker";
@@ -9,6 +12,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import { RateLimitProvider } from "./contexts/RateLimitContext";
 import { AuthProvider } from "./contexts/AuthContext";
 import { RentDisplayProvider } from "./contexts/RentDisplayContext";
+import AppShell from "./components/AppShell";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -57,11 +61,28 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const [session, flags] = await Promise.all([auth(), getFeatureFlags()]);
+  const actor = session?.user ?? null;
+  const actorLevel = getActorAccessLevel(actor);
+  const gaFlag = flags.get('ga_analytics');
+  const gaOn = gaFlag
+    ? isFeatureEnabledForLevels(gaFlag.isEnabled, gaFlag.rolloutTier, actorLevel)
+    : true; // missing = allow
+  const authFlag = flags.get('auth');
+  const authEnabled = authFlag
+    ? isFeatureEnabledForLevels(authFlag.isEnabled, authFlag.rolloutTier, actorLevel)
+    : true; // missing = allow
+  const shortlistFlag = flags.get('SHORTLIST_FEATURE');
+  const shortlistEnabled = shortlistFlag
+    ? isFeatureEnabledForLevels(shortlistFlag.isEnabled, shortlistFlag.rolloutTier, actorLevel)
+    : false; // missing = hide
+  const toggles = { auth: authEnabled, shortlist: shortlistEnabled };
+
   return (
     <html lang="en" className={`scroll-smooth ${spaceGrotesk.variable} ${ibmPlexSans.variable}`} suppressHydrationWarning>
       <head>
@@ -131,10 +152,13 @@ export default function RootLayout({
         />
       </head>
       <body className="antialiased">
+        <TogglesProvider toggles={toggles}>
         <AuthProvider>
           <ThemeProvider>
             <RentDisplayProvider>
             <RateLimitProvider>
+              {gaOn && (
+              <>
               <Script
                 src="https://www.googletagmanager.com/gtag/js?id=AW-11417164379"
                 strategy="afterInteractive"
@@ -155,14 +179,17 @@ export default function RootLayout({
                 `}
               </Script>
               <Analytics />
+              </>
+              )}
               <StructuredData />
               <GuestRouteTracker />
               <VercelAnalytics />
-              {children}
+              <AppShell>{children}</AppShell>
             </RateLimitProvider>
             </RentDisplayProvider>
           </ThemeProvider>
         </AuthProvider>
+        </TogglesProvider>
       </body>
     </html>
   );

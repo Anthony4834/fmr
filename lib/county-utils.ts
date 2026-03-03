@@ -28,6 +28,14 @@ export function formatCountyName(name: string, stateCode?: string | null): strin
   // Check if the name already has a county/parish suffix
   const hasCounty = /\bcounty\b/i.test(trimmed);
   const hasParish = /\bparish\b/i.test(trimmed);
+  // "St. Louis city", "Baltimore city" etc. — treat as county-equivalent: " city" -> " County"
+  if (/\s+city\s*$/i.test(trimmed)) {
+    return trimmed.replace(/\s+city\s*$/i, ' County');
+  }
+  // AK "X City and Borough" — keep as-is (already has Borough)
+  if (/\bcity and borough\b/i.test(trimmed)) {
+    return trimmed;
+  }
 
   if (normalizedState === 'LA') {
     // Louisiana: use Parish

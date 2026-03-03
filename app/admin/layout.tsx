@@ -1,5 +1,5 @@
-import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
+import { isEnabled } from '@/lib/feature-flags';
 import AdminLayoutWrapper from './AdminLayoutWrapper';
 
 export default async function AdminLayout({
@@ -9,10 +9,11 @@ export default async function AdminLayout({
 }) {
   const session = await auth();
   const isAdmin = session?.user?.role === 'admin';
+  const adminEnabled = await isEnabled('admin_area', session?.user ?? null);
 
-  // The promote page is public (uses secret for auth)
-  // Other admin pages will check auth individually
-  // The wrapper will hide nav for promote page and non-admins
-  
-  return <AdminLayoutWrapper isAdmin={isAdmin}>{children}</AdminLayoutWrapper>;
+  return (
+    <AdminLayoutWrapper isAdmin={isAdmin} adminEnabled={adminEnabled}>
+      {children}
+    </AdminLayoutWrapper>
+  );
 }

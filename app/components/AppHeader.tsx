@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { ReactNode, useState } from 'react';
 import InvestorScoreInfoButton from './InvestorScoreInfoButton';
-import AnnouncementsButton from './AnnouncementsButton';
 import UserMenu from './UserMenu';
 import AuthModal from './AuthModal';
 import SearchInput from './SearchInput';
@@ -70,7 +69,7 @@ export default function AppHeader({
   className = '',
 }: AppHeaderProps) {
   const [showAuthModal, setShowAuthModal] = useState(false);
-  
+
   const titleContent = (
     <>
       <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[var(--text-primary)] tracking-tight">
@@ -103,7 +102,6 @@ export default function AppHeader({
           )}
           <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
             <InvestorScoreInfoButton />
-            <AnnouncementsButton />
             <UserMenu onSignInClick={() => setShowAuthModal(true)} />
           </div>
         </div>
@@ -116,9 +114,9 @@ export default function AppHeader({
 
         {children}
       </div>
-      
-      <AuthModal 
-        isOpen={showAuthModal} 
+
+      <AuthModal
+        isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
         initialMode="login"
       />

@@ -1018,5 +1018,38 @@ export async function createSchema() {
     );
   `);
 
+  // Feature flags - is_enabled + rollout_tier (1=admin, 2=users, 3=ga)
+  await execute(`
+    CREATE TABLE IF NOT EXISTS feature_flags (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      key TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
+      description TEXT,
+      is_enabled BOOLEAN NOT NULL DEFAULT false,
+      rollout_tier SMALLINT NOT NULL DEFAULT 1 CHECK (rollout_tier BETWEEN 1 AND 3),
+      is_archived BOOLEAN NOT NULL DEFAULT false,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      created_by UUID REFERENCES users(id),
+      updated_by UUID REFERENCES users(id),
+      version INTEGER NOT NULL DEFAULT 1
+    );
+  `);
+  await execute(`
+    CREATE INDEX IF NOT EXISTS feature_flags_active_idx ON feature_flags (is_archived, key);
+  `);
+
+  await execute(`
+    CREATE TABLE IF NOT EXISTS feature_flag_audit (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      feature_flag_id UUID NOT NULL REFERENCES feature_flags(id),
+      action TEXT NOT NULL,
+      old_value JSONB,
+      new_value JSONB,
+      changed_by UUID REFERENCES users(id),
+      changed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+
   console.log("Schema created successfully!");
 }

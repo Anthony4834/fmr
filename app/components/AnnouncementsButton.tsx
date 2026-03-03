@@ -44,23 +44,29 @@ export default function AnnouncementsButton() {
     hasUnread,
     loading,
     markAllRead,
-    refetch,
   } = useAnnouncements();
 
   const [isOpen, setIsOpen] = useState(false);
   const [detailAnnouncement, setDetailAnnouncement] = useState<Announcement | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const didMarkOnOpenRef = useRef(false);
 
   useEffect(() => {
+    if (!isOpen) return;
     const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
+      const target = e.target as Node;
+      if (
+        menuRef.current?.contains(target) ||
+        panelRef.current?.contains(target)
+      ) {
+        return;
       }
+      setIsOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, []);
+  }, [isOpen]);
 
   // When panel opens: mark all read with latestPublishedAt (per spec) and record views
   useEffect(() => {
@@ -101,7 +107,8 @@ export default function AnnouncementsButton() {
 
       {isOpen && (
         <div
-          className="absolute right-0 top-full mt-2 w-[min(360px,calc(100vw-2rem))] max-h-[min(70vh,420px)] overflow-hidden rounded-lg border shadow-lg z-50 flex flex-col"
+          ref={panelRef}
+          className="absolute right-0 top-full mt-2 w-[min(360px,calc(100vw-2rem))] max-h-[min(70vh,420px)] overflow-hidden rounded-lg border shadow-lg z-[100] flex flex-col"
           style={{
             backgroundColor: 'var(--modal-bg)',
             borderColor: 'var(--modal-border)',

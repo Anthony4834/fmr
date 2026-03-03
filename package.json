@@ -39,6 +39,8 @@
     "scrape:rentcast:reset": "bun scripts/rentcast-local-scraper.ts --reset",
     "migrate:guests": "bun scripts/migrate-guests-table.ts",
     "migrate:announcements": "bun scripts/migrate-announcements.ts",
+    "migrate:feature-flags": "bun scripts/migrate-feature-flags.ts",
+    "migrate:feature-flags-v2": "bun scripts/migrate-feature-flags-v2.ts",
     "index:insights": "bun scripts/index-insights.ts"
   },
   "dependencies": {

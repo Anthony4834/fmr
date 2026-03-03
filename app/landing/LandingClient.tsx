@@ -12,7 +12,6 @@ import FeaturesV2 from '@/app/components/landing/FeaturesV2';
 import HowItWorksV2 from '@/app/components/landing/HowItWorksV2';
 import { StatCardV2 } from '@/app/components/landing/StatCardV2';
 import CTAV2 from '@/app/components/landing/CTAV2';
-import FooterV2 from '@/app/components/landing/FooterV2';
 import SearchPreview from '@/app/components/landing/SearchPreview';
 import MapConnector from '@/app/components/landing/MapConnector';
 import CalculatorConnector from '@/app/components/landing/CalculatorConnector';
@@ -533,9 +532,6 @@ export default function LandingClient({ calculatorExample }: LandingClientProps)
         {/* Search Preview */}
         <SearchPreview isReady={isReady} />
       </main>
-
-      {/* Footer */}
-      <FooterV2 />
     </div>
   );
 }

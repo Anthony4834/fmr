@@ -1,26 +1,29 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
+import { useEffect } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 export default function AdminLayoutWrapper({
   children,
   isAdmin,
+  adminEnabled = true,
 }: {
   children: React.ReactNode;
   isAdmin: boolean;
+  adminEnabled?: boolean;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const isPromotePage = pathname === '/admin/promote';
 
-  // Don't show nav on promote page
-  if (isPromotePage) {
-    return <>{children}</>;
-  }
+  useEffect(() => {
+    if (!adminEnabled && !isPromotePage) router.replace('/');
+  }, [adminEnabled, isPromotePage, router]);
 
-  if (!isAdmin) {
-    return <>{children}</>;
-  }
+  if (isPromotePage) return <>{children}</>;
+  if (!adminEnabled) return null;
+  if (!isAdmin) return <>{children}</>;
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -64,6 +67,16 @@ export default function AdminLayoutWrapper({
                   }`}
                 >
                   Announcements
+                </Link>
+                <Link
+                  href="/admin/toggles"
+                  className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
+                    pathname === '/admin/toggles'
+                      ? 'border-blue-500 text-gray-900 dark:text-white'
+                      : 'border-transparent text-gray-500 dark:text-gray-300 hover:border-gray-300 hover:text-gray-700 dark:hover:text-gray-200'
+                  }`}
+                >
+                  Feature Flags
                 </Link>
               </div>
             </div>

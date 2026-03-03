@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useContext } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
 import { ThemeContext } from '@/app/contexts/ThemeContext';
+import { useToggles } from '@/app/contexts/TogglesContext';
 import Tooltip from '@/app/components/Tooltip';
 interface UserMenuProps {
   onSignInClick: () => void;
@@ -80,25 +81,6 @@ const ShieldIcon = ({ className, style }: IconProps) => (
   </svg>
 );
 
-const TrashIcon = ({ className, style }: IconProps) => (
-  <svg className={className} style={style} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-  </svg>
-);
-
-const SettingsIcon = ({ className, style }: IconProps) => (
-  <svg className={className} style={style} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-  </svg>
-);
-
-const ChevronRightIcon = ({ className, style }: IconProps) => (
-  <svg className={className} style={style} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-  </svg>
-);
-
 const InfoIcon = ({ className, style }: IconProps) => (
   <svg className={className} style={style} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -106,11 +88,10 @@ const InfoIcon = ({ className, style }: IconProps) => (
 );
 
 export default function UserMenu({ onSignInClick }: UserMenuProps) {
+  const toggles = useToggles();
+  const signInEnabled = toggles?.auth !== false; // default true when missing
   const { data: session, status } = useSession();
   const [isOpen, setIsOpen] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [imageError, setImageError] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   
@@ -124,7 +105,6 @@ export default function UserMenu({ onSignInClick }: UserMenuProps) {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setIsOpen(false);
-        setShowSettings(false);
       }
     };
 
@@ -179,7 +159,7 @@ export default function UserMenu({ onSignInClick }: UserMenuProps) {
           )}
         </button>
         
-        {/* Sign in button */}
+        {signInEnabled && (
         <button
           onClick={onSignInClick}
           className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 h-9 rounded-lg font-medium transition-all duration-200 text-xs sm:text-sm whitespace-nowrap flex-shrink-0"
@@ -188,6 +168,7 @@ export default function UserMenu({ onSignInClick }: UserMenuProps) {
           <UserIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
           <span className="hidden sm:inline">Sign in</span>
         </button>
+        )}
 
         {/* Theme dropdown for logged-out users */}
         {isOpen && (
@@ -393,43 +374,6 @@ export default function UserMenu({ onSignInClick }: UserMenuProps) {
               </Link>
             )}
             
-            {/* Settings submenu */}
-            <div className="border-t" style={{ borderColor: C.border }}>
-              <button
-                onClick={() => setShowSettings(!showSettings)}
-                className="w-full flex items-center gap-2.5 px-4 py-2 text-sm transition-colors text-left"
-                style={{ color: C.text }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.backgroundColor = C.hover; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.backgroundColor = ''; }}
-              >
-                <SettingsIcon className="w-4 h-4 flex-shrink-0" style={{ color: C.textMuted }} />
-                <span className="flex-1">Settings</span>
-                <ChevronRightIcon 
-                  className={`w-4 h-4 flex-shrink-0 transition-transform ${showSettings ? 'rotate-90' : ''}`}
-                  style={{ color: C.textMuted }}
-                />
-              </button>
-              
-              {showSettings && (
-                <div className="pl-4 pr-2 py-2 space-y-1" style={{ backgroundColor: C.hover }}>
-                  <button
-                    onClick={() => {
-                      setIsOpen(false);
-                      setShowSettings(false);
-                      setShowDeleteConfirm(true);
-                    }}
-                    className="w-full flex items-center gap-2.5 px-4 py-2 text-sm transition-colors text-left rounded"
-                    style={{ color: C.destructive }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.backgroundColor = C.border; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.backgroundColor = ''; }}
-                  >
-                    <TrashIcon className="w-4 h-4 flex-shrink-0" />
-                    Delete account
-                  </button>
-                </div>
-              )}
-            </div>
-            
             {/* Sign out */}
             <button
               onClick={() => { setIsOpen(false); signOut({ callbackUrl: '/' }); }}
@@ -441,60 +385,6 @@ export default function UserMenu({ onSignInClick }: UserMenuProps) {
               <LogOutIcon className="w-4 h-4 flex-shrink-0" style={{ color: C.textMuted }} />
               Sign out
             </button>
-          </div>
-        </div>
-      )}
-
-      {/* Delete account confirmation dialog */}
-      {showDeleteConfirm && (
-        <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ backgroundColor: C.overlay }}
-          onClick={() => !isDeleting && setShowDeleteConfirm(false)}
-        >
-          <div 
-            className="rounded-lg border shadow-lg max-w-md w-full p-6"
-            style={{ backgroundColor: C.bg, borderColor: C.border }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-semibold mb-2" style={{ color: C.text }}>
-              Delete Account
-            </h3>
-            <p className="text-sm mb-6" style={{ color: C.textMuted }}>
-              Are you sure you want to delete your account? This action cannot be undone. All your data will be permanently deleted.
-            </p>
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                disabled={isDeleting}
-                className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                style={{ color: C.text, backgroundColor: C.hover }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={async () => {
-                  setIsDeleting(true);
-                  try {
-                    const response = await fetch('/api/user/delete', { method: 'DELETE' });
-                    if (!response.ok) {
-                      const data = await response.json();
-                      throw new Error(data.error || 'Failed to delete account');
-                    }
-                    await signOut({ callbackUrl: '/' });
-                  } catch (error) {
-                    console.error('Delete account error:', error);
-                    alert(error instanceof Error ? error.message : 'Failed to delete account. Please try again.');
-                    setIsDeleting(false);
-                  }
-                }}
-                disabled={isDeleting}
-                className="px-4 py-2 rounded-lg text-sm font-medium transition-colors text-white"
-                style={{ backgroundColor: isDeleting ? C.textMuted : C.destructive }}
-              >
-                {isDeleting ? 'Deleting...' : 'Delete Account'}
-              </button>
-            </div>
           </div>
         </div>
       )}

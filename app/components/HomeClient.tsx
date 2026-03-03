@@ -15,7 +15,6 @@ import AppHeader from './AppHeader';
 import NewBadge from './NewBadge';
 import ChromeExtensionModal from './ChromeExtensionModal';
 import GeoTabBar from './GeoTabBar';
-import FooterV2 from './landing/FooterV2';
 import { formatCountyName } from '@/lib/county-utils';
 import { useRateLimit } from '@/app/contexts/RateLimitContext';
 
@@ -1125,7 +1124,6 @@ export default function HomeClient(props: {
         )}
 
       </div>
-      <FooterV2 />
     </main>
   );
 }
