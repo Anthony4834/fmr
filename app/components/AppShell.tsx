@@ -37,6 +37,7 @@ function useIsMobile(): boolean {
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isMobile = useIsMobile();
+  const isLanding = pathname === '/landing';
 
   const [collapsed, setCollapsedState] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -58,7 +59,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   const toggles = useToggles();
-  useSidebarKeyboardShortcuts(true, collapsed, setCollapsed, toggles?.shortlist === true);
+  useSidebarKeyboardShortcuts(!isLanding, collapsed, setCollapsed, toggles?.shortlist === true);
+
+  // Landing: natural document scroll (single scrollbar), no sidebar
+  if (isLanding) {
+    return (
+      <SidebarContext.Provider value={{ hasSidebar: false }}>
+        <div className="flex flex-col min-h-screen w-full">
+          <main className="w-full">{children}</main>
+          <FooterV2 />
+        </div>
+      </SidebarContext.Provider>
+    );
+  }
 
   const mainContent = (
     <>
