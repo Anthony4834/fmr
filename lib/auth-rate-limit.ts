@@ -26,6 +26,10 @@ const MAX_FAILED_ATTEMPTS = parseInt(process.env.AUTH_MAX_FAILED_ATTEMPTS || '5'
 const LOCKOUT_DURATION_MINUTES = parseInt(process.env.AUTH_LOCKOUT_DURATION_MINUTES || '15', 10);
 const ATTEMPT_WINDOW_MINUTES = parseInt(process.env.AUTH_ATTEMPT_WINDOW_MINUTES || '60', 10);
 
+/** Signup: max attempts per IP per window (default 20 per hour). Uses same store as login attempts by IP. */
+const SIGNUP_MAX_PER_IP = parseInt(process.env.AUTH_SIGNUP_MAX_PER_IP || '20', 10);
+const SIGNUP_WINDOW_MINUTES = parseInt(process.env.AUTH_SIGNUP_WINDOW_MINUTES || '60', 10);
+
 export interface LoginCheckResult {
   allowed: boolean;
   reason?: string;
@@ -166,7 +170,9 @@ export async function cleanupOldLoginAttempts(): Promise<number> {
 
 /**
  * Check if signup is allowed for an IP address.
- * Limits: 5 signups per IP per hour
+ * Limits: AUTH_SIGNUP_MAX_PER_IP per IP per AUTH_SIGNUP_WINDOW_MINUTES (default 20 per 60 min).
+ * Note: Currently counts login_attempts by IP (signup does not record to this table), so shared IPs
+ * (e.g. office) can hit the limit from login activity; tune via env if needed.
  */
 export async function checkSignupAllowed(ip: string): Promise<RateLimitResult> {
   try {
@@ -174,17 +180,18 @@ export async function checkSignupAllowed(ip: string): Promise<RateLimitResult> {
       `SELECT COUNT(*) as count FROM login_attempts 
        WHERE identifier = $1 
        AND identifier_type = 'ip'
-       AND attempted_at > NOW() - INTERVAL '1 hour'`,
+       AND attempted_at > NOW() - INTERVAL '${SIGNUP_WINDOW_MINUTES} minutes'`,
       [ip]
     );
 
     const signupCount = parseInt(recentSignups[0]?.count || '0', 10);
+    const retryAfterSeconds = SIGNUP_WINDOW_MINUTES * 60;
 
-    if (signupCount >= 5) {
+    if (signupCount >= SIGNUP_MAX_PER_IP) {
       return {
         allowed: false,
         reason: 'Too many signup attempts. Please try again later.',
-        retryAfter: 3600, // 1 hour
+        retryAfter: retryAfterSeconds,
       };
     }
 
